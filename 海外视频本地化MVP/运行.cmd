@@ -8,7 +8,7 @@ if "%~1"=="" (
   echo   links      生成 50 条链接表
   echo   fetch      抓取视频信息
   echo   db         导入 MySQL（可选）
-  echo   decompose  单条 AI 拆解 → video_analysis
+  echo   decompose  结构拆解（规则）→ video_analysis
   echo   templates  爆款结构模板库
   echo   products   产品资料库 ^(DS223^)
   echo   knowledge  知识库检索 ^(KRO^)

@@ -6,7 +6,7 @@
   python scripts/pipeline.py fetch --engine auto        # Playwright 优先，失败回退 oEmbed
   python scripts/pipeline.py fetch --engine playwright  # 仅浏览器，含播放量/时长
   python scripts/pipeline.py db             # 导入 MySQL（需本机数据库可用）
-  python scripts/pipeline.py decompose      # AI 拆解 → video_analysis
+  python scripts/pipeline.py decompose      # 结构拆解（规则）→ video_analysis
   python scripts/pipeline.py templates      # 归纳爆款结构 → script_templates
   python scripts/pipeline.py products       # DS223 → product_materials
   python scripts/pipeline.py knowledge      # KRO 知识库检索
@@ -782,7 +782,7 @@ def cmd_bridge(ids: list[int], force: bool) -> int:
         )
         safe_print(f"OK → overseas-loc-mvp/runs/{slug}")
         done += 1
-    safe_print(f"完成 {done} 条。打开「启动页面MVP.cmd」继续 Step 3–6。")
+    safe_print(f"完成 {done} 条。返回工作台 http://127.0.0.1:8788 → 脚本生成 → 完成交付。")
     return 0 if done else 1
 
 
@@ -798,7 +798,7 @@ def main() -> int:
         help="oembed=官方 API（快）；auto=先 Playwright 再 oEmbed；playwright=仅浏览器",
     )
     sub.add_parser("db", help="导入 MySQL")
-    d = sub.add_parser("decompose", help="AI 拆解 → video_analysis（8字段）")
+    d = sub.add_parser("decompose", help="结构拆解（规则）→ video_analysis（8字段）")
     d.add_argument("--limit", type=int, default=0)
     sub.add_parser("templates", help="归纳爆款结构 → script_templates")
     sub.add_parser("products", help="从 DS223 同步 product_materials")

@@ -56,7 +56,7 @@ def generate_script(
         raise ValueError("素材不存在")
     analysis = detail.get("analysis")
     if not analysis:
-        raise ValueError("该素材尚无 AI 拆解，请先运行：运行.cmd decompose")
+        raise ValueError("该素材尚未结构拆解，请先在「设置」运行「结构拆解」")
 
     product = _pick_product(detail.get("products") or [], product_id)
     pid = product.get("product_id", "")
@@ -130,7 +130,6 @@ def generate_script(
         "product_match": product_material_match(pid, detail),
         "brand_product": display_product_name(pid),
         "bridged_slug": bridged_slug,
-        "localization_url": f"http://127.0.0.1:8787/?ref={bridged_slug}" if bridged_slug else "",
     }
 
 

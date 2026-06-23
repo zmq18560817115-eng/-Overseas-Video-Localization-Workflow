@@ -67,11 +67,23 @@ class Settings:
     @property
     def resolved_kro_script(self) -> Path:
         if self.kro_script_path:
-            return Path(self.kro_script_path)
-        return (
+            configured = Path(self.kro_script_path)
+            if configured.exists():
+                return configured
+        codex_path = (
             Path.home()
             / ".codex"
             / "skills"
+            / "knowledge-research-orchestrator"
+            / "scripts"
+            / "search_local_knowledge.py"
+        )
+        if codex_path.exists():
+            return codex_path
+        return (
+            Path.home()
+            / "Downloads"
+            / "knowledge-research-orchestrator-codex-shareable"
             / "knowledge-research-orchestrator"
             / "scripts"
             / "search_local_knowledge.py"
@@ -80,4 +92,3 @@ class Settings:
 
 settings = Settings()
 settings.runs_dir.mkdir(parents=True, exist_ok=True)
-

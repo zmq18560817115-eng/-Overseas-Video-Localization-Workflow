@@ -10,7 +10,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -48,7 +48,7 @@ from .seedance_bridge import project_status, run_all, seedance_config, test_conn
 
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 20
+UI_VERSION = 21
 
 
 class GenerateRequest(BaseModel):
@@ -88,8 +88,9 @@ class JobStartRequest(BaseModel):
 
 
 @app.get("/")
-async def index() -> FileResponse:
-    return FileResponse(WEB_DIR / "index.html")
+async def index() -> HTMLResponse:
+    raw = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(raw.replace("{{UI_VERSION}}", str(UI_VERSION)))
 
 
 @app.get("/api/health")
@@ -108,6 +109,16 @@ async def health() -> dict:
             "available": bool(os.getenv("ANTHROPIC_API_KEY", "").strip()),
             "model": os.getenv("OVERSEAS_LOC_MODEL", "claude-sonnet-4-6"),
             "fallback": "rule_template（无 Key 时自动使用）",
+            "role": "脚本生成",
+        },
+        "decompose": {
+            "mode": "rule",
+            "provider": "rule",
+            "label": "结构拆解（基于标题/话题标签的规则模板）",
+        },
+        "delivery_engine": {
+            "mode": "subprocess",
+            "label": "overseas-loc-mvp（字幕/zip/SeedDance，由工作台子进程调用）",
         },
         "aigc_primary": "seedance-2.0",
         "seedance": seedance_config(),
@@ -151,7 +162,7 @@ async def material_preview(link_id: int, product_id: str = "") -> dict:
     if not detail:
         raise HTTPException(status_code=404, detail="素材不存在")
     if not detail.get("analysis"):
-        raise HTTPException(status_code=409, detail="该素材尚无 AI 拆解，请先在「设置」运行拆解")
+        raise HTTPException(status_code=409, detail="该素材尚未结构拆解，请先在「设置」运行「结构拆解」")
 
     products = list_products()
     product = None
@@ -204,6 +215,7 @@ async def material_preview(link_id: int, product_id: str = "") -> dict:
         "scenario_conflict_note": scenario_conflict_note(scenario_tags),
         "can_finish": has_script,
         "script_pack": detail.get("script_pack"),
+        "script_meta": detail.get("script_meta"),
         "workflow_note": (
             "仅借鉴本条竞品的钩子/节奏/分镜结构；成片口播与画面统一露出我方品牌，不出现竞品名。"
         ),

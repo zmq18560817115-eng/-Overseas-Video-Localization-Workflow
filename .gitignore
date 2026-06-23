@@ -32,3 +32,6 @@ Thumbs.db
 *.zip
 playwright-report/
 test-results/
+logs/*.log
+logs/*.out.log
+logs/*.err.log

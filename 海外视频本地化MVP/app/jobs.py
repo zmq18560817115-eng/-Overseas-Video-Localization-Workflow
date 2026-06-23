@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import threading
@@ -52,6 +53,11 @@ def _run_pipeline(args: list[str]) -> None:
             text=True,
             encoding="utf-8",
             errors="replace",
+            env={
+                **os.environ,
+                "PYTHONIOENCODING": "utf-8",
+                "PYTHONUTF8": "1",
+            },
         )
         output = (proc.stdout or "") + (proc.stderr or "")
         _set(

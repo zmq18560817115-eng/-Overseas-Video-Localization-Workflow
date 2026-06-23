@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "工作流根目录统一知识源（8787 出稿 + 8788 竞品库共用 NAS 路径）",
+  "description": "8788 工作台与内部交付引擎共用的统一知识源",
   "sources": [
     {
       "id": "obsidian-nas",
@@ -24,7 +24,7 @@
       "id": "delivery-local-knowledge",
       "type": "markdown",
       "root": "../overseas-loc-mvp/knowledge",
-      "description": "出稿页本地知识镜像（离线兜底）",
+      "description": "内部交付引擎本地知识镜像（离线兜底）",
       "priority": 100,
       "enabled": true,
       "exclude_dirs": [".obsidian", "attachments", "附件", "#recycle", ".git", "__pycache__"]

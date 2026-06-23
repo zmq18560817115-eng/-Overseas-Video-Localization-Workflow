@@ -24,5 +24,12 @@ if errorlevel 1 (
 )
 
 echo.
-echo 测试成功。请双击「重启出海出稿.cmd」加载新配置。
+echo 测试成功，正在重启 8788 工作台加载新配置...
+cd /d "%~dp0"
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8788" ^| findstr "LISTENING"') do taskkill /F /PID %%a >nul 2>&1
+timeout /t 1 /nobreak >nul
+start "本地化工作台" cmd /k "cd /d ""%~dp0海外视频本地化MVP"" && call 启动页面.cmd"
+timeout /t 4 /nobreak >nul
+start "" "http://127.0.0.1:8788"
+echo 已完成。
 pause

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from typing import Any
 
@@ -25,6 +26,11 @@ def _run_olm(code: str, *args: str) -> dict[str, Any]:
         text=True,
         encoding="utf-8",
         errors="replace",
+        env={
+            **os.environ,
+            "PYTHONIOENCODING": "utf-8",
+            "PYTHONUTF8": "1",
+        },
     )
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or "SeedDance 调用失败")[-800:]

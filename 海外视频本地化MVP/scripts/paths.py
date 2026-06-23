@@ -23,8 +23,12 @@ GENERATED_SCRIPTS_DIR = MVP_ROOT / "生成脚本"
 WEB_DIR = MVP_ROOT / "web"
 DS223_ROOT = Path(r"\\DS223\obsidian知识库")
 DS223_PRODUCTS_ROOT = DS223_ROOT / "shared-knowledge" / "products"
-KRO_SHAREABLE_DIR = Path(
-    r"C:\Users\bu\Downloads\knowledge-research-orchestrator-codex-shareable\knowledge-research-orchestrator"
+KRO_SHAREABLE_DIR = Path.home() / "Downloads" / "knowledge-research-orchestrator-codex-shareable" / "knowledge-research-orchestrator"
+KRO_CODEX_DIR = (
+    Path.home()
+    / ".codex"
+    / "skills"
+    / "knowledge-research-orchestrator"
 )
 KRO_CONFIG_PATH = MVP_ROOT / "config" / "knowledge-sources.json"
 SCHEMA_SQL = SQL_DIR / "schema.sql"
@@ -80,8 +84,14 @@ load_dotenv(MVP_ROOT / ".env")
 def kro_script_path() -> Path:
     raw = os.getenv("KRO_SCRIPT_PATH", "").strip()
     if raw:
-        return Path(raw)
-    return KRO_SHAREABLE_DIR / "scripts" / "search_local_knowledge.py"
+        configured = Path(raw)
+        if configured.exists():
+            return configured
+    candidates = (
+        KRO_CODEX_DIR / "scripts" / "search_local_knowledge.py",
+        KRO_SHAREABLE_DIR / "scripts" / "search_local_knowledge.py",
+    )
+    return next((path for path in candidates if path.exists()), candidates[0])
 
 
 def kro_config_path() -> Path:

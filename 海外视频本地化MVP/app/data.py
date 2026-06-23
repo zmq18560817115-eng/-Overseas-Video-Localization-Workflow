@@ -174,15 +174,20 @@ def material_detail(link_id: int) -> dict[str, Any] | None:
             generated = GENERATED_SCRIPTS_DIR / str(link_id)
             pack_path = generated / "script-pack.json"
             script_pack = None
+            script_meta = None
             if pack_path.exists():
                 try:
-                    script_pack = json.loads(pack_path.read_text(encoding="utf-8")).get("pack")
+                    raw_pack = json.loads(pack_path.read_text(encoding="utf-8"))
+                    script_pack = raw_pack.get("pack")
+                    script_meta = raw_pack.get("meta")
                 except (json.JSONDecodeError, OSError):
                     script_pack = None
+                    script_meta = None
             payload = dict(item)
             payload["analysis"] = analysis
             payload["products"] = product_rows
             payload["script_pack"] = script_pack
+            payload["script_meta"] = script_meta
             payload["generated"] = {
                 "exists": generated.exists(),
                 "files": sorted(p.name for p in generated.glob("*")) if generated.exists() else [],

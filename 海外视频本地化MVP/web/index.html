@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>海外视频本地化工作台</title>
-  <link rel="stylesheet" href="/static/styles.css?v=19">
+  <link rel="stylesheet" href="/static/styles.css?v={{UI_VERSION}}">
 </head>
 <body>
   <aside class="sidebar">
@@ -190,10 +190,10 @@
       <div class="settings-layout">
         <section class="card settings-card">
           <div class="pane-title">数据同步</div>
-          <p class="hint">按顺序：先同步 TikTok → 再拆解 → 更新模板</p>
+          <p class="hint">按顺序：先同步 TikTok → 再结构拆解 → 更新模板</p>
           <div class="job-grid">
             <button type="button" class="job-btn" data-job="fetch">① 同步 TikTok</button>
-            <button type="button" class="job-btn" data-job="decompose">② AI 拆解</button>
+            <button type="button" class="job-btn" data-job="decompose">② 结构拆解</button>
             <button type="button" class="job-btn" data-job="templates">③ 更新模板</button>
             <button type="button" class="job-btn" data-job="products">同步产品资料</button>
           </div>
@@ -221,6 +221,6 @@
     </main>
   </div>
 
-  <script src="/static/app.js?v=24"></script>
+  <script src="/static/app.js?v={{UI_VERSION}}"></script>
 </body>
 </html>

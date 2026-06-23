@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import subprocess
 import sys
 import zipfile
@@ -44,6 +45,11 @@ def ensure_delivery_project(link_id: int) -> str:
             text=True,
             encoding="utf-8",
             errors="replace",
+            env={
+                **os.environ,
+                "PYTHONIOENCODING": "utf-8",
+                "PYTHONUTF8": "1",
+            },
         )
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout or "bridge 失败")[-800:]
@@ -116,6 +122,11 @@ print(json.dumps({"ok": True, "slug": slug, "delivery_ready": result.get("delive
         text=True,
         encoding="utf-8",
         errors="replace",
+        env={
+            **os.environ,
+            "PYTHONIOENCODING": "utf-8",
+            "PYTHONUTF8": "1",
+        },
     )
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or "交付失败")[-800:]

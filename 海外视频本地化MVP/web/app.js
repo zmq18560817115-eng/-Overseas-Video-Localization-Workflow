@@ -17,7 +17,17 @@ const state = {
   healthCache: null,
 };
 
-const SCENARIO_GROUPS = [
+const JOB_LABELS = {
+  fetch: "同步 TikTok",
+  decompose: "结构拆解",
+  templates: "更新模板",
+  products: "同步产品资料",
+  links: "生成链接表",
+};
+
+function jobLabel(name) {
+  return JOB_LABELS[name] || name || "";
+}
   { id: "bedroom", keys: ["卧室", "夜间", "夜奶"] },
   { id: "car", keys: ["车内", "杯架"] },
   { id: "travel", keys: ["机场", "旅途", "长途"] },
@@ -147,9 +157,16 @@ function formatStoryboardHtml(storyboard) {
     </div>`).join("");
 }
 
-function formatPackResult(pack) {
+function formatPackResult(pack, meta) {
   const broll = (pack.seedance_prompts || []).filter(Boolean);
   const m = pack.inputs?.market || {};
+  const provider = meta?.provider || pack.provider || "";
+  const model = meta?.model || pack.model || "";
+  const providerLine = provider === "anthropic"
+    ? `脚本引擎：Claude（${esc(model || "claude")}）`
+    : provider === "rule_template"
+      ? "脚本引擎：规则模板（未配置 ANTHROPIC_API_KEY 或 API 失败时自动使用）"
+      : "";
   const tagSummary = [
     m.audience_tags?.length ? `人群：${m.audience_tags.join("、")}` : "",
     m.scenario_tags?.length ? `场景：${m.scenario_tags.join("、")}` : "",
@@ -162,6 +179,7 @@ function formatPackResult(pack) {
   const sceneWarn = pack.inputs?.scenario_conflict_note;
   return `
     <h3>脚本已生成</h3>
+    ${providerLine ? `<p class="muted">${providerLine}</p>` : ""}
     ${tagSummary ? `<p class="muted">本次定制下发：${esc(tagSummary)}</p>` : ""}
     ${sceneNote ? `<p class="muted">${esc(sceneNote)}</p>` : ""}
     ${sceneWarn ? `<p class="workflow-warn">${esc(sceneWarn)}</p>` : ""}
@@ -732,7 +750,7 @@ async function refreshScriptPreview() {
     }
     if (prev.has_script && prev.script_pack) {
       resultWrap.classList.remove("hidden");
-      scriptResultBody().innerHTML = formatPackResult(prev.script_pack);
+      scriptResultBody().innerHTML = formatPackResult(prev.script_pack, prev.script_meta);
     }
     syncFinishButton(Boolean(prev.can_finish), Boolean(prev.delivery_ready));
     if (prev.has_script || prev.project_ready) {
@@ -809,7 +827,7 @@ document.getElementById("scriptGenerateBtn").addEventListener("click", async () 
     });
     const pack = res.script_pack || res.pack || {};
     state.scriptSlug = res.slug || slugFor(linkId);
-    resultEl.innerHTML = formatPackResult(pack);
+    resultEl.innerHTML = formatPackResult(pack, res.meta);
     syncFinishButton(true, Boolean(state.lastPreview?.delivery_ready));
     await refreshScriptPreview();
   } catch (err) {
@@ -956,9 +974,11 @@ async function loadSettingsView() {
   state.healthCache = h;
   renderSeedanceSettings(h);
   document.getElementById("envInfo").innerHTML = `
-    UI v${h.ui_version} · 素材 ${h.materials} · 产品 ${h.products} · 成稿 ${h.finished}<br>
-    LLM: ${h.llm.available ? h.llm.model : h.llm.fallback}<br>
-    SeedDance: ${h.seedance?.configured ? "已配置 FAL_KEY" : "未配置（见上方）"}`;
+    UI v${h.ui_version} · 素材 ${h.materials}（已拆解 ${h.analyzed}）· 产品 ${h.products} · 成稿 ${h.finished}<br>
+    结构拆解：${h.decompose?.label || "规则模板"}<br>
+    脚本生成：${h.llm.available ? h.llm.model : h.llm.fallback}<br>
+    交付引擎：${h.delivery_engine?.label || "overseas-loc-mvp"}<br>
+    SeedDance：${h.seedance?.configured ? "已配置 FAL_KEY" : "未配置（见上方）"}`;
   await pollJobStatus();
 }
 
@@ -967,13 +987,13 @@ async function pollJobStatus() {
   const el = document.getElementById("jobStatus");
   const log = document.getElementById("jobLog");
   if (st.status === "running") {
-    el.textContent = `运行中：${st.job}（${st.started_at || ""}）`;
+    el.textContent = `运行中：${jobLabel(st.job)}（${st.started_at || ""}）`;
     log.textContent = st.output || "";
     if (!state.jobPoll) {
       state.jobPoll = setInterval(async () => {
         const s = await api("/api/jobs/status");
         document.getElementById("jobStatus").textContent = s.status === "running"
-          ? `运行中：${s.job}` : (s.exit_code === 0 ? `✅ ${s.job} 完成` : `❌ ${s.job} 失败 (code ${s.exit_code})`);
+          ? `运行中：${jobLabel(s.job)}` : (s.exit_code === 0 ? `✅ ${jobLabel(s.job)} 完成` : `❌ ${jobLabel(s.job)} 失败 (code ${s.exit_code})`);
         document.getElementById("jobLog").textContent = s.output || "";
         if (s.status !== "running") {
           clearInterval(state.jobPoll);
@@ -984,7 +1004,7 @@ async function pollJobStatus() {
       }, 2000);
     }
   } else {
-    el.textContent = st.job ? `${st.status}: ${st.job}` : "就绪";
+    el.textContent = st.job ? `${st.status}: ${jobLabel(st.job)}` : "就绪";
     log.textContent = st.output || "";
   }
 }

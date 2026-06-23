@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import shutil
 import zipfile
 from pathlib import Path
@@ -9,7 +10,7 @@ from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
@@ -65,7 +66,9 @@ from .workflow import (
 
 
 app = FastAPI(title="海外短视频本地化 MVP", version="0.1.0")
-app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
+_ENABLE_UI = os.getenv("OVERSEAS_LOC_ENABLE_UI", "").strip().lower() in ("1", "true", "yes")
+if _ENABLE_UI:
+    app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
 
 def _require(project: Path, *names: str) -> None:
@@ -194,9 +197,21 @@ def _project_list_item(path: Path) -> dict:
     }
 
 
+_ENGINE_NOTICE = """<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>交付引擎 API</title></head>
+<body style="font-family:sans-serif;max-width:640px;margin:48px auto;line-height:1.6">
+  <h1>overseas-loc-mvp · 内部交付引擎</h1>
+  <p>日常请使用 <strong><a href="http://127.0.0.1:8788">工作台 8788</a></strong>（素材库 → 脚本生成 → 完成交付）。</p>
+  <p>本服务仅提供 API（字幕、交付 zip、SeedDance），由 8788 通过子进程调用，无需单独打开页面。</p>
+  <p><a href="/docs">OpenAPI 文档</a></p>
+</body></html>"""
+
+
 @app.get("/")
-async def index() -> FileResponse:
-    return FileResponse(settings.static_dir / "index.html")
+async def index() -> HTMLResponse | FileResponse:
+    if _ENABLE_UI:
+        return FileResponse(settings.static_dir / "index.html")
+    return HTMLResponse(_ENGINE_NOTICE)
 
 
 @app.get("/api/health")
@@ -217,7 +232,7 @@ async def health() -> dict:
             "image_model": settings.seedance_image_model_resolved,
             "text_model": settings.seedance_text_model_resolved,
             "use_fast": settings.seedance_use_fast,
-            "setup": "在 overseas-loc-mvp/.env 填写 FAL_KEY，然后点页面「测试 SeedDance 连接」",
+            "setup": "在 overseas-loc-mvp/.env 填写 FAL_KEY；在工作台「设置」或脚本页测试连接",
             "docs": "https://fal.ai/models/bytedance/seedance-2.0/text-to-video/api",
         },
         "localize_mode": {
