@@ -9,7 +9,11 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from fastapi import FastAPI, HTTPException
+from ensure_legacy_paths import ensure_legacy_junctions
+
+ensure_legacy_junctions()
+
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -26,10 +30,16 @@ from .data import (
     filter_materials,
     filter_options,
     link_has_script,
+    load_analysis_detail,
     load_materials,
     load_script_payload,
     material_detail,
+    needs_doubao_analysis,
+    shot_count_for,
 )
+from .analyze_jobs import analyze_status, clear_analyze_job, start_material_analyze
+from .doubao_config import doubao_config, video_analysis_policy
+from .doubao_video_analysis import test_connection as test_doubao_connection
 from .jobs import job_status, start_job
 from .library_api import list_feedback, list_finished, load_feedback, load_templates, save_feedback
 from .llm_script import pick_template
@@ -44,11 +54,43 @@ from .product_tags import normalize_selected_tags, product_delivery_tags
 from .products import get_product, list_products, update_product
 from .scene_script import scenario_conflict_note
 from .script_gen import generate_script
-from .seedance_bridge import project_status, run_all, seedance_config, test_connection
+from .thumbnails import ensure_thumbnail_cached
+from .seedance_bridge import (
+    assemble_project,
+    project_status,
+    refresh_project_seedance_source,
+    run_all,
+    seedance_config,
+    test_connection,
+)
 
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 21
+UI_VERSION = 54
+
+
+def _friendly_analyze_message(detail: dict[str, Any] | None, link_id: int | str) -> str:
+    analysis = (detail or {}).get("analysis") if detail else None
+    err = ""
+    if isinstance(analysis, dict):
+        err = str(analysis.get("error_message") or "")
+    if "ReadTimeout" in err:
+        return (
+            f"豆包 API 响应超时（约 3 分钟）。可点击「重试拆解」，"
+            f"或将源视频放入「源视频/{link_id}.mp4」后重新打开。"
+        )
+    if "doubao_fallback" in err:
+        return "豆包拆解失败，已回退规则模板。可重试拆解，或补充源视频后再试。"
+    return "豆包拆解未完成，请稍后重试。"
+
+
+def _sanitize_analyze_message(message: str | None) -> str:
+    text = str(message or "").strip()
+    if not text:
+        return ""
+    if "video_analysis.csv" in text or "豆包失败，已回退规则" in text or "rule shots=" in text:
+        return ""
+    return text
 
 
 class GenerateRequest(BaseModel):
@@ -85,6 +127,7 @@ class FeedbackUpdateRequest(BaseModel):
 
 class JobStartRequest(BaseModel):
     engine: str = "auto"
+    provider: str = "auto"
 
 
 @app.get("/")
@@ -112,9 +155,15 @@ async def health() -> dict:
             "role": "脚本生成",
         },
         "decompose": {
-            "mode": "rule",
-            "provider": "rule",
-            "label": "结构拆解（基于标题/话题标签的规则模板）",
+            "mode": "doubao" if doubao_config().get("configured") else "rule",
+            "provider": doubao_config().get("provider_default", "auto"),
+            "label": (
+                "结构拆解（豆包视频理解 + 规则兜底）"
+                if doubao_config().get("configured")
+                else "结构拆解（基于标题/话题标签的规则模板）"
+            ),
+            "doubao": doubao_config(),
+            "policy": video_analysis_policy(),
         },
         "delivery_engine": {
             "mode": "subprocess",
@@ -146,6 +195,123 @@ async def materials(
         analyzed_only=analyzed_only,
     )
     return {"total": len(filtered), "items": filtered}
+
+
+@app.get("/api/materials/{link_id}/analysis/detail")
+async def material_analysis_detail(link_id: int) -> dict:
+    """打开素材详情时自动触发豆包拆解（若尚未完成）。"""
+    detail = load_analysis_detail(str(link_id))
+    job = analyze_status(link_id)
+    lid = str(link_id)
+
+    if detail and shot_count_for(lid, detail) >= 1:
+        clear_analyze_job(link_id)
+        warning = ""
+        analysis = detail.get("analysis") or {}
+        if isinstance(analysis, dict) and analysis.get("analyze_provider") == "rule":
+            if "doubao_fallback" in str(analysis.get("error_message") or ""):
+                warning = "最近一次豆包拆解超时，当前展示已有分镜结果。"
+        return {**detail, "status": "ready", "warning": warning}
+
+    if needs_doubao_analysis(lid, detail):
+        if job and job.get("status") == "running":
+            base = detail or {"link_id": link_id, "shots": [], "summary": "", "full_transcript": ""}
+            return {**base, "status": "running", "message": "豆包视频拆解中，请稍候…", "job": job}
+        if not job or job.get("status") != "running":
+            job = start_material_analyze(link_id)
+        base = detail or {"link_id": link_id, "shots": [], "summary": "", "full_transcript": ""}
+        return {
+            **base,
+            "status": "running",
+            "message": "豆包视频拆解中，请稍候…",
+            "job": job,
+        }
+
+    policy = video_analysis_policy()
+    if not detail and not policy.get("auto_enabled"):
+        raise HTTPException(
+            status_code=404,
+            detail=policy.get("message") or "素材尚未拆解，且当前已暂停自动分析",
+        )
+    if detail and not policy.get("llm_enabled") and shot_count_for(lid, detail) < 1:
+        return {
+            **detail,
+            "status": "ready",
+            "warning": policy.get("message") or "视频豆包拆解已暂停，仅展示已有元数据。",
+            "retryable": False,
+        }
+
+    if detail and isinstance(detail.get("analysis"), dict):
+        err = str((detail["analysis"] or {}).get("error_message") or "")
+        if "doubao_fallback" in err:
+            return {
+                **detail,
+                "status": "error",
+                "message": _friendly_analyze_message(detail, link_id),
+                "retryable": True,
+                "job": job,
+            }
+
+    if job and job.get("status") == "error":
+        msg = _sanitize_analyze_message(job.get("output")) or _friendly_analyze_message(detail, link_id)
+        return {
+            **(detail or {"link_id": link_id, "shots": [], "summary": "", "full_transcript": ""}),
+            "status": "error",
+            "message": msg,
+            "retryable": True,
+            "job": job,
+        }
+
+    if not detail:
+        raise HTTPException(status_code=404, detail="素材不存在或未抓取元数据")
+    return {**detail, "status": "ready"}
+
+
+@app.post("/api/materials/{link_id}/analyze")
+async def material_analyze(link_id: int) -> dict:
+    """手动重试豆包拆解。"""
+    policy = video_analysis_policy()
+    if not policy.get("llm_enabled"):
+        raise HTTPException(
+            status_code=403,
+            detail=policy.get("message") or "视频豆包拆解已暂停",
+        )
+    from .jobs import PIPELINE, PYTHON
+    import subprocess
+
+    clear_analyze_job(link_id)
+    proc = subprocess.run(
+        [
+            str(PYTHON),
+            str(PIPELINE),
+            "decompose",
+            "--provider",
+            "doubao",
+            "--link-id",
+            str(link_id),
+        ],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=600,
+    )
+    detail = load_analysis_detail(str(link_id))
+    if proc.returncode != 0 or (detail and shot_count_for(str(link_id), detail) < 1):
+        msg = _friendly_analyze_message(detail, link_id)
+        if proc.returncode != 0 and proc.stderr:
+            msg = (proc.stderr or proc.stdout or msg)[-300:]
+        raise HTTPException(status_code=500, detail=msg)
+    return {"ok": True, "status": "ready", "detail": detail}
+
+
+@app.get("/api/materials/{link_id}/thumbnail")
+async def material_thumbnail(link_id: int) -> FileResponse:
+    path = ensure_thumbnail_cached(link_id)
+    if not path or not path.is_file():
+        raise HTTPException(status_code=404, detail="封面不可用，请在「设置」运行「同步 TikTok」或「缓存封面」")
+    return FileResponse(path, media_type="image/jpeg", filename=f"{link_id}.jpg")
 
 
 @app.get("/api/materials/{link_id}")
@@ -211,6 +377,7 @@ async def material_preview(link_id: int, product_id: str = "") -> dict:
         "product_match": matched_product,
         "brand_product": display_product_name(pid) if pid else "",
         "delivery_tags": tag_pool,
+        "library_tags": tag_pool,
         "selected_tags": selected,
         "scenario_conflict_note": scenario_conflict_note(scenario_tags),
         "can_finish": has_script,
@@ -332,7 +499,11 @@ async def jobs_status() -> dict:
 @app.post("/api/jobs/{job_name}")
 async def jobs_start(job_name: str, body: JobStartRequest | None = None) -> dict:
     try:
-        return start_job(job_name, engine=(body.engine if body else "auto"))
+        return start_job(
+            job_name,
+            engine=(body.engine if body else "auto"),
+            provider=(body.provider if body else "auto"),
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
@@ -349,6 +520,11 @@ async def delivery_finish(slug: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/doubao/test")
+async def doubao_test() -> dict:
+    return await test_doubao_connection()
 
 
 @app.get("/api/seedance/test")
@@ -370,16 +546,28 @@ async def delivery_seedance(slug: str) -> dict:
 
 
 @app.post("/api/delivery/{slug}/seedance/run")
-async def delivery_seedance_run(slug: str) -> dict:
+async def delivery_seedance_run(slug: str, force: bool = Query(False)) -> dict:
     if not project_exists(slug):
         raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
     try:
         status = project_status(slug)
         if not status.get("shots"):
-            raise HTTPException(status_code=409, detail="本项目无 AI_BROLL 镜头，无需 SeedDance")
-        return run_all(slug)
+            raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜")
+        if force:
+            refresh_project_seedance_source(slug)
+        return run_all(slug, force=force)
     except HTTPException:
         raise
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/delivery/{slug}/assemble")
+async def delivery_assemble(slug: str) -> dict:
+    if not project_exists(slug):
+        raise HTTPException(status_code=404, detail="项目不存在，请先生成脚本")
+    try:
+        return assemble_project(slug)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

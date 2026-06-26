@@ -70,8 +70,8 @@ def _run_pipeline(args: list[str]) -> None:
         _set(status="error", finished_at=_utc(), exit_code=-1, output=str(exc))
 
 
-def start_job(name: str, *, engine: str = "auto") -> dict[str, Any]:
-    allowed = {"links", "fetch", "decompose", "templates", "products"}
+def start_job(name: str, *, engine: str = "auto", provider: str = "auto") -> dict[str, Any]:
+    allowed = {"links", "discover", "promote", "fetch", "decompose", "templates", "products", "cache-thumbnails"}
     if name not in allowed:
         raise ValueError(f"不支持的任务: {name}")
     with _lock:
@@ -80,6 +80,10 @@ def start_job(name: str, *, engine: str = "auto") -> dict[str, Any]:
     args = [name]
     if name == "fetch":
         args.extend(["--engine", engine])
+    if name == "discover":
+        args.extend(["--engine", engine])
+    if name == "decompose":
+        args.extend(["--provider", provider])
     thread = threading.Thread(target=_run_pipeline, args=(args,), daemon=True)
     thread.start()
     return job_status()

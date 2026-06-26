@@ -1,0 +1,18 @@
+---
+description: 修改视频流水线代码时同步 product_usage / scene_script / ai_video
+globs: 海外视频本地化MVP/app/{product_usage,scene_script,ai_video,script_gen,product_assets}.py,overseas-loc-mvp/app/{product_usage,ai_video,production_archive}.py,overseas-video-output-standards/**
+alwaysApply: false
+---
+
+# 视频流水线代码约定
+
+修改以下文件时，必须与 `overseas-video-output-standards/references/product-rules.md` 保持一致，并双边同步：
+
+- `海外视频本地化MVP/app/product_usage.py`
+- `overseas-loc-mvp/app/product_usage.py`
+
+分镜英文 Prompt 走 `ai_video.py`；中文场景走 `scene_script.py`。产品垫图优先级在 `product_assets.py`（`主图/倒出口参考.png` 优先）。
+
+每次成功拼接 `final-video.mp4` 会自动归档到 `03_产出库/`；勿再写入根目录 `output/` 单文件覆盖。
+
+改完运行：`python scripts/validate_output_standards_skill.py`

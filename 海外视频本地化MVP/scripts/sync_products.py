@@ -199,7 +199,7 @@ def parse_product_md(path: Path, global_forbidden: str) -> dict[str, str] | None
         product_name = "熊猫布布吸奶器"
     elif stem == "便携恒温杯" or "恒温杯" in product_name:
         product_id = "便携恒温杯"
-        product_name = "便携恒温杯"
+        product_name = "熊猫布布便携恒温杯"
     else:
         return None
 

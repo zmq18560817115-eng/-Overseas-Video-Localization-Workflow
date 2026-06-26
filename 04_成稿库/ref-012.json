@@ -1,0 +1,35 @@
+{
+  "slug": "ref-012",
+  "link_id": "12",
+  "title": "Portable bottle warmer tips for traveling parents",
+  "saved_at": "2026-06-26T02:37:03.750831+00:00",
+  "script_refs": {
+    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\12\\script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\12",
+    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\12\\script-pack.md"
+  },
+  "video_refs": [
+    "broll/shot-1.mp4",
+    "broll/shot-2.mp4",
+    "broll/shot-3.mp4",
+    "broll/shot-4.mp4",
+    "broll/shot-5.mp4"
+  ],
+  "template_id": "",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "便携恒温杯",
+  "delivery_files": [
+    "交付脚本包.md",
+    "交付脚本包.json",
+    "subtitles.srt",
+    "剪辑单.html"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@racheljoanmyers/video/7462847085394644270",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "PSA you’ll literally cry  #parentingtips #drbrowns #drbrownbottles #newborn #new",
+    "target_country": "US"
+  }
+}

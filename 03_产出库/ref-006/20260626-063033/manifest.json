@@ -1,0 +1,18 @@
+{
+  "slug": "ref-006",
+  "version": "20260626-063033",
+  "archived_at": "2026-06-26T06:30:33.064483+00:00",
+  "note": "migrate_workspace_layout",
+  "prompt_fingerprint": "4fb6269e",
+  "shots": [
+    "shot-1.mp4",
+    "shot-2.mp4",
+    "shot-3.mp4",
+    "shot-4.mp4",
+    "shot-5.mp4"
+  ],
+  "final_video": "final-video.mp4",
+  "bytes": 8089166,
+  "source_runs": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\overseas-loc-mvp\\runs\\ref-006",
+  "assemble": {}
+}

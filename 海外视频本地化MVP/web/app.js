@@ -1,5 +1,5 @@
 const state = {
-  view: "materials",
+  view: "workspace",
   items: [],
   products: [],
   templates: [],
@@ -12,22 +12,29 @@ const state = {
   selectedScenarios: [],
   lastPreview: null,
   tagPoolExtra: { audience: [], scenarios: [], selling: [], pains: [] },
+  tagSelection: { audience: [], scenarios: [], selling: [], pains: [] },
   filters: { category: "", q: "", analyzedOnly: false },
   jobPoll: null,
   healthCache: null,
+  scriptStep: "ref",
 };
 
 const JOB_LABELS = {
+  discover: "发现候选",
+  promote: "筛选入库",
   fetch: "同步 TikTok",
   decompose: "结构拆解",
   templates: "更新模板",
   products: "同步产品资料",
   links: "生成链接表",
+  "cache-thumbnails": "缓存封面图",
 };
 
 function jobLabel(name) {
   return JOB_LABELS[name] || name || "";
 }
+
+const SCENARIO_GROUPS = [
   { id: "bedroom", keys: ["卧室", "夜间", "夜奶"] },
   { id: "car", keys: ["车内", "杯架"] },
   { id: "travel", keys: ["机场", "旅途", "长途"] },
@@ -80,28 +87,29 @@ const TAG_GROUPS = {
     field: "target_audience",
     poolKey: "audience",
     savedKey: "audience",
-    label: "目标人群（可多选，本页完成）",
+    label: "目标人群",
     placeholder: "输入人群标签，如：夜奶家庭",
   },
   scenario: {
     field: "usage_scenarios",
     poolKey: "scenarios",
     savedKey: "scenarios",
-    label: "投放场景（可多选，本页完成）",
+    label: "投放场景",
     placeholder: "输入场景标签，如：车内杯架",
+    single: true,
   },
   selling: {
     field: "core_selling_points",
     poolKey: "selling",
     savedKey: "selling",
-    label: "核心卖点（可多选，本页完成）",
+    label: "核心卖点",
     placeholder: "输入卖点，如：USB-C 充电",
   },
   pain: {
     field: "pain_points",
     poolKey: "pains",
     savedKey: "pains",
-    label: "用户痛点（可多选，本页完成）",
+    label: "用户痛点",
     placeholder: "输入痛点，如：外出没热水",
   },
 };
@@ -122,13 +130,18 @@ function buildTagPool(p, apiTags) {
 }
 
 function defaultSelectedTags(pool, saved) {
-  const pick = (poolKey, savedKey) => {
+  const pick = (poolKey, savedKey, single = false) => {
+    if (saved && Object.prototype.hasOwnProperty.call(saved, savedKey)) {
+      const list = (saved[savedKey] || []).filter((t) => pool[poolKey].includes(t));
+      return single ? list.slice(0, 1) : list;
+    }
     const list = (saved?.[savedKey] || []).filter((t) => pool[poolKey].includes(t));
-    return list.length ? list : (pool[poolKey][0] ? [pool[poolKey][0]] : []);
+    if (list.length) return single ? list.slice(0, 1) : list;
+    return pool[poolKey][0] ? [pool[poolKey][0]] : [];
   };
   return {
     audience: pick("audience", "audience"),
-    scenarios: pick("scenarios", "scenarios"),
+    scenarios: pick("scenarios", "scenarios", true),
     selling: pick("selling", "selling"),
     pains: pick("pains", "pains"),
   };
@@ -136,25 +149,77 @@ function defaultSelectedTags(pool, saved) {
 
 function readAllSelectedTags() {
   return {
-    audience: readSelectedTags("audience"),
-    scenarios: readSelectedTags("scenario"),
-    selling: readSelectedTags("selling"),
-    pains: readSelectedTags("pain"),
+    audience: [...(state.tagSelection?.audience || [])],
+    scenarios: [...(state.tagSelection?.scenarios || [])],
+    selling: [...(state.tagSelection?.selling || [])],
+    pains: [...(state.tagSelection?.pains || [])],
   };
+}
+
+const TAG_GROUP_DOM = {
+  audience: { row: "audienceTagRow", library: "audienceLibraryRow", poolKey: "audience", savedKey: "audience" },
+  scenario: { row: "scenarioTagRow", library: "scenarioLibraryRow", poolKey: "scenarios", savedKey: "scenarios" },
+  selling: { row: "sellingTagRow", library: "sellingLibraryRow", poolKey: "selling", savedKey: "selling" },
+  pain: { row: "painTagRow", library: "painLibraryRow", poolKey: "pains", savedKey: "pains" },
+};
+
+function readSelectedTags(group) {
+  const key = TAG_GROUP_DOM[group]?.savedKey;
+  return key ? [...(state.tagSelection?.[key] || [])] : [];
+}
+
+function toggleTagChip(group, value) {
+  const cfg = TAG_GROUPS[group];
+  const dom = TAG_GROUP_DOM[group];
+  if (!cfg || !dom || !value) return;
+  const key = dom.savedKey;
+  let sel = [...(state.tagSelection[key] || [])];
+  if (cfg.single) {
+    state.tagSelection[key] = sel.includes(value) ? [] : [value];
+    return;
+  }
+  state.tagSelection[key] = sel.includes(value) ? sel.filter((t) => t !== value) : [...sel, value];
+}
+
+function refreshTagGroupsUI() {
+  const pool = state.currentTagPool || { audience: [], scenarios: [], selling: [], pains: [] };
+  const sel = state.tagSelection || readAllSelectedTags();
+  for (const [group, dom] of Object.entries(TAG_GROUP_DOM)) {
+    const picked = sel[dom.savedKey] || [];
+    renderTagRow(dom.row, pool[dom.poolKey] || [], picked, group);
+    renderLibraryTagRow(dom.library, pool[dom.poolKey] || [], picked, group);
+  }
+  const warn = document.getElementById("scenarioConflictWarn");
+  if (warn) {
+    const conflict = scenarioConflictNote(sel.scenarios);
+    if (conflict) {
+      warn.classList.remove("hidden");
+      warn.textContent = conflict;
+    } else {
+      warn.classList.add("hidden");
+      warn.textContent = "";
+    }
+  }
 }
 
 function formatStoryboardHtml(storyboard) {
   const shots = storyboard || [];
   if (!shots.length) return '<p class="muted">暂无分镜</p>';
-  return shots.map((s) => `
-    <div class="shot-block">
-      <strong>第 ${s.number} 镜 · ${esc(s.role || "")}（${esc(s.timing || "")}）</strong>
-      <p><span class="pack-label">画面</span>${esc(s.visual || "")}</p>
-      <p><span class="pack-label">口播（英文）</span>${esc(s.voiceover_en || "")}</p>
-      <p><span class="pack-label">字幕（英文）</span>${esc(s.subtitle_en || "")}</p>
-      ${s.visual_prompt ? `<p><span class="pack-label">构图提示</span>${esc(s.visual_prompt)}</p>` : ""}
-      ${s.seedance_prompt ? `<p><span class="pack-label">空镜提示（英文）</span>${esc(s.seedance_prompt)}</p>` : ""}
-    </div>`).join("");
+  return `<div class="shot-list-compact">${shots.map((s, idx) => {
+    const vo = String(s.voiceover_en || "").trim();
+    const voPreview = vo.length > 72 ? `${vo.slice(0, 72)}…` : vo;
+    return `
+    <details class="shot-compact"${idx === 0 ? " open" : ""}>
+      <summary>第 ${s.number} 镜 · ${esc(s.role || "")}（${esc(s.timing || "")}）${voPreview ? ` — ${esc(voPreview)}` : ""}</summary>
+      <div class="shot-compact-body">
+        <p><span class="pack-label">画面</span>${esc(s.visual || "")}</p>
+        <p><span class="pack-label">口播</span>${esc(s.voiceover_en || "")}</p>
+        <p><span class="pack-label">字幕</span>${esc(s.subtitle_en || "")}</p>
+        ${s.visual_prompt ? `<p><span class="pack-label">构图</span>${esc(s.visual_prompt)}</p>` : ""}
+        ${s.seedance_prompt ? `<p><span class="pack-label">空镜</span>${esc(s.seedance_prompt)}</p>` : ""}
+      </div>
+    </details>`;
+  }).join("")}</div>`;
 }
 
 function formatPackResult(pack, meta) {
@@ -177,91 +242,138 @@ function formatPackResult(pack, meta) {
     ? `全片统一场景：${pack.inputs.scenario_primary}`
     : "";
   const sceneWarn = pack.inputs?.scenario_conflict_note;
+  const title = String(pack.title || "").trim();
+  const subtitle = String(pack.subtitle || "").trim();
+  const voiceover = String(pack.voiceover_20s || "").trim();
   return `
     <h3>脚本已生成</h3>
-    ${providerLine ? `<p class="muted">${providerLine}</p>` : ""}
-    ${tagSummary ? `<p class="muted">本次定制下发：${esc(tagSummary)}</p>` : ""}
-    ${sceneNote ? `<p class="muted">${esc(sceneNote)}</p>` : ""}
+    ${providerLine ? `<p class="pack-summary-line">${providerLine}</p>` : ""}
+    ${tagSummary ? `<p class="pack-summary-line">${esc(tagSummary)}</p>` : ""}
+    ${sceneNote ? `<p class="pack-summary-line">${esc(sceneNote)}</p>` : ""}
     ${sceneWarn ? `<p class="workflow-warn">${esc(sceneWarn)}</p>` : ""}
     <div class="script-pack">
-      <div class="pack-row"><span>英文标题</span><p>${esc(pack.title || "")}</p></div>
-      <div class="pack-row"><span>英文副标题</span><p>${esc(pack.subtitle || "")}</p></div>
-      <div class="pack-row"><span>完整口播（英文）</span><p>${esc(pack.voiceover_20s || "")}</p></div>
-      <div class="pack-row"><span>分镜脚本</span><div class="shot-list">${formatStoryboardHtml(pack.storyboard)}</div></div>
-      ${broll.length ? `<div class="pack-row"><span>空镜提示词（英文）</span><pre>${esc(broll.join("\n\n"))}</pre></div>` : ""}
-    </div>
-    <p class="muted">下一步：点击「完成交付」生成英文字幕与交付包</p>`;
+      ${title || subtitle || voiceover ? `
+      <details class="pack-meta-details">
+        <summary>标题与口播全文</summary>
+        ${title ? `<div class="pack-row"><span>英文标题</span><p>${esc(title)}</p></div>` : ""}
+        ${subtitle ? `<div class="pack-row"><span>英文副标题</span><p>${esc(subtitle)}</p></div>` : ""}
+        ${voiceover ? `<div class="pack-row"><span>完整口播</span><p>${esc(voiceover)}</p></div>` : ""}
+      </details>` : ""}
+      <div class="pack-row"><span>分镜脚本（${(pack.storyboard || []).length} 镜，点击展开）</span><div class="shot-list">${formatStoryboardHtml(pack.storyboard)}</div></div>
+      ${broll.length ? `<details class="pack-meta-details"><summary>空镜提示词（${broll.length} 条）</summary><pre>${esc(broll.join("\n\n"))}</pre></details>` : ""}
+    </div>`;
+}
+
+function currentScriptSlug() {
+  return state.scriptSlug || state.lastPreview?.slug || "";
+}
+
+function ensureScriptResultVisible() {
+  const wrap = scriptResultEl();
+  if (wrap) wrap.classList.remove("hidden");
 }
 
 function syncFinishButton(canFinish, delivered) {
-  const btn = document.getElementById("scriptFinishBtn");
-  if (!btn) return;
-  btn.disabled = !canFinish;
-  if (!canFinish) {
-    btn.textContent = "完成交付";
-    btn.title = "请先生成脚本";
-  } else if (delivered) {
-    btn.textContent = "更新交付";
-    btn.title = "脚本已更新时可重新生成交付包";
-  } else {
-    btn.textContent = "完成交付";
-    btn.title = "生成英文字幕与交付 zip";
-  }
+  const btns = document.querySelectorAll("#scriptFinishBtn, .js-script-finish");
+  btns.forEach((btn) => {
+    btn.disabled = !canFinish;
+    if (!canFinish) {
+      btn.textContent = "完成交付";
+      btn.title = "请先生成脚本";
+    } else if (delivered) {
+      btn.textContent = "更新交付";
+      btn.title = "脚本已更新时可重新生成交付包";
+    } else {
+      btn.textContent = "完成交付";
+      btn.title = "生成英文字幕与交付 zip";
+    }
+  });
+  const canProduce = Boolean(canFinish && currentScriptSlug());
+  document.querySelectorAll(".js-script-produce").forEach((btn) => {
+    btn.disabled = !canProduce;
+    btn.title = canProduce
+      ? "自动完成交付并生成分镜视频（约 15–30 分钟）"
+      : "请先生成脚本";
+  });
+}
+
+function setScriptActionStatus(msg) {
+  const el = document.getElementById("scriptActionStatus");
+  if (el) el.textContent = msg || "";
+}
+
+function syncDownloadLinks(href, visible) {
+  document.querySelectorAll("#scriptDownloadBtnBottom, .js-script-download").forEach((dl) => {
+    if (href) dl.href = href;
+    dl.classList.toggle("hidden", !visible);
+  });
 }
 
 function slugFor(linkId) {
   return `ref-${String(linkId).padStart(3, "0")}`;
 }
 
-function readSelectedTags(group) {
-  return [...document.querySelectorAll(`.tag-chip[data-group="${group}"].active`)].map((b) => b.dataset.value);
-}
-
 function renderTagRow(containerId, options, selected, group) {
   const el = document.getElementById(containerId);
   if (!el) return;
+  const picked = [...new Set(selected)];
+  if (!picked.length) {
+    el.innerHTML = '<span class="muted tag-selected-empty">暂未选用</span>';
+  } else {
+    el.innerHTML = picked.map((t) =>
+      `<button type="button" class="tag-chip active" data-group="${group}" data-value="${esc(t)}">${esc(t)}</button>`
+    ).join("");
+  }
+}
+
+function renderLibraryTagRow(containerId, options, selected, group) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const picked = [...new Set(selected)];
   if (!options.length) {
-    el.innerHTML = '<span class="muted">暂无标签，请在下方输入并添加</span>';
+    el.innerHTML = '<span class="muted">素材库暂无该类别，请手动添加或到「设置」同步产品资料</span>';
     return;
   }
   el.innerHTML = options.map((t) =>
-    `<button type="button" class="tag-chip ${selected.includes(t) ? "active" : ""}" data-group="${group}" data-value="${esc(t)}">${esc(t)}</button>`
+    `<button type="button" class="tag-chip ${picked.includes(t) ? "active" : ""}" data-group="${group}" data-value="${esc(t)}">${esc(t)}</button>`
   ).join("");
 }
 
 function renderProductPanel(p, apiTags, savedTags) {
   const pool = buildTagPool(p, apiTags);
   const selected = defaultSelectedTags(pool, savedTags);
-  state.selectedAudience = selected.audience;
-  state.selectedScenarios = selected.scenarios;
+  state.tagSelection = {
+    audience: [...selected.audience],
+    scenarios: [...selected.scenarios].slice(0, 1),
+    selling: [...selected.selling],
+    pains: [...selected.pains],
+  };
+  state.selectedAudience = state.tagSelection.audience;
+  state.selectedScenarios = state.tagSelection.scenarios;
   state.currentTagPool = pool;
   const panel = document.getElementById("scriptProduct");
+  panel.className = "script-tag-grid script-tag-grid-spacious";
   const groupsHtml = Object.entries(TAG_GROUPS).map(([group, cfg]) => `
-    <div class="tag-group">
-      <span class="tag-group-label">${cfg.label}</span>
-      <div id="${group}TagRow" class="tag-row"></div>
+    <div class="tag-panel tag-panel-spacious">
+      <div class="tag-panel-head">
+        <span class="tag-group-label">${cfg.label}</span>
+        ${cfg.single ? '<span class="tag-panel-hint muted">单选</span>' : ""}
+      </div>
+      <div class="tag-section tag-section-selected">
+        <span class="tag-section-label">已选</span>
+        <div id="${group}TagRow" class="tag-row tag-row-selected"></div>
+      </div>
       <div class="tag-add-row">
         <input type="text" class="tag-input" data-group="${group}" placeholder="${cfg.placeholder}">
         <button type="button" class="tag-add-btn" data-group="${group}">添加</button>
       </div>
+      <div class="tag-library-block">
+        <span class="tag-library-label">素材库推荐 · 点击选用</span>
+        <div id="${group}LibraryRow" class="tag-row tag-library-row"></div>
+      </div>
     </div>`).join("");
-  panel.innerHTML = `<p class="product-head">${esc(p.product_name || p.product_id || "产品")}</p>
-    <p id="scenarioConflictWarn" class="workflow-warn hidden"></p>${groupsHtml}`;
-  renderTagRow("audienceTagRow", pool.audience, selected.audience, "audience");
-  renderTagRow("scenarioTagRow", pool.scenarios, selected.scenarios, "scenario");
-  renderTagRow("sellingTagRow", pool.selling, selected.selling, "selling");
-  renderTagRow("painTagRow", pool.pains, selected.pains, "pain");
-  const conflict = scenarioConflictNote(selected.scenarios);
-  const warn = document.getElementById("scenarioConflictWarn");
-  if (warn) {
-    if (conflict) {
-      warn.classList.remove("hidden");
-      warn.textContent = conflict;
-    } else {
-      warn.classList.add("hidden");
-      warn.textContent = "";
-    }
-  }
+  panel.innerHTML = groupsHtml;
+  refreshTagGroupsUI();
 }
 
 async function persistProductTags(productId, field, tags) {
@@ -293,11 +405,70 @@ async function addTagInline(group, rawText) {
     console.warn("标签保存失败", err);
   }
   const p = state.products.find((x) => x.product_id === productId) || state.lastPreview?.product || {};
-  const selected = readAllSelectedTags();
-  const savedKey = cfg.savedKey;
-  if (!selected[savedKey].includes(text)) selected[savedKey].push(text);
-  renderProductPanel(p, buildTagPool(p, state.lastPreview?.delivery_tags), selected);
+  const key = cfg.savedKey;
+  if (cfg.single) {
+    state.tagSelection[key] = [text];
+  } else if (!(state.tagSelection[key] || []).includes(text)) {
+    state.tagSelection[key] = [...(state.tagSelection[key] || []), text];
+  }
+  renderProductPanel(p, buildTagPool(p, state.lastPreview?.delivery_tags), readAllSelectedTags());
   updateLoopBarFromForm(state.lastPreview || {});
+}
+
+function tagsSelectionOk() {
+  const sel = readAllSelectedTags();
+  return sel.audience.length > 0 && sel.scenarios.length > 0
+    && sel.selling.length > 0 && sel.pains.length > 0;
+}
+
+function normalizeView(name) {
+  if (name === "materials" || name === "script") return "workspace";
+  return name;
+}
+
+function viewElementId(name) {
+  const n = normalizeView(name);
+  const map = {
+    workspace: "viewWorkspace",
+    products: "viewProducts",
+    finished: "viewFinished",
+    feedback: "viewFeedback",
+  };
+  return map[n] || `view${n.charAt(0).toUpperCase()}${n.slice(1)}`;
+}
+
+function syncWorkspaceActionBar(step) {
+  document.querySelectorAll(".workspace-action-step").forEach((el) => {
+    el.classList.toggle("hidden", el.dataset.forStep !== step);
+  });
+}
+
+function syncMaterialSelectFromState() {
+  const ms = document.getElementById("scriptMaterialSelect");
+  if (!ms || !state.selectedMaterialId) return;
+  const val = String(state.selectedMaterialId);
+  if (ms.querySelector(`option[value="${val}"]`)) ms.value = val;
+}
+
+function syncScriptProduceEmpty(hasScript) {
+  const empty = document.getElementById("scriptProduceEmpty");
+  if (empty) empty.classList.toggle("hidden", Boolean(hasScript));
+}
+
+function setScriptStep(step, { scroll = true } = {}) {
+  const order = ["ref", "product", "produce"];
+  if (!order.includes(step)) return;
+  state.scriptStep = step;
+  document.querySelectorAll(".script-step-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.step === step);
+  });
+  document.querySelectorAll("#scriptLoopBar li").forEach((li) => {
+    li.classList.toggle("current", li.dataset.step === step);
+  });
+  syncWorkspaceActionBar(step);
+  if (scroll) {
+    document.querySelector(".workspace-card")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 }
 
 function updateLoopBarFromForm(prev = {}) {
@@ -305,37 +476,35 @@ function updateLoopBarFromForm(prev = {}) {
   const hint = document.getElementById("loopHint");
   if (!bar) return;
   const sel = readAllSelectedTags();
+  const hasMaterial = Boolean(document.getElementById("scriptMaterialSelect")?.value);
+  const hasProduct = Boolean(document.getElementById("scriptProductSelect")?.value);
+  const tagsOk = tagsSelectionOk();
+  const hasScript = Boolean(prev.has_script) || Boolean(prev.delivery_ready);
   const steps = {
-    material: Boolean(document.getElementById("scriptMaterialSelect")?.value),
-    product: Boolean(document.getElementById("scriptProductSelect")?.value),
-    tags: sel.audience.length > 0 && sel.scenarios.length > 0
-      && sel.selling.length > 0 && sel.pains.length > 0,
-    script: Boolean(prev.has_script),
-    delivery: Boolean(prev.delivery_ready),
+    ref: hasMaterial,
+    product: hasProduct && tagsOk,
+    produce: hasScript,
   };
-  const order = ["material", "product", "tags", "script", "delivery"];
-  let current = "delivery";
-  for (const key of order) {
-    if (!steps[key]) {
-      current = key;
-      break;
-    }
-  }
   bar.querySelectorAll("li").forEach((li) => {
     const key = li.dataset.step;
     li.classList.remove("done", "current");
     if (steps[key]) li.classList.add("done");
-    else if (key === current) li.classList.add("current");
+    else if (key === state.scriptStep) li.classList.add("current");
   });
+  syncScriptProduceEmpty(hasScript);
   if (hint) {
-    if (steps.delivery) {
-      hint.textContent = "闭环完成：可下载 zip；重新生成脚本后可点「更新交付」刷新包。";
-    } else if (steps.script) {
-      hint.textContent = "脚本已生成 → 点击「完成交付」→ 成稿入库。";
-    } else if (!steps.tags) {
-      hint.textContent = "请在下方为人群、场景、核心卖点、用户痛点各至少点选一个标签，再生成脚本。";
+    if (state.scriptStep === "produce" && prev.delivery_ready) {
+      hint.textContent = "③ 交付完成：可下载 zip、预览 AI 分镜成片，或重新生成后更新。";
+    } else if (state.scriptStep === "produce" && hasScript) {
+      hint.textContent = "③ 脚本已就绪 → 完成交付或直接产出视频。";
+    } else if (state.scriptStep === "product") {
+      hint.textContent = tagsOk
+        ? "② 标签已齐，可生成脚本并进入交付页。"
+        : "② 为人群、场景、卖点、痛点各至少选择一项标签。";
+    } else if (!hasMaterial) {
+      hint.textContent = "① 先选择对标爆款，查看右侧结构拆解。";
     } else {
-      hint.textContent = "预览确认后点击「生成脚本」。";
+      hint.textContent = "① 结构参考已选 → 点击「下一步」配置产品场景标签。";
     }
   }
 }
@@ -370,17 +539,56 @@ function scriptResultBody() {
 // ── Navigation ─────────────────────────────────────────────────────────────
 
 function switchView(name) {
+  name = normalizeView(name);
   state.view = name;
   document.querySelectorAll(".view").forEach((el) => el.classList.remove("active"));
-  document.getElementById(`view${name.charAt(0).toUpperCase()}${name.slice(1)}`)?.classList.add("active");
+  document.getElementById(viewElementId(name))?.classList.add("active");
   document.querySelectorAll("#mainNav button").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.view === name);
+    btn.classList.toggle("active", normalizeView(btn.dataset.view) === name);
   });
+  if (name === "workspace") loadWorkspaceView();
   if (name === "products") loadProductsView();
-  if (name === "script") loadScriptView();
   if (name === "finished") loadFinishedView();
   if (name === "feedback") loadFeedbackView();
-  if (name === "settings") loadSettingsView();
+}
+
+async function loadWorkspaceView() {
+  if (!state.items.length) await loadMaterials();
+  await loadScriptView();
+  syncWorkspaceActionBar(state.scriptStep);
+}
+
+function openSettingsDrawer() {
+  const drawer = document.getElementById("settingsDrawer");
+  const backdrop = document.getElementById("settingsBackdrop");
+  const trigger = document.getElementById("settingsOpenBtn");
+  if (!drawer || !backdrop) return;
+  drawer.hidden = false;
+  backdrop.hidden = false;
+  requestAnimationFrame(() => {
+    drawer.classList.add("open");
+    backdrop.classList.add("open");
+  });
+  drawer.setAttribute("aria-hidden", "false");
+  trigger?.setAttribute("aria-expanded", "true");
+  loadSettingsView();
+}
+
+function closeSettingsDrawer() {
+  const drawer = document.getElementById("settingsDrawer");
+  const backdrop = document.getElementById("settingsBackdrop");
+  const trigger = document.getElementById("settingsOpenBtn");
+  if (!drawer || !backdrop) return;
+  drawer.classList.remove("open");
+  backdrop.classList.remove("open");
+  drawer.setAttribute("aria-hidden", "true");
+  trigger?.setAttribute("aria-expanded", "false");
+  window.setTimeout(() => {
+    if (!drawer.classList.contains("open")) {
+      drawer.hidden = true;
+      backdrop.hidden = true;
+    }
+  }, 220);
 }
 
 document.getElementById("mainNav").addEventListener("click", (e) => {
@@ -402,11 +610,13 @@ function renderSeedanceSettings(health) {
   const el = document.getElementById("seedanceSettingsStatus");
   if (!el) return;
   const sd = health?.seedance || {};
+  const mode = sd.mode === "script" ? "脚本分镜模式（各镜生成短视频）" : "空镜模式（仅痛点镜）";
   if (!sd.configured) {
-    el.innerHTML = `未配置 · 双击 <strong>配置SeedDance.cmd</strong> 填写 <code>FAL_KEY</code><br><span class="muted">${esc(sd.setup || "")}</span>`;
+    el.innerHTML = `未配置 · 在 <code>overseas-loc-mvp/.env</code> 填写 <code>ARK_API_KEY</code><br><span class="muted">${esc(sd.setup || "")}</span>`;
     return;
   }
-  el.innerHTML = `已配置 fal.ai · 模型 <code>${esc(sd.text_model || "")}</code>`;
+  const prov = sd.provider === "volcengine-ark" ? "火山方舟 Ark" : (sd.provider || "fal.ai");
+  el.innerHTML = `已配置 ${esc(prov)} · ${esc(mode)}<br>模型 <code>${esc(sd.text_model || "")}</code>`;
 }
 
 function renderSeedance(slug, seedance, health) {
@@ -427,33 +637,50 @@ function renderSeedance(slug, seedance, health) {
   panel.classList.remove("hidden");
 
   if (!configured) {
-    statusEl.innerHTML = `未连接 · 请双击 <strong>配置SeedDance.cmd</strong> 填写 <code>FAL_KEY</code> 后重启工作台`;
+    statusEl.innerHTML = `未连接 · 请在 <code>overseas-loc-mvp/.env</code> 配置 <code>ARK_API_KEY</code> 后重启工作台`;
     document.getElementById("seedanceShots").innerHTML = "";
     if (runBtn) runBtn.disabled = true;
     document.getElementById("seedanceHint").textContent = health?.seedance?.setup || "";
     return;
   }
 
-  statusEl.innerHTML = `已连接 fal.ai · 模型 <code>${esc(health.seedance.text_model || "")}</code>`;
+  const prov = health.seedance.provider === "volcengine-ark" ? "火山方舟 Ark" : (health.seedance.provider || "fal.ai");
+  const modeHint = health.seedance.mode === "script" ? "脚本分镜模式" : "空镜模式";
+  statusEl.innerHTML = `已连接 ${esc(prov)} · ${esc(modeHint)} · <code>${esc(health.seedance.text_model || "")}</code>`;
   if (runBtn) runBtn.disabled = false;
 
   if (!seedance.available) {
     document.getElementById("seedanceShots").innerHTML =
-      '<p class="muted">当前项目无 AI 空镜镜头。规则模板会在痛点镜生成 AI_BROLL 空镜。</p>';
+      '<p class="muted">当前项目无可生成的 AI 分镜。请在「品牌化出稿」重新生成脚本（script 模式下 5 镜均可生成视频）。</p>';
     document.getElementById("seedanceHint").textContent = "可先点「测试连接」验证密钥";
     if (runBtn) runBtn.disabled = true;
     return;
   }
 
   document.getElementById("seedanceHint").textContent =
-    "生成后 mp4 保存在项目 broll/ 目录，并随 zip 一并下载";
-  document.getElementById("seedanceShots").innerHTML = (seedance.shots || []).map((s) => {
+    "每镜约 5 秒；全部生成后自动拼接为 broll/final-video.mp4";
+  const final = seedance.final_video || {};
+  let finalBlock = "";
+  if (final.ready && final.file) {
+    finalBlock = `<div class="seedance-shot seedance-final">
+      <strong>拼接成片 · final-video.mp4</strong>
+      <p class="muted">${Math.round((final.bytes || 0) / 1024)} KB</p>
+      <a href="/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(final.file)}" target="_blank">预览 / 下载长视频</a>
+    </div>`;
+  }
+  document.getElementById("seedanceShots").innerHTML = finalBlock + (seedance.shots || []).map((s) => {
     const status = s.ready
       ? `<a href="/api/delivery/${encodeURIComponent(slug)}/files/${encodeURI(s.file)}" target="_blank">预览 / 下载 mp4</a>`
       : '<span class="muted">待生成</span>';
+    const label = s.footage_label || (s.footage_type === "AI_VIDEO" ? "AI 分镜" : "AI 空镜");
+    const prompt = String(s.prompt || "（无 Prompt）");
+    const promptShort = prompt.length > 80 ? `${prompt.slice(0, 80)}…` : prompt;
+    const promptBlock = prompt.length > 80
+      ? `<details class="seedance-prompt-fold"><summary>${esc(promptShort)}</summary><p class="seedance-prompt-full">${esc(prompt)}</p></details>`
+      : `<p class="muted">${esc(prompt)}</p>`;
     return `<div class="seedance-shot">
-      <strong>镜 ${esc(s.number)} · ${esc(s.timing)}</strong>
-      <p class="muted">${esc((s.prompt || "（无 Prompt）").slice(0, 200))}</p>
+      <strong>镜 ${esc(s.number)} · ${esc(s.role || s.timing)} · ${esc(label)}</strong>
+      ${promptBlock}
       ${status}
     </div>`;
   }).join("");
@@ -496,6 +723,13 @@ async function loadMaterials() {
   renderMaterialList();
 }
 
+function materialBadgeHtml(item) {
+  if (!item.has_analysis) {
+    return '<span class="badge badge-pending">待拆解</span>';
+  }
+  return '<span class="badge badge-done">已拆解</span>';
+}
+
 function renderMaterialList() {
   const root = document.getElementById("materialList");
   if (!state.items.length) {
@@ -508,12 +742,12 @@ function renderMaterialList() {
       ? `<img class="thumb" src="${esc(item.thumbnail_url)}" alt="">`
       : '<div class="thumb placeholder">无图</div>';
     const stats = [fmtNum(item.view_count) && `${fmtNum(item.view_count)}播放`, item.duration_sec && `${item.duration_sec}s`].filter(Boolean).join(" · ");
-    const badge = item.has_analysis
-      ? '<span class="badge">已拆解</span>'
-      : '<span class="badge missing">待拆解</span>';
+    const badge = materialBadgeHtml(item);
+    const title = item.title || "";
+    const titleText = `#${item.link_id} ${title}`;
     return `<button type="button" class="card ${active}" data-id="${item.link_id}">
       ${thumb}
-      <div><h3>#${item.link_id} ${esc((item.title || "").slice(0, 55))}</h3>
+      <div><h3 title="${esc(titleText)}">${esc(titleText)}</h3>
       <div class="meta">${esc(item.author)}${stats ? ` · ${stats}` : ""}</div>${badge}</div>
     </button>`;
   }).join("");
@@ -522,33 +756,229 @@ function renderMaterialList() {
   );
 }
 
+function fmtShotRange(start, end) {
+  const pad = (v) => {
+    const n = parseInt(String(v).replace(/\D/g, ""), 10);
+    if (Number.isNaN(n)) return String(v || "0");
+    const m = Math.floor(n / 60);
+    const s = n % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+  return `${pad(start)} - ${pad(end)}`;
+}
+
+function copyText(text, btn) {
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = "已复制";
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    }
+  }).catch(() => alert("复制失败"));
+}
+
+function renderDissectorMedia(d) {
+  const thumb = d.thumbnail_url
+    ? `<img class="dissector-poster-img" src="${esc(d.thumbnail_url)}" alt="">`
+    : `<div class="dissector-poster-placeholder">无封面</div>`;
+  const stats = [
+    fmtNum(d.view_count) && `${fmtNum(d.view_count)} 播放`,
+    d.duration_sec && `${d.duration_sec}s`,
+    fmtNum(d.like_count) && `${fmtNum(d.like_count)} 赞`,
+  ].filter(Boolean).join(" · ");
+  return `
+    <div class="dissector-media">
+      <div class="dissector-poster">${thumb}</div>
+      <div class="dissector-meta">
+        <div class="dissector-author">@${esc(d.author || "unknown")}</div>
+        <h2 class="dissector-title">#${d.link_id} ${esc(d.title || "")}</h2>
+        <div class="dissector-stats">${esc(stats || "—")}</div>
+        <a class="dissector-link" href="${esc(d.url)}" target="_blank" rel="noopener">打开 TikTok ↗</a>
+      </div>
+    </div>`;
+}
+
+function renderDissectorShots(shots) {
+  if (!shots.length) {
+    return `<p class="dissector-empty">暂无分镜，豆包拆解完成后将显示在此</p>`;
+  }
+  return `<table class="dissector-table">
+    <thead><tr>
+      <th class="col-idx">#</th>
+      <th class="col-time">时间</th>
+      <th class="col-visual">画面描述</th>
+      <th class="col-dialogue">台词</th>
+      <th class="col-sub">字幕/标签</th>
+    </tr></thead>
+    <tbody>${shots.map((s) => `<tr>
+      <td class="col-idx">${esc(s.index)}</td>
+      <td class="col-time">${esc(fmtShotRange(s.start, s.end))}</td>
+      <td class="col-visual">${esc(s.visual_description || "")}</td>
+      <td class="col-dialogue">${esc(s.dialogue || "")}</td>
+      <td class="col-sub">${esc(s.subtitle_or_title || "")}</td>
+    </tr>`).join("")}</tbody>
+  </table>`;
+}
+
+function friendlyAnalyzeError(msg, detail) {
+  const text = String(msg || "").trim();
+  if (text.includes("video_analysis.csv") || text.includes("豆包失败，已回退规则") || text.includes("rule shots=")) {
+    return "豆包拆解超时或失败。若下方已有分镜表可继续使用，也可点击「重试拆解」。";
+  }
+  return text || "豆包拆解失败";
+}
+
+function renderMaterialDetail(d, detail) {
+  const a = (detail?.analysis || d.analysis || {});
+  let shots = detail?.shots || [];
+  let status = detail?.status || (shots.length ? "ready" : "unknown");
+  const summary = detail?.summary || a.summary || "";
+  const transcript = detail?.full_transcript || a.full_transcript || "";
+  let warning = detail?.warning || "";
+
+  if (status === "error" && shots.length) {
+    status = "ready";
+    warning = warning || friendlyAnalyzeError(detail?.message, detail);
+  }
+
+  if (status === "running") {
+    return `
+      <div class="dissector">
+        <div class="dissector-top">
+          ${renderDissectorMedia(d)}
+          <div class="dissector-script-panel dissector-loading-panel">
+            <div class="dissector-panel-head"><span>完整文案（逐字稿）</span></div>
+            <div class="analyze-loading">
+              <p><strong>豆包视频拆解中…</strong></p>
+              <p class="muted">正在生成逐字稿与分镜表（约 1–3 分钟），完成后自动刷新</p>
+            </div>
+          </div>
+        </div>
+        <div class="dissector-bottom">
+          <div class="dissector-panel-head"><span>分镜脚本</span></div>
+          <p class="dissector-empty muted">等待拆解结果…</p>
+        </div>
+      </div>`;
+  }
+
+  if (status === "error") {
+    return `
+      <div class="dissector">
+        <div class="dissector-top">${renderDissectorMedia(d)}</div>
+        <div class="result error">${esc(friendlyAnalyzeError(detail?.message, detail))}</div>
+        <div class="dissector-foot dissector-foot-row">
+          ${detail?.retryable ? '<button type="button" class="secondary" id="retryAnalyzeBtn">重试拆解</button>' : ""}
+          <button type="button" class="primary primary-dark" id="goScriptBtn">下一步：配场景</button>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="dissector">
+      ${warning ? `<div class="dissector-warn">${esc(warning)}</div>` : ""}
+      <div class="dissector-top">
+        ${renderDissectorMedia(d)}
+        <div class="dissector-script-panel">
+          <div class="dissector-panel-head">
+            <span>完整文案（逐字稿）</span>
+            <button type="button" class="btn-text" id="copyTranscriptBtn" ${transcript ? "" : "disabled"}>复制</button>
+          </div>
+          <div class="dissector-transcript" id="transcriptBody">${transcript ? esc(transcript) : '<span class="muted">（无逐字稿）</span>'}</div>
+          ${summary ? `<div class="dissector-summary"><strong>概要：</strong>${esc(summary)}</div>` : ""}
+        </div>
+      </div>
+      <div class="dissector-bottom">
+        <div class="dissector-panel-head">
+          <span>分镜脚本（共 ${shots.length} 镜）</span>
+          <span class="dissector-tag">已拆解</span>
+        </div>
+        ${renderDissectorShots(shots)}
+      </div>
+      <details class="dissector-fold">
+        <summary>结构参考（供脚本生成）</summary>
+        <div class="dissector-fold-grid">
+          ${["hook_3s", "pain_points", "selling_points", "video_structure", "reusable_template"].map((k) => `
+            <div><dt>${ANALYSIS_LABELS[k] || k}</dt><dd>${esc(a[k] || "—")}</dd></div>`).join("")}
+        </div>
+      </details>
+      <div class="dissector-foot">
+        <button type="button" class="primary primary-dark" id="goScriptBtn">下一步：配场景</button>
+      </div>
+    </div>`;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function fetchMaterialAnalysis(linkId, pane) {
+  for (let i = 0; i < 80; i++) {
+    const detail = await api(`/api/materials/${linkId}/analysis/detail`);
+    if (detail.status === "running") {
+      if (pane) {
+        const d = state.items.find((x) => x.link_id === linkId) || { link_id: linkId, title: "", author: "", url: "#" };
+        pane.innerHTML = renderMaterialDetail(d, detail);
+      }
+      await sleep(3000);
+      continue;
+    }
+    return detail;
+  }
+  throw new Error("豆包拆解超时，请稍后重试");
+}
+
 async function selectMaterial(linkId) {
   state.selectedMaterialId = linkId;
   renderMaterialList();
+  repopulateScriptMaterials();
+  syncMaterialSelectFromState();
   const pane = document.getElementById("materialDetail");
+  pane.className = "detail dissector-detail";
   pane.innerHTML = "加载中…";
   try {
     const d = await api(`/api/materials/${linkId}`);
-    const a = d.analysis || {};
-    pane.className = "detail";
-    pane.innerHTML = `
-      <h3>#${d.link_id} ${esc((d.title || "").slice(0, 80))}</h3>
-      <p class="meta">${esc(d.author)} · ${fmtNum(d.view_count) || "-"} 播放 · ${d.duration_sec || "-"}s</p>
-      <a href="${esc(d.url)}" target="_blank" rel="noopener">打开 TikTok</a>
-      <div class="analysis-grid">
-        ${["hook_3s", "pain_points", "selling_points", "video_structure", "reusable_template"].map((k) => `
-          <div class="field"><label>${ANALYSIS_LABELS[k] || k}</label><p>${esc(a[k] || "—")}</p></div>`).join("")}
-      </div>
-      <div class="actions row">
-        <button type="button" class="primary" id="goScriptBtn">去脚本生成</button>
-      </div>`;
-    document.getElementById("goScriptBtn").addEventListener("click", () => {
-      state.selectedMaterialId = linkId;
-      const item = state.items.find((i) => i.link_id === linkId);
-      if (item?.content_line) state.selectedProductId = item.content_line;
-      switchView("script");
-      loadScriptView();
+    let detail = await fetchMaterialAnalysis(linkId, pane);
+    const item = state.items.find((i) => i.link_id === linkId);
+    if (item) {
+      item.analyze_provider = detail.analyze_provider || "doubao_video";
+      item.has_analysis = true;
+    }
+    pane.className = "detail dissector-detail";
+    pane.innerHTML = renderMaterialDetail(d, detail);
+    if (document.getElementById("scriptProductSelect")?.value) {
+      await refreshScriptPreview();
+    } else {
+      updateLoopBarFromForm(state.lastPreview || {});
+    }
+    document.getElementById("retryAnalyzeBtn")?.addEventListener("click", async () => {
+      const btn = document.getElementById("retryAnalyzeBtn");
+      if (btn) { btn.disabled = true; btn.textContent = "拆解中…"; }
+      try {
+        await api(`/api/materials/${linkId}/analyze`, { method: "POST" });
+        await selectMaterial(linkId);
+      } catch (err) {
+        alert(err.message);
+        if (btn) { btn.disabled = false; btn.textContent = "重试拆解"; }
+      }
     });
+    document.getElementById("copyTranscriptBtn")?.addEventListener("click", (e) => {
+      const text = detail?.full_transcript || d.analysis?.full_transcript || "";
+      copyText(text, e.currentTarget);
+    });
+    document.getElementById("goScriptBtn")?.addEventListener("click", async () => {
+      state.selectedMaterialId = linkId;
+      const row = state.items.find((i) => i.link_id === linkId);
+      if (row?.content_line) state.selectedProductId = row.content_line;
+      syncMaterialSelectFromState();
+      repopulateScriptMaterials();
+      if (document.getElementById("scriptProductSelect")?.value) {
+        await refreshScriptPreview();
+      }
+      setScriptStep("product");
+      updateLoopBarFromForm(state.lastPreview || {});
+    });
+    await refreshHealth();
   } catch (err) {
     pane.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
   }
@@ -657,7 +1087,7 @@ function repopulateScriptMaterials() {
   const hint = document.getElementById("materialFilterHint");
   if (hint) {
     hint.textContent = state.showAllMaterials
-      ? `共 ${analyzed.length} 条`
+      ? `共 ${analyzed.length} 条可选`
       : `已筛 ${pool.length} 条同品类`;
   }
   ms.innerHTML = materialOptionsHtml(productId);
@@ -670,30 +1100,50 @@ function repopulateScriptMaterials() {
   }
 }
 
+async function populateScriptProductSelect() {
+  const ps = document.getElementById("scriptProductSelect");
+  if (!ps) return;
+  try {
+    const pr = await api("/api/products");
+    state.products = pr.items || [];
+  } catch {
+    if (!state.products.length) {
+      const filters = await api("/api/filters").catch(() => ({}));
+      state.products = filters.products || [];
+    }
+  }
+  if (!state.products.length) {
+    ps.innerHTML = '<option value="">请先在「设置」同步产品资料</option>';
+    return;
+  }
+  ps.innerHTML = state.products.map((p) =>
+    `<option value="${esc(p.product_id)}">${esc(p.product_name || p.product_id)}</option>`
+  ).join("");
+  if (state.selectedProductId && [...ps.options].some((o) => o.value === state.selectedProductId)) {
+    ps.value = state.selectedProductId;
+  } else {
+    const thermos = state.products.find((p) => p.product_id === "便携恒温杯");
+    ps.value = thermos ? thermos.product_id : state.products[0].product_id;
+    state.selectedProductId = ps.value;
+  }
+}
+
 async function loadScriptView() {
   if (!state.items.length) await loadMaterials();
   const showAll = document.getElementById("showAllMaterials");
   if (showAll) showAll.checked = state.showAllMaterials;
-  const ps = document.getElementById("scriptProductSelect");
   const ms = document.getElementById("scriptMaterialSelect");
-  if (!state.products.length) {
-    const pr = await api("/api/products");
-    state.products = pr.items || [];
-  }
-  ps.innerHTML = state.products.map((p) =>
-    `<option value="${p.product_id}">${esc(p.product_name)}</option>`
-  ).join("");
-  if (state.selectedProductId) {
-    ps.value = state.selectedProductId;
-  } else {
-    const thermos = state.products.find((p) => p.product_id === "便携恒温杯");
-    if (thermos) ps.value = thermos.product_id;
-  }
+  await populateScriptProductSelect();
   repopulateScriptMaterials();
   if (state.selectedMaterialId && ms.querySelector(`option[value="${state.selectedMaterialId}"]`)) {
     ms.value = String(state.selectedMaterialId);
   }
   await refreshScriptPreview();
+  const prev = state.lastPreview || {};
+  if (prev.has_script || prev.delivery_ready) setScriptStep("produce", { scroll: false });
+  else if (document.getElementById("scriptMaterialSelect")?.value && tagsSelectionOk()) setScriptStep("product", { scroll: false });
+  else setScriptStep("ref", { scroll: false });
+  syncWorkspaceActionBar(state.scriptStep);
 }
 
 async function refreshScriptPreview() {
@@ -702,8 +1152,13 @@ async function refreshScriptPreview() {
   state.selectedMaterialId = linkId;
   const analysisEl = document.getElementById("scriptAnalysis");
   const productEl = document.getElementById("scriptProduct");
-  const templateEl = document.getElementById("scriptTemplate");
   const resultWrap = scriptResultEl();
+  if (!productId) {
+    productEl.className = "script-tag-grid script-tag-grid-spacious detail-empty";
+    productEl.innerHTML = "选择产品后配置场景标签";
+    analysisEl.innerHTML = '<div class="detail-empty">选择结构参考后显示</div>';
+    return;
+  }
   try {
     const prev = await api(`/api/materials/${linkId}/preview?product_id=${encodeURIComponent(productId)}`);
     state.lastPreview = prev;
@@ -723,33 +1178,24 @@ async function refreshScriptPreview() {
     const brandHint = prev.brand_product && mismatch
       ? `<p class="brand-hint muted">成片品牌：${esc(prev.brand_product)}</p>`
       : "";
-    analysisEl.innerHTML = `${brandHint}<div class="field-list">
-      <div class="field"><label>钩子 0-3s</label><p>${esc(a.hook_3s)}</p></div>
-      <div class="field"><label>痛点</label><p>${esc(a.pain_points)}</p></div>
-      <div class="field"><label>卖点</label><p>${esc(a.selling_points)}</p></div>
-      <div class="field"><label>结构</label><p>${esc(a.video_structure)}</p></div>
-      <div class="field"><label>字幕布局</label><p>${esc(a.subtitle_layout)}</p></div>
+    analysisEl.innerHTML = `${brandHint}<div class="field-grid-compact">
+      <div class="field-compact"><label>钩子 0-3s</label><p>${esc(a.hook_3s)}</p></div>
+      <div class="field-compact"><label>痛点</label><p>${esc(a.pain_points)}</p></div>
+      <div class="field-compact"><label>卖点</label><p>${esc(a.selling_points)}</p></div>
+      <div class="field-compact"><label>结构</label><p>${esc(a.video_structure)}</p></div>
+      <div class="field-compact"><label>字幕布局</label><p>${esc(a.subtitle_layout)}</p></div>
     </div>`;
     const p = prev.product || {};
     renderProductPanel(p, prev.delivery_tags || {}, prev.selected_tags || {});
     updateLoopBarFromForm(prev);
-    const t = prev.template || {};
-    templateEl.innerHTML = `
-      <p class="product-head">${esc(t.label || t.template_id)}</p>
-      <div class="field-list">
-      <div class="field"><label>结构链</label><p>${esc(t.structure_chain)}</p></div>
-      <div class="field"><label>适用类型</label><p>${esc(t.suitable_for)}</p></div>
-      <div class="field"><label>结构说明</label><p>${esc(prev.template_hint)}</p></div>
-      </div>`;
-    const dl = document.getElementById("scriptDownloadBtn");
     if (prev.delivery_ready) {
-      dl.href = `/api/delivery/${prev.slug}/zip`;
-      dl.classList.remove("hidden");
+      syncDownloadLinks(`/api/delivery/${prev.slug}/zip`, true);
     } else {
-      dl.classList.add("hidden");
+      syncDownloadLinks("", false);
     }
     if (prev.has_script && prev.script_pack) {
       resultWrap.classList.remove("hidden");
+      syncScriptProduceEmpty(true);
       scriptResultBody().innerHTML = formatPackResult(prev.script_pack, prev.script_meta);
     }
     syncFinishButton(Boolean(prev.can_finish), Boolean(prev.delivery_ready));
@@ -760,8 +1206,8 @@ async function refreshScriptPreview() {
     }
   } catch (err) {
     analysisEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
+    productEl.className = "script-tag-grid script-tag-grid-spacious detail-empty";
     productEl.innerHTML = "";
-    templateEl.innerHTML = "";
     const lp = state.lastPreview || {};
     syncFinishButton(Boolean(lp.can_finish), Boolean(lp.delivery_ready));
   }
@@ -770,8 +1216,10 @@ async function refreshScriptPreview() {
 function onScriptSelectionChange() {
   state.selectedProductId = document.getElementById("scriptProductSelect").value;
   state.tagPoolExtra = { audience: [], scenarios: [], selling: [], pains: [] };
+  state.tagSelection = { audience: [], scenarios: [], selling: [], pains: [] };
   scriptResultEl().classList.add("hidden");
   document.getElementById("seedancePanel")?.classList.add("hidden");
+  syncScriptProduceEmpty(false);
 }
 
 document.getElementById("scriptMaterialSelect").addEventListener("change", async () => {
@@ -791,24 +1239,27 @@ document.getElementById("showAllMaterials").addEventListener("change", async (e)
   await refreshScriptPreview();
 });
 
-document.getElementById("scriptGenerateBtn").addEventListener("click", async () => {
+async function runScriptGenerate() {
   const linkId = Number(document.getElementById("scriptMaterialSelect").value);
   const productId = document.getElementById("scriptProductSelect").value;
   const audienceTags = readSelectedTags("audience");
   const scenarioTags = readSelectedTags("scenario");
   const sellingTags = readSelectedTags("selling");
   const painTags = readSelectedTags("pain");
-  const btn = document.getElementById("scriptGenerateBtn");
+  const genBtns = document.querySelectorAll("#scriptGenerateBtn, .js-script-generate");
   const resultWrap = scriptResultEl();
   const resultEl = scriptResultBody();
   if (!audienceTags.length || !scenarioTags.length || !sellingTags.length || !painTags.length) {
-    resultWrap.classList.remove("hidden");
-    resultEl.innerHTML = '<div class="result error">请为人群、场景、核心卖点、用户痛点各至少选择一个标签后再生成。</div>';
+    setScriptStep("product");
+    const hint = document.getElementById("loopHint");
+    if (hint) hint.textContent = "请为人群、场景、核心卖点、用户痛点各至少选择一个标签后再生成。";
     return;
   }
-  btn.disabled = true;
+  setScriptStep("produce");
+  genBtns.forEach((b) => { b.disabled = true; });
   resultWrap.classList.remove("hidden");
   resultEl.innerHTML = "正在生成脚本…";
+  setScriptActionStatus("");
   try {
     const res = await api(`/api/materials/${linkId}/generate`, {
       method: "POST",
@@ -829,45 +1280,222 @@ document.getElementById("scriptGenerateBtn").addEventListener("click", async () 
     state.scriptSlug = res.slug || slugFor(linkId);
     resultEl.innerHTML = formatPackResult(pack, res.meta);
     syncFinishButton(true, Boolean(state.lastPreview?.delivery_ready));
+    syncScriptProduceEmpty(true);
+    setScriptStep("produce");
     await refreshScriptPreview();
   } catch (err) {
     resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
   } finally {
-    btn.disabled = false;
+    genBtns.forEach((b) => { b.disabled = false; });
   }
-});
+}
 
-document.getElementById("scriptFinishBtn").addEventListener("click", async () => {
-  const slug = state.scriptSlug;
-  if (!slug) return;
-  const btn = document.getElementById("scriptFinishBtn");
+async function runScriptFinish(options = {}) {
+  const { keepScript = false } = options;
+  const slug = currentScriptSlug();
+  if (!slug) {
+    setScriptActionStatus("请先生成脚本");
+    ensureScriptResultVisible();
+    return false;
+  }
+  state.scriptSlug = slug;
+  const finishBtns = document.querySelectorAll("#scriptFinishBtn, .js-script-finish");
   const resultWrap = scriptResultEl();
   const resultEl = scriptResultBody();
-  btn.disabled = true;
+  const savedHtml = resultEl?.innerHTML || "";
+  finishBtns.forEach((b) => { b.disabled = true; });
   resultWrap.classList.remove("hidden");
-  resultEl.textContent = "正在生成交付包（英文字幕 + 脚本包）…";
+  if (!keepScript) {
+    resultEl.textContent = "正在生成交付包（英文字幕 + 脚本包）…";
+  } else {
+    setScriptActionStatus("正在生成交付包（英文字幕 + 脚本包）…");
+  }
   try {
     const res = await api(`/api/delivery/${slug}/finish`, { method: "POST" });
-    resultEl.innerHTML = `<div class="result">交付完成：${esc(res.message || "字幕与交付包已生成")}
-      <p class="muted">可在下方 SeedDance 面板生成 AI 空镜（需配置 FAL_KEY）。</p>
-      <p class="loop-next">
-        <button type="button" class="text-link" id="goFinishedBtn">打开成稿库</button>
-        ·
-        <button type="button" class="text-link" id="goFeedbackBtn">填写投放反馈</button>
-      </p></div>`;
-    document.getElementById("goFinishedBtn")?.addEventListener("click", () => switchView("finished"));
-    document.getElementById("goFeedbackBtn")?.addEventListener("click", () => {
-      state.selectedFeedbackSlug = slug;
-      switchView("feedback");
-    });
-    const dl = document.getElementById("scriptDownloadBtn");
-    dl.href = `/api/delivery/${slug}/zip`;
-    dl.classList.remove("hidden");
+    if (!keepScript) {
+      resultEl.innerHTML = `<div class="result">交付完成：${esc(res.message || "字幕与交付包已生成")}
+        <p class="muted">可在下方 SeedDance 面板生成 AI 分镜（需配置 ARK_API_KEY）。</p>
+        <p class="loop-next">
+          <button type="button" class="text-link" id="goFinishedBtn">打开成稿库</button>
+          ·
+          <button type="button" class="text-link" id="goFeedbackBtn">填写投放反馈</button>
+        </p></div>`;
+      document.getElementById("goFinishedBtn")?.addEventListener("click", () => switchView("finished"));
+      document.getElementById("goFeedbackBtn")?.addEventListener("click", () => {
+        state.selectedFeedbackSlug = slug;
+        switchView("feedback");
+      });
+    } else {
+      resultEl.innerHTML = savedHtml;
+      setScriptActionStatus(`交付完成：${res.message || "字幕与交付包已生成"}`);
+    }
+    syncDownloadLinks(`/api/delivery/${slug}/zip`, true);
     await refreshScriptPreview();
     await refreshHealth();
+    return true;
   } catch (err) {
-    resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
+    if (!keepScript) {
+      resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
+    } else {
+      setScriptActionStatus(`交付失败：${err.message}`);
+    }
     await refreshScriptPreview();
+    return false;
+  } finally {
+    const lp = state.lastPreview || {};
+    syncFinishButton(Boolean(lp.can_finish), Boolean(lp.delivery_ready));
+  }
+}
+
+async function runSeedanceGenerate(options = {}) {
+  const force = options.force ?? document.getElementById("seedanceForceRegen")?.checked;
+  const slug = currentScriptSlug();
+  if (!slug) {
+    setScriptActionStatus("请先生成脚本");
+    ensureScriptResultVisible();
+    return false;
+  }
+  state.scriptSlug = slug;
+  ensureScriptResultVisible();
+  document.getElementById("seedancePanel")?.classList.remove("hidden");
+  const btn = document.getElementById("btnSeedanceRun");
+  const hint = document.getElementById("seedanceHint");
+  if (btn) btn.disabled = true;
+  if (hint) {
+    hint.textContent = force
+      ? "正在清除旧分镜并按最新规范重生成，约 15–30 分钟…"
+      : "正在调用 SeedDance 生成分镜视频，请耐心等待…";
+  }
+  setScriptActionStatus(force ? "强制重生成中（已清除旧 mp4）…" : "正在生成分镜视频，请耐心等待…");
+  try {
+    const qs = force ? "?force=1" : "";
+    const data = await api(`/api/delivery/${encodeURIComponent(slug)}/seedance/run${qs}`, { method: "POST" });
+    renderSeedance(slug, data.seedance, state.healthCache);
+    const failed = (data.results || []).filter((r) => r.status === "error");
+    const skipped = (data.results || []).filter((r) => r.status === "skipped");
+    const okCount = (data.results || []).filter((r) => r.status === "ok").length;
+    const finalReady = Boolean(data.seedance?.final_video?.ready || data.assemble?.ok);
+    let msg;
+    if (failed.length) {
+      msg = failed.every((r) => (r.message || "").includes("ARK_API_KEY"))
+        ? `火山方舟密钥失效：${failed[0].message}。请到「设置」→ 测试连接，或更新 overseas-loc-mvp/.env 中的 ARK_API_KEY 后重启工作台。`
+        : `部分失败：${failed.map((r) => `镜${r.number} ${r.message}`).join("；")}`;
+    } else if (finalReady || okCount > 0) {
+      msg = force
+        ? `已强制重生成 ${okCount || "5"} 镜并拼接成片，可预览 mp4 或下载 zip`
+        : "视频生成完成，可预览 mp4 或下载 zip";
+    } else if (skipped.length) {
+      msg = force
+        ? "本次未覆盖旧视频：请重启工作台（启动页面.cmd）后再勾选强制重生成，或运行 本地生成视频.cmd <编号> --force"
+        : "未生成新视频：镜头已有 mp4。请勾选「强制重生成」后重试，或先重新生成脚本以更新 Prompt。";
+    } else {
+      msg = "视频生成完成，可预览 mp4 或下载 zip";
+    }
+    if (hint) hint.textContent = msg;
+    setScriptActionStatus(msg);
+    if (!document.getElementById("scriptDownloadBtnBottom")?.classList.contains("hidden")) {
+      syncDownloadLinks(`/api/delivery/${slug}/zip?ts=${Date.now()}`, true);
+    }
+    document.getElementById("seedancePanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return !failed.length;
+  } catch (err) {
+    if (hint) hint.textContent = err.message;
+    setScriptActionStatus(`视频生成失败：${err.message}`);
+    return false;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function runProduceVideo() {
+  const slug = currentScriptSlug();
+  if (!slug) {
+    setScriptActionStatus("请先生成脚本后再产出视频");
+    ensureScriptResultVisible();
+    return;
+  }
+  state.scriptSlug = slug;
+  setScriptStep("produce");
+  ensureScriptResultVisible();
+  document.getElementById("seedancePanel")?.classList.remove("hidden");
+  const produceBtns = document.querySelectorAll(".js-script-produce");
+  produceBtns.forEach((b) => { b.disabled = true; });
+  setScriptActionStatus("正在启动：交付包 → AI 分镜视频 → 拼接成片（约 15–30 分钟）…");
+  scriptResultEl()?.scrollIntoView({ behavior: "smooth", block: "start" });
+  try {
+    const lp = state.lastPreview || {};
+    if (!lp.delivery_ready) {
+      const ok = await runScriptFinish({ keepScript: true });
+      if (!ok) {
+        setScriptActionStatus("交付未完成，无法产出视频。请查看上方错误信息或先点「完成交付」。");
+        return;
+      }
+      await refreshScriptPreview();
+    }
+    await runSeedanceGenerate({ force: document.getElementById("seedanceForceRegen")?.checked });
+  } catch (err) {
+    setScriptActionStatus(`产出视频失败：${err.message}`);
+  } finally {
+    const lp = state.lastPreview || {};
+    syncFinishButton(Boolean(lp.can_finish), Boolean(lp.delivery_ready));
+  }
+}
+
+document.getElementById("scriptGenerateBtn")?.addEventListener("click", () => runScriptGenerate());
+document.getElementById("scriptFinishBtn")?.addEventListener("click", () => runScriptFinish());
+
+document.getElementById("scriptStepRefNext")?.addEventListener("click", () => {
+  if (!document.getElementById("scriptMaterialSelect")?.value) {
+    const hint = document.getElementById("loopHint");
+    if (hint) hint.textContent = "请先选择对标爆款。";
+    return;
+  }
+  setScriptStep("product");
+  updateLoopBarFromForm(state.lastPreview || {});
+});
+
+document.getElementById("scriptStepProductPrev")?.addEventListener("click", () => {
+  setScriptStep("ref");
+  updateLoopBarFromForm(state.lastPreview || {});
+});
+
+document.getElementById("scriptStepProductNext")?.addEventListener("click", () => {
+  setScriptStep("produce");
+  updateLoopBarFromForm(state.lastPreview || {});
+});
+
+document.getElementById("scriptStepProducePrev")?.addEventListener("click", () => {
+  setScriptStep("product");
+  updateLoopBarFromForm(state.lastPreview || {});
+});
+
+document.getElementById("scriptStepProduceBack")?.addEventListener("click", () => {
+  setScriptStep("product");
+  updateLoopBarFromForm(state.lastPreview || {});
+});
+
+document.getElementById("scriptLoopBar")?.addEventListener("click", (e) => {
+  const li = e.target.closest("li[data-step]");
+  if (!li) return;
+  setScriptStep(li.dataset.step);
+  updateLoopBarFromForm(state.lastPreview || {});
+});
+
+document.addEventListener("click", (e) => {
+  const gen = e.target.closest(".js-script-generate");
+  if (gen && gen.id !== "scriptGenerateBtn") {
+    e.preventDefault();
+    runScriptGenerate();
+    return;
+  }
+  if (e.target.closest(".js-script-finish")) {
+    e.preventDefault();
+    runScriptFinish();
+    return;
+  }
+  if (e.target.closest(".js-script-produce")) {
+    e.preventDefault();
+    runProduceVideo();
   }
 });
 
@@ -969,16 +1597,36 @@ async function renderFeedbackEditor() {
 
 // ── Settings / jobs ──────────────────────────────────────────────────────
 
+function renderDoubaoSettings(health) {
+  const el = document.getElementById("doubaoSettingsStatus");
+  if (!el) return;
+  const db = health?.decompose?.doubao || {};
+  const policy = health?.decompose?.policy || {};
+  if (policy.paused) {
+    el.innerHTML = `<span class="warn-inline">拆解已暂停</span> · ${esc(policy.message || "不重复分析已有素材，新素材也不自动分析")}`;
+    return;
+  }
+  if (!db.configured) {
+    el.innerHTML = `未配置 · 在 <code>overseas-loc-mvp/.env</code> 填写 <code>ARK_API_KEY</code><br><span class="muted">${esc(db.setup || "")}</span>`;
+    return;
+  }
+  el.innerHTML = `已配置 · 默认模型 <code>${esc(db.turbo_model || "")}</code><br>高精度 <code>${esc(db.pro_model || "")}</code> · ASR ${db.asr_configured ? "已配" : "未配（可选）"}`;
+}
+
 async function loadSettingsView() {
   const h = await api("/api/health");
   state.healthCache = h;
+  renderDoubaoSettings(h);
   renderSeedanceSettings(h);
+  const policyNote = h.decompose?.policy?.paused
+    ? `<br><span class="warn-inline">拆解已暂停</span>（已有结果不重复调豆包，新素材不分析）`
+    : "";
   document.getElementById("envInfo").innerHTML = `
     UI v${h.ui_version} · 素材 ${h.materials}（已拆解 ${h.analyzed}）· 产品 ${h.products} · 成稿 ${h.finished}<br>
-    结构拆解：${h.decompose?.label || "规则模板"}<br>
+    结构拆解：${h.decompose?.label || "规则模板"}${policyNote}<br>
     脚本生成：${h.llm.available ? h.llm.model : h.llm.fallback}<br>
     交付引擎：${h.delivery_engine?.label || "overseas-loc-mvp"}<br>
-    SeedDance：${h.seedance?.configured ? "已配置 FAL_KEY" : "未配置（见上方）"}`;
+    SeedDance：${h.seedance?.configured ? `已配置 ${h.seedance.provider}` : "未配置"}`;
   await pollJobStatus();
 }
 
@@ -1028,7 +1676,17 @@ document.querySelectorAll(".job-btn").forEach((btn) => {
 
 // ── Init ─────────────────────────────────────────────────────────────────
 
-document.getElementById("openProductsBtn")?.addEventListener("click", () => switchView("products"));
+document.getElementById("openProductsBtn")?.addEventListener("click", () => {
+  closeSettingsDrawer();
+  switchView("products");
+});
+
+document.getElementById("settingsOpenBtn")?.addEventListener("click", () => openSettingsDrawer());
+document.getElementById("settingsCloseBtn")?.addEventListener("click", () => closeSettingsDrawer());
+document.getElementById("settingsBackdrop")?.addEventListener("click", () => closeSettingsDrawer());
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeSettingsDrawer();
+});
 
 document.getElementById("categorySelect").addEventListener("change", (e) => {
   state.filters.category = e.target.value;
@@ -1046,14 +1704,9 @@ document.getElementById("analyzedOnly").addEventListener("change", (e) => {
 document.getElementById("scriptProduct").addEventListener("click", (e) => {
   const chip = e.target.closest(".tag-chip");
   if (chip) {
-    chip.classList.toggle("active");
+    toggleTagChip(chip.dataset.group, chip.dataset.value);
     updateLoopBarFromForm(state.lastPreview || {});
-    if (chip.dataset.group === "scenario") {
-      const p = state.products.find((x) => x.product_id === document.getElementById("scriptProductSelect").value)
-        || state.lastPreview?.product || {};
-      const selected = readAllSelectedTags();
-      renderProductPanel(p, buildTagPool(p, state.lastPreview?.delivery_tags), selected);
-    }
+    refreshTagGroupsUI();
     return;
   }
   const addBtn = e.target.closest(".tag-add-btn");
@@ -1075,7 +1728,8 @@ document.getElementById("scriptProduct").addEventListener("keydown", (e) => {
 
 async function runSeedanceTest(hintEl) {
   const target = hintEl || document.getElementById("seedanceHint");
-  if (target) target.textContent = "正在测试 fal.ai 连接（约 30–60 秒）…";
+  const prov = state.healthCache?.seedance?.provider === "volcengine-ark" ? "火山方舟 Ark" : "SeedDance";
+  if (target) target.textContent = `正在测试 ${prov} 连接（约 30–120 秒）…`;
   try {
     const data = await api("/api/seedance/test");
     const msg = data.ok
@@ -1096,43 +1750,28 @@ document.getElementById("btnSeedanceTest")?.addEventListener("click", () => {
   runSeedanceTest(document.getElementById("seedanceHint"));
 });
 
+document.getElementById("btnDoubaoTestSettings")?.addEventListener("click", async () => {
+  const el = document.getElementById("doubaoSettingsStatus");
+  if (el) el.textContent = "正在测试豆包连接…";
+  try {
+    const data = await api("/api/doubao/test");
+    if (el) el.textContent = data.ok ? `✅ ${data.message}` : `❌ ${data.message}`;
+    await refreshHealth();
+    renderDoubaoSettings(state.healthCache);
+  } catch (err) {
+    if (el) el.textContent = `❌ ${err.message}`;
+  }
+});
+
 document.getElementById("btnSeedanceTestSettings")?.addEventListener("click", () => {
   runSeedanceTest(document.getElementById("seedanceSettingsStatus"));
 });
 
-document.getElementById("btnSeedanceRun")?.addEventListener("click", async () => {
-  const slug = state.scriptSlug;
-  if (!slug) return;
-  const btn = document.getElementById("btnSeedanceRun");
-  const hint = document.getElementById("seedanceHint");
-  btn.disabled = true;
-  if (hint) hint.textContent = "正在调用 SeedDance 生成空镜，请耐心等待…";
-  try {
-    const data = await api(`/api/delivery/${encodeURIComponent(slug)}/seedance/run`, { method: "POST" });
-    renderSeedance(slug, data.seedance, state.healthCache);
-    const failed = (data.results || []).filter((r) => r.status === "error");
-    const skipped = (data.results || []).filter((r) => r.status === "skipped");
-    if (hint) {
-      hint.textContent = failed.length
-        ? `部分失败：${failed.map((r) => `镜${r.number} ${r.message}`).join("；")}`
-        : skipped.length && !(data.results || []).some((r) => r.status === "ok")
-          ? "未生成新视频（可能未配置 FAL_KEY 或镜头已有视频）"
-          : "生成完成，可预览 mp4 或重新下载 zip";
-    }
-    const dl = document.getElementById("scriptDownloadBtn");
-    if (dl && !dl.classList.contains("hidden")) {
-      dl.href = `/api/delivery/${slug}/zip?ts=${Date.now()}`;
-    }
-  } catch (err) {
-    if (hint) hint.textContent = err.message;
-  } finally {
-    btn.disabled = false;
-  }
-});
+document.getElementById("btnSeedanceRun")?.addEventListener("click", () => runSeedanceGenerate());
 
 (async () => {
   await refreshHealth();
   await loadFilters();
-  await loadMaterials();
+  await loadWorkspaceView();
   if (state.items.length) await selectMaterial(state.items[0].link_id);
 })();

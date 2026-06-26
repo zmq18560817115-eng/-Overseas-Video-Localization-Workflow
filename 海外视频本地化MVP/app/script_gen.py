@@ -15,6 +15,7 @@ from .brand_policy import (
     product_material_match,
     sanitize_analysis,
 )
+from .product_assets import stage_seedance_source_image
 from .product_tags import validate_delivery_selection
 from .data import ANALYSIS_FIELDS, load_analysis, material_detail
 from .llm_script import generate_script_pack, pack_to_bridge_shots, pack_to_markdown
@@ -118,6 +119,7 @@ def generate_script(
         bridged_slug = _bridge(link_id, pack=pack, shots=shots, force=True, payload_extra={
             "audience_tags": market.get("audience_tags", []),
             "scenario_tags": market.get("scenario_tags", []),
+            "product_id": pid,
         })
 
     return {
@@ -169,4 +171,7 @@ def _bridge(
                     )
                 except Exception:
                     pass
+            product_id = str(payload_extra.get("product_id") or "").strip()
+            if product_id:
+                stage_seedance_source_image(proj, product_id)
     return slug

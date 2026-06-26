@@ -6,217 +6,273 @@
   <title>海外视频本地化工作台</title>
   <link rel="stylesheet" href="/static/styles.css?v={{UI_VERSION}}">
 </head>
-<body>
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <div class="logo-mark">VL</div>
-      <div>
-        <strong>视频本地化</strong>
-        <span>工作台</span>
-      </div>
+<body class="app-light">
+  <header class="app-top">
+    <button type="button" class="settings-trigger settings-trigger-floating" id="settingsOpenBtn" aria-expanded="false" aria-controls="settingsDrawer" title="设置与数据同步">
+      <span class="settings-trigger-icon" aria-hidden="true">⚙</span>
+      <span>设置</span>
+    </button>
+    <div class="app-hero">
+      <div class="app-brand-mark">VL</div>
+      <h1 class="app-hero-title">分析、复刻或生成本地化爆款视频</h1>
+      <p class="app-hero-sub">爆款结构迁移 · 品牌脚本出稿 · AI 分镜交付</p>
     </div>
-    <nav class="sidebar-nav" id="mainNav">
-      <button type="button" data-view="materials" class="active">
-        <span class="nav-label">素材库</span>
-        <span class="nav-desc">结构参考库</span>
-      </button>
-      <button type="button" data-view="script">
-        <span class="nav-label">脚本生成</span>
-        <span class="nav-desc">出稿与交付</span>
+    <nav class="top-nav-pills" id="mainNav" aria-label="主导航">
+      <button type="button" data-view="workspace" class="active">
+        <span class="nav-label">视频出稿</span>
+        <span class="nav-desc">选爆款 · 出脚本 · 成片</span>
       </button>
       <button type="button" data-view="finished">
         <span class="nav-label">成稿库</span>
-        <span class="nav-desc">已交付项目</span>
+        <span class="nav-desc">已交付</span>
       </button>
       <button type="button" data-view="feedback">
         <span class="nav-label">反馈库</span>
         <span class="nav-desc">投放数据</span>
       </button>
-      <button type="button" data-view="settings">
-        <span class="nav-label">设置</span>
-        <span class="nav-desc">同步数据</span>
-      </button>
     </nav>
-    <div class="sidebar-foot">
-      <div class="mini-stat"><span id="statMaterials">-</span><small>素材</small></div>
-      <div class="mini-stat"><span id="statAnalyzed">-</span><small>已拆解</small></div>
+    <div class="top-stats" aria-label="数据概览">
+      <span class="top-stat-pill"><strong id="statMaterials">-</strong> 素材</span>
+      <span class="top-stat-pill"><strong id="statAnalyzed">-</strong> 已拆解</span>
+    </div>
+  </header>
+
+  <div id="settingsBackdrop" class="settings-backdrop" hidden></div>
+  <aside id="settingsDrawer" class="settings-drawer" aria-hidden="true" hidden>
+    <div class="settings-drawer-head">
+      <div>
+        <h2 class="settings-drawer-title">设置</h2>
+        <p class="settings-drawer-sub">同步、引擎与环境</p>
+      </div>
+      <button type="button" class="settings-close" id="settingsCloseBtn" aria-label="关闭设置">×</button>
+    </div>
+    <div class="settings-drawer-body">
+      <details class="settings-block" open>
+        <summary>数据同步</summary>
+        <p class="hint">发现 → 入库 → 同步 TikTok → 拆解 → 更新模板</p>
+        <div class="job-grid job-grid-pills job-grid-compact">
+          <button type="button" class="job-btn pill-btn" data-job="discover">发现候选</button>
+          <button type="button" class="job-btn pill-btn" data-job="promote">筛选入库</button>
+          <button type="button" class="job-btn pill-btn" data-job="fetch">同步 TikTok</button>
+          <button type="button" class="job-btn pill-btn secondary" data-job="cache-thumbnails">缓存封面</button>
+          <button type="button" class="job-btn pill-btn" data-job="decompose" data-provider="doubao">批量拆解</button>
+          <button type="button" class="job-btn pill-btn" data-job="templates">更新模板</button>
+          <button type="button" class="job-btn pill-btn" data-job="products">同步产品</button>
+        </div>
+        <div id="jobStatus" class="job-status">就绪</div>
+        <pre id="jobLog" class="job-log"></pre>
+      </details>
+      <details class="settings-block">
+        <summary>产品资料</summary>
+        <p class="hint">改禁用词、价格带、竞品参考等长文案时使用。</p>
+        <button type="button" class="secondary pill-btn" id="openProductsBtn">打开产品资料维护</button>
+      </details>
+      <details class="settings-block">
+        <summary>豆包 · 视频拆解</summary>
+        <p class="hint">逐字稿 + 分镜表。复用 <code>ARK_API_KEY</code>。</p>
+        <div id="doubaoSettingsStatus" class="seedance-status">加载中…</div>
+        <div class="seedance-actions">
+          <button type="button" class="secondary pill-btn" id="btnDoubaoTestSettings">测试连接</button>
+        </div>
+      </details>
+      <details class="settings-block">
+        <summary>SeedDance 2.0</summary>
+        <p class="hint">AI 分镜成片。<code>overseas-loc-mvp/.env</code> 配置密钥。</p>
+        <div id="seedanceSettingsStatus" class="seedance-status">加载中…</div>
+        <div class="seedance-actions">
+          <button type="button" class="secondary pill-btn" id="btnSeedanceTestSettings">测试连接</button>
+        </div>
+      </details>
+      <details class="settings-block" open>
+        <summary>环境信息</summary>
+        <div id="envInfo" class="env-info">加载中…</div>
+      </details>
     </div>
   </aside>
 
   <div class="content-shell">
-    <main id="viewMaterials" class="view active">
-      <header class="page-header">
-        <div>
-          <h1>素材库</h1>
-          <p>积累竞品结构模板；出稿时只借鉴钩子/节奏，统一替换为熊猫布布产品</p>
+    <main id="viewWorkspace" class="view active view-script">
+      <div class="studio-page workspace-unified">
+        <ul class="loop-bar loop-bar-compact loop-bar-pills workspace-steps" id="scriptLoopBar">
+          <li data-step="ref"><span>①</span> 选爆款</li>
+          <li data-step="product"><span>②</span> 配场景</li>
+          <li data-step="produce"><span>③</span> 出脚本成片</li>
+        </ul>
+
+        <div class="studio-alerts workspace-alerts">
+          <p id="loopHint" class="loop-hint muted"></p>
+          <p id="scriptMismatchWarn" class="workflow-warn hidden"></p>
+          <p id="scenarioConflictWarn" class="workflow-warn hidden"></p>
         </div>
-      </header>
-      <div class="filter-bar card">
-        <label>品类<select id="categorySelect"><option value="">全部</option></select></label>
-        <label class="grow">搜索<input id="keywordInput" placeholder="标题、作者、话题"></label>
-        <label class="check-inline"><input type="checkbox" id="analyzedOnly"> 仅已拆解</label>
-      </div>
-      <div class="split-2">
-        <section class="card pane-scroll">
-          <div class="pane-title">视频列表</div>
-          <div id="materialList" class="list"></div>
-        </section>
-        <section class="card pane-scroll">
-          <div class="pane-title">素材详情</div>
-          <div id="materialDetail" class="detail-empty">← 从左侧选择一条视频</div>
-        </section>
+
+        <div class="studio-mega-card workspace-card">
+          <div class="workspace-shell">
+            <aside class="workspace-sidebar pane-scroll">
+              <div class="workspace-sidebar-head">
+                <h3>对标爆款</h3>
+                <span class="zone-badge">必填</span>
+              </div>
+              <div class="filter-bar workspace-filters">
+                <label class="pill-field">品类<select id="categorySelect"><option value="">全部</option></select></label>
+                <label class="pill-field grow">搜索<input id="keywordInput" placeholder="标题、作者"></label>
+                <label class="check-inline pill-check"><input type="checkbox" id="analyzedOnly"> 仅已拆解</label>
+              </div>
+              <div class="workspace-sidebar-meta">
+                <label class="ref-filter-check">
+                  <input type="checkbox" id="showAllMaterials">
+                  <span>显示其他品类</span>
+                </label>
+                <span id="materialFilterHint" class="ref-filter-count"></span>
+              </div>
+              <div id="materialList" class="list workspace-material-list"></div>
+            </aside>
+
+            <div class="workspace-main pane-scroll">
+              <section id="scriptStepRef" class="script-step-panel active" data-step="ref">
+                <div id="materialDetail" class="detail-empty workspace-empty-hint">← 从左侧选择一条对标视频，查看结构拆解</div>
+                <details class="workspace-analysis-fold" id="scriptAnalysisWrap">
+                  <summary>结构迁移摘要（供脚本生成）</summary>
+                  <div id="scriptAnalysis" class="panel-body panel-body-compact detail-empty">选择爆款后显示</div>
+                </details>
+              </section>
+
+              <section id="scriptStepProduct" class="script-step-panel" data-step="product">
+                <div class="studio-zone script-tag-zone workspace-tag-zone">
+                  <div class="zone-head script-tag-zone-head">
+                    <div>
+                      <h2 class="zone-title">产品场景标签</h2>
+                      <p class="zone-desc">为四类标签各至少选择一项，用于结构迁移与脚本生成</p>
+                    </div>
+                    <label class="studio-field studio-field-inline zone-head-field">产品
+                      <select id="scriptProductSelect"><option value="">加载中…</option></select>
+                    </label>
+                  </div>
+                  <div id="scriptProduct" class="script-tag-grid script-tag-grid-spacious detail-empty">选择产品后配置场景标签</div>
+                </div>
+              </section>
+
+              <section id="scriptStepProduce" class="script-step-panel" data-step="produce">
+                <div class="studio-deliver-stack studio-deliver-page">
+                  <section id="scriptResult" class="studio-zone output-card hidden">
+                    <div class="zone-head zone-head-tight">
+                      <h2 class="zone-title">脚本与分镜</h2>
+                      <span class="zone-desc">生成结果</span>
+                    </div>
+                    <div class="output-body output-body-compact"></div>
+                    <footer class="script-inline-actions studio-config-bar">
+                      <button type="button" class="secondary pill-btn js-script-generate">重新生成</button>
+                      <button type="button" class="secondary pill-btn js-script-finish" id="scriptFinishBtn" disabled>完成交付</button>
+                      <button type="button" class="primary primary-dark js-script-produce" id="scriptProduceBtn" disabled>直接产出视频</button>
+                      <a class="btn-link hidden js-script-download" id="scriptDownloadBtnBottom" href="#" download>下载 zip</a>
+                    </footer>
+                    <p id="scriptActionStatus" class="script-action-status"></p>
+                  </section>
+
+                  <div id="scriptProduceEmpty" class="studio-zone script-produce-empty">
+                    <p class="muted">尚未生成脚本。请返回「配场景」步骤，配置标签后点击「生成脚本」。</p>
+                    <button type="button" class="secondary pill-btn" id="scriptStepProduceBack">返回配场景</button>
+                  </div>
+
+                  <section id="seedancePanel" class="studio-zone seedance-panel hidden">
+                    <div class="zone-head zone-head-split">
+                      <div>
+                        <h2 class="zone-title">AI 分镜视频</h2>
+                        <p class="zone-desc">SeedDance 分镜成片</p>
+                        <p class="seedance-status" id="seedanceStatus"></p>
+                      </div>
+                      <p class="seedance-pipeline" id="seedancePipeline"></p>
+                    </div>
+                    <div id="seedanceShots" class="seedance-shots"></div>
+                    <footer class="seedance-actions studio-config-bar">
+                      <button type="button" class="secondary pill-btn" id="btnSeedanceTest">测试连接</button>
+                      <button type="button" class="primary primary-dark" id="btnSeedanceRun">生成分镜视频</button>
+                    </footer>
+                    <label class="seedance-force-row">
+                      <input type="checkbox" id="seedanceForceRegen" checked />
+                      覆盖已有分镜，按最新垫图与 Prompt 强制重生成
+                    </label>
+                    <p class="seedance-foot-hint muted" id="seedanceHint"></p>
+                  </section>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <footer class="workspace-action-bar" id="workspaceActionBar">
+            <div class="workspace-action-step" data-for-step="ref">
+              <span class="script-step-nav-hint muted">① 选择对标爆款，确认右侧结构拆解</span>
+              <button type="button" class="primary primary-dark" id="scriptStepRefNext">下一步：配场景</button>
+            </div>
+            <div class="workspace-action-step hidden" data-for-step="product">
+              <button type="button" class="secondary pill-btn" id="scriptStepProductPrev">上一步</button>
+              <span class="script-step-nav-hint muted">② 点选标签后可生成脚本</span>
+              <button type="button" class="primary primary-dark" id="scriptGenerateBtn">生成脚本</button>
+              <button type="button" class="secondary pill-btn" id="scriptStepProductNext">进入成片</button>
+            </div>
+            <div class="workspace-action-step hidden" data-for-step="produce">
+              <button type="button" class="secondary pill-btn" id="scriptStepProducePrev">上一步</button>
+              <span class="script-step-nav-hint muted">③ 完成交付或直接产出视频</span>
+            </div>
+          </footer>
+        </div>
+
+        <select id="scriptMaterialSelect" class="sr-only" aria-hidden="true" tabindex="-1"></select>
       </div>
     </main>
 
     <main id="viewProducts" class="view">
-      <header class="page-header">
-        <div>
-          <h1>产品资料</h1>
+      <div class="studio-workspace">
+        <header class="view-intro">
+          <h2>产品资料</h2>
           <p>非日常流程：批量改卖点、禁用词、竞品参考等长文案（人群/场景标签请在「脚本生成」页维护）</p>
-        </div>
-      </header>
-      <div class="split-2 split-narrow">
-        <section class="card pane-scroll">
-          <div class="pane-title">产品列表</div>
-          <div id="productList" class="list compact"></div>
-        </section>
-        <section class="card pane-scroll">
-          <div class="pane-title">产品资料</div>
-          <div id="productEditor" class="detail-empty">← 选择左侧产品</div>
-        </section>
-      </div>
-    </main>
-
-    <main id="viewScript" class="view view-script">
-      <header class="page-header">
-        <div>
-          <h1>脚本生成</h1>
-          <p>选产品与同品类结构参考 → 生成脚本 → 完成交付</p>
-        </div>
-      </header>
-      <ul class="loop-bar" id="scriptLoopBar">
-        <li data-step="material"><span>①</span> 结构参考</li>
-        <li data-step="product"><span>②</span> 产品</li>
-        <li data-step="tags"><span>③</span> 产品标签</li>
-        <li data-step="script"><span>④</span> 生成脚本</li>
-        <li data-step="delivery"><span>⑤</span> 交付成稿</li>
-      </ul>
-      <p id="loopHint" class="loop-hint muted"></p>
-      <div class="action-card card">
-        <p id="scriptMismatchWarn" class="workflow-warn hidden"></p>
-        <div class="action-fields">
-          <label>产品<select id="scriptProductSelect"></select></label>
-          <label>结构参考<select id="scriptMaterialSelect"></select></label>
-        </div>
-        <p class="material-filter-hint">
-          <label class="check-inline"><input type="checkbox" id="showAllMaterials"> 显示其他品类参考</label>
-          <span id="materialFilterHint" class="muted"></span>
-        </p>
-        <div class="action-buttons">
-          <button type="button" class="primary" id="scriptGenerateBtn">生成脚本</button>
-          <button type="button" class="secondary" id="scriptFinishBtn" disabled>完成交付</button>
-          <a class="btn-link hidden" id="scriptDownloadBtn" href="#" download>下载 zip</a>
+        </header>
+        <div class="studio-mega-card">
+          <div class="split-2 split-narrow studio-split-body">
+            <section class="studio-inner-pane pane-scroll">
+              <div class="pane-title">产品列表</div>
+              <div id="productList" class="list compact"></div>
+            </section>
+            <section class="studio-inner-pane pane-scroll">
+              <div class="pane-title">产品资料</div>
+              <div id="productEditor" class="detail-empty">← 选择左侧产品</div>
+            </section>
+          </div>
         </div>
       </div>
-      <div class="preview-stack">
-        <section class="card preview-card">
-          <div class="pane-title">结构拆解（可借鉴）</div>
-          <div id="scriptAnalysis" class="panel-body detail-empty">选择视频后显示</div>
-        </section>
-        <section class="card preview-card">
-          <div class="pane-title">产品资料与下发标签（生成脚本仅使用此处勾选）</div>
-          <div id="scriptProduct" class="panel-body detail-empty">选产品后在本页点选人群/场景标签，无需跳转产品库</div>
-        </section>
-        <section class="card preview-card">
-          <div class="pane-title">爆款模板</div>
-          <div id="scriptTemplate" class="panel-body detail-empty">自动匹配</div>
-        </section>
-      </div>
-      <section id="scriptResult" class="card output-card hidden">
-        <div class="pane-title">生成结果</div>
-        <div class="output-body"></div>
-      </section>
-      <section id="seedancePanel" class="card seedance-panel hidden">
-        <div class="pane-title">SeedDance 2.0 · AI 空镜</div>
-        <p class="seedance-status" id="seedanceStatus"></p>
-        <p class="seedance-pipeline muted" id="seedancePipeline"></p>
-        <div id="seedanceShots" class="seedance-shots"></div>
-        <div class="seedance-actions">
-          <button type="button" class="secondary" id="btnSeedanceTest">测试连接</button>
-          <button type="button" class="primary" id="btnSeedanceRun">生成 AI 空镜</button>
-        </div>
-        <p class="muted center" id="seedanceHint"></p>
-      </section>
     </main>
 
     <main id="viewFinished" class="view">
-      <header class="page-header">
-        <div>
-          <h1>成稿库</h1>
+      <div class="studio-workspace">
+        <header class="view-intro">
+          <h2>成稿库</h2>
           <p>已交付项目的脚本包与下载入口</p>
+        </header>
+        <div class="studio-mega-card">
+          <section class="studio-inner-pane pane-scroll table-card">
+            <div id="finishedList" class="table-wrap"></div>
+          </section>
         </div>
-      </header>
-      <section class="card pane-scroll table-card">
-        <div id="finishedList" class="table-wrap"></div>
-      </section>
-    </main>
-
-    <main id="viewFeedback" class="view">
-      <header class="page-header">
-        <div>
-          <h1>反馈库</h1>
-          <p>记录剪辑修改与投放表现，反哺优化</p>
-        </div>
-      </header>
-      <div class="split-2 split-narrow">
-        <section class="card pane-scroll">
-          <div class="pane-title">成稿列表</div>
-          <div id="feedbackList" class="list compact"></div>
-        </section>
-        <section class="card pane-scroll">
-          <div class="pane-title">反馈填写</div>
-          <div id="feedbackEditor" class="detail-empty">← 选择左侧成稿</div>
-        </section>
       </div>
     </main>
 
-    <main id="viewSettings" class="view">
-      <header class="page-header">
-        <div>
-          <h1>设置</h1>
-          <p>一键同步 TikTok 与产品数据，无需命令行</p>
+    <main id="viewFeedback" class="view">
+      <div class="studio-workspace">
+        <header class="view-intro">
+          <h2>反馈库</h2>
+          <p>记录剪辑修改与投放表现，反哺优化</p>
+        </header>
+        <div class="studio-mega-card">
+          <div class="split-2 split-narrow studio-split-body">
+            <section class="studio-inner-pane pane-scroll">
+              <div class="pane-title">成稿列表</div>
+              <div id="feedbackList" class="list compact"></div>
+            </section>
+            <section class="studio-inner-pane pane-scroll">
+              <div class="pane-title">反馈填写</div>
+              <div id="feedbackEditor" class="detail-empty">← 选择左侧成稿</div>
+            </section>
+          </div>
         </div>
-      </header>
-      <div class="settings-layout">
-        <section class="card settings-card">
-          <div class="pane-title">数据同步</div>
-          <p class="hint">按顺序：先同步 TikTok → 再结构拆解 → 更新模板</p>
-          <div class="job-grid">
-            <button type="button" class="job-btn" data-job="fetch">① 同步 TikTok</button>
-            <button type="button" class="job-btn" data-job="decompose">② 结构拆解</button>
-            <button type="button" class="job-btn" data-job="templates">③ 更新模板</button>
-            <button type="button" class="job-btn" data-job="products">同步产品资料</button>
-          </div>
-          <div id="jobStatus" class="job-status">就绪</div>
-          <pre id="jobLog" class="job-log"></pre>
-        </section>
-        <section class="card settings-card">
-          <div class="pane-title">产品资料（可选）</div>
-          <p class="hint">日常出稿不需要进这里。仅当要改禁用词、价格带、竞品参考，或批量整理卖点/痛点长文案时使用。</p>
-          <button type="button" class="secondary" id="openProductsBtn">打开产品资料维护</button>
-        </section>
-        <section class="card settings-card">
-          <div class="pane-title">SeedDance 2.0</div>
-          <p class="hint">AI 空镜通过 fal.ai 生成。密钥写在 <code>overseas-loc-mvp/.env</code> 的 <code>FAL_KEY</code>。</p>
-          <div id="seedanceSettingsStatus" class="seedance-status">加载中…</div>
-          <div class="seedance-actions">
-            <button type="button" class="secondary" id="btnSeedanceTestSettings">测试连接</button>
-          </div>
-        </section>
-        <section class="card settings-card">
-          <div class="pane-title">环境信息</div>
-          <div id="envInfo" class="env-info">加载中…</div>
-        </section>
       </div>
     </main>
   </div>

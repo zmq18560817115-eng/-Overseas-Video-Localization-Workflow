@@ -1,0 +1,6 @@
+query_id,type,value,category,subcategory,region,min_views,max_days,enabled,notes
+1,hashtag,portablebottlewarmer,bottle_warmer,便携恒温杯,US,5000,180,1,便携温奶器垂直话题
+2,keyword,travel bottle warmer,bottle_warmer,便携恒温杯,US,5000,180,1,外出温奶需求
+3,keyword,baby bottle warmer on the go,bottle_warmer,便携恒温杯,US,5000,180,1,外出喂养场景
+4,hashtag,momcozybottlewarmer,bottle_warmer,便携恒温杯,US,3000,365,1,竞品品牌相关
+5,hashtag,babymusthave,bottle_warmer,便携恒温杯,US,10000,180,1,母婴好物泛话题

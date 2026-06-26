@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from .ai_video import default_footage_for_role, build_role_video_prompt
+from .product_usage import (
+    THERMOS_USAGE_ZH,
+    THERMOS_USAGE_EN,
+    THERMOS_PRODUCT_EN,
+    THERMOS_VISUAL_RULES_ZH,
+)
+
 # 互斥场景组：同组可多标签，跨组多选时以第一个场景标签为准
 SCENE_DEFS: list[dict[str, Any]] = [
     {
@@ -15,8 +23,9 @@ SCENE_DEFS: list[dict[str, Any]] = [
         "subtitle": "Warm milk by the bedside, in minutes",
         "cta": "Save this for your next night feed.",
         "seedance": (
-            "Dim nursery bedroom at night, warm lamp on bedside table, baby bottle beside portable "
-            "bottle warmer, soft shadows, slow push-in, no person face, no medical claim, 9:16"
+            "Dim nursery bedroom at night, cold milk in baby bottle beside bedside table, "
+            f"separate {THERMOS_PRODUCT_EN} on nightstand, soft shadows, slow push-in, "
+            f"no person face, no medical claim, {THERMOS_USAGE_EN}, 9:16"
         ),
     },
     {
@@ -28,8 +37,9 @@ SCENE_DEFS: list[dict[str, Any]] = [
         "subtitle": "Warm milk in the cup holder, in minutes",
         "cta": "Save this before your next car ride with baby.",
         "seedance": (
-            "Car interior cup holder, baby bottle in portable warmer, daylight through windshield, "
-            "steady shot, no person face, no medical claim, 9:16"
+            f"Car interior cup holder, {THERMOS_PRODUCT_EN} with warm milk inside, baby bottle "
+            f"separate on seat, daylight through windshield, steady shot, no person face, "
+            f"no medical claim, {THERMOS_USAGE_EN}, 9:16"
         ),
     },
     {
@@ -41,8 +51,8 @@ SCENE_DEFS: list[dict[str, Any]] = [
         "subtitle": "Warm milk anywhere you travel, in minutes",
         "cta": "Save this for your next trip with baby.",
         "seedance": (
-            "Airport lounge or travel bag flat lay, portable bottle warmer with baby bottle, "
-            "soft ambient light, slow push-in, no medical claim, 9:16"
+            f"Airport lounge or travel bag flat lay, {THERMOS_PRODUCT_EN}, baby bottle beside it, "
+            f"soft ambient light, slow push-in, no medical claim, {THERMOS_USAGE_EN}, 9:16"
         ),
     },
     {
@@ -54,8 +64,8 @@ SCENE_DEFS: list[dict[str, Any]] = [
         "subtitle": "Warm milk at the park, in minutes",
         "cta": "Save this for your next park day.",
         "seedance": (
-            "Park bench with diaper bag, portable warmer and baby bottle, natural daylight, "
-            "gentle breeze, no person face, no medical claim, 9:16"
+            f"Park bench with diaper bag, {THERMOS_PRODUCT_EN} and separate baby bottle, "
+            f"natural daylight, gentle breeze, no person face, no medical claim, {THERMOS_USAGE_EN}, 9:16"
         ),
     },
     {
@@ -67,8 +77,8 @@ SCENE_DEFS: list[dict[str, Any]] = [
         "subtitle": "Quick warm milk at the office, in minutes",
         "cta": "Save this for your workday routine.",
         "seedance": (
-            "Quiet office desk corner, discreet baby bottle warming setup, soft indoor light, "
-            "no person face, no medical claim, 9:16"
+            f"Quiet office desk corner, {THERMOS_PRODUCT_EN} warming milk, baby bottle ready beside, "
+            f"soft indoor light, no person face, no medical claim, {THERMOS_USAGE_EN}, 9:16"
         ),
     },
     {
@@ -80,8 +90,8 @@ SCENE_DEFS: list[dict[str, Any]] = [
         "subtitle": "Warm milk on the go, even at the mall",
         "cta": "Save this before your next meal out.",
         "seedance": (
-            "Cafe table corner, portable warmer heating baby bottle discreetly, warm indoor light, "
-            "no person face, no medical claim, 9:16"
+            f"Cafe table corner, hands tilting {THERMOS_PRODUCT_EN}, warm milk streaming from circular pour spout hole "
+            f"in flip-top lid into baby feeding bottle, {THERMOS_USAGE_EN}, 9:16"
         ),
     },
 ]
@@ -144,14 +154,14 @@ def thermos_voiceovers(market: dict[str, Any], profile: dict[str, Any]) -> list[
             pain = "No convenient hot water when baby wakes up hungry."
         elif "温度" in pains:
             pain = "Uneven temperature is the last thing you need at 2 a.m."
-        sell = "This compact warmer heats evenly in minutes."
+        sell = "Pour milk into this warming thermos cup, heat evenly, then into baby's bottle."
         if "均匀" in selling or "温控" in selling:
-            sell = "Even heating with steady temperature control by the bed."
+            sell = "Pour in, even heat inside the thermos cup, then pour out to the bottle."
         elif "充电" in selling or "USB" in selling.upper():
-            sell = "USB-C rechargeable — ready on your nightstand."
+            sell = "USB-C rechargeable thermos cup — warm milk by the bed, pour when ready."
         elif "便携" in selling:
-            sell = "Portable enough to keep right beside the crib."
-        proof = "Quiet night feed setup — warm milk without leaving the room."
+            sell = "Compact thermos cup stays on your nightstand for quick pour-and-feed."
+        proof = "Warm milk poured out ready for the bottle — without leaving the room."
         cta = profile.get("cta", "Save this for your next night feed.")
         return [hook, pain, sell, proof, cta]
 
@@ -243,11 +253,11 @@ def shot_specs(
     selling = _blob(market.get("selling_tags") or [])
     vos = voiceovers
     return [
-        ("钩子", "0-3s", f"{scene}：近景口播/问题特写", vos[0], "LIVE_ACTION"),
-        ("痛点", "3-8s", f"{scene}：呈现痛点（{pains}）", vos[1], "AI_BROLL"),
-        ("方案", "8-13s", f"{scene}：产品使用演示（{selling}）", vos[2], "LIVE_ACTION"),
-        ("证明", "13-17s", f"{scene}：效果/细节证明", vos[3], "LIVE_ACTION"),
-        ("行动号召", "17-20s", f"{scene}：口播对镜收束", vos[4], "LIVE_ACTION"),
+        ("钩子", "0-3s", f"{scene}：近景口播/问题特写", vos[0], default_footage_for_role("钩子")),
+        ("痛点", "3-8s", f"{scene}：呈现痛点（{pains}）", vos[1], default_footage_for_role("痛点")),
+        ("方案", "8-13s", f"{scene}：储奶袋/家用奶瓶经翻盖倒入杯内加热，倾斜经盖面圆孔出液嘴倒入干净奶瓶（{selling}；{THERMOS_USAGE_ZH}）", vos[2], default_footage_for_role("方案")),
+        ("证明", "13-17s", f"{scene}：效果/细节证明", vos[3], default_footage_for_role("证明")),
+        ("行动号召", "17-20s", f"{scene}：口播对镜收束", vos[4], default_footage_for_role("行动号召")),
     ]
 
 
@@ -269,11 +279,11 @@ def build_storyboard(
     for i, (role, timing, visual, vo, ft) in enumerate(specs, start=1):
         vp = (
             f"{visual}；产品：{product_name}；人群：{audience}；"
-            f"场景：{scene}（全片统一，禁止混入其他场景）；竖屏9:16"
+            f"场景：{scene}（全片统一，禁止混入其他场景）；{THERMOS_VISUAL_RULES_ZH}；竖屏9:16"
         )
         sd = ""
-        if ft == "AI_BROLL":
-            sd = profile.get("seedance", "")
+        if ft in ("AI_BROLL", "AI_VIDEO"):
+            sd = build_role_video_prompt(role, profile, product_name, vo)
             seedance_prompts.append(sd)
         storyboard.append({
             "number": i,

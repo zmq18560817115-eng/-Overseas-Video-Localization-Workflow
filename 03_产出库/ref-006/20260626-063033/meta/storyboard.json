@@ -1,0 +1,49 @@
+{
+  "shots": [
+    {
+      "number": 1,
+      "role": "钩子",
+      "timing": "0-3s",
+      "visual": "夜间卧室喂奶：近景口播/问题特写",
+      "copy": "Middle-of-the-night feeds and milk still not warm enough?",
+      "footage_type": "LIVE_ACTION",
+      "notes": "夜间卧室喂奶：近景口播/问题特写；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16"
+    },
+    {
+      "number": 2,
+      "role": "痛点",
+      "timing": "3-8s",
+      "visual": "夜间卧室喂奶：呈现痛点（传统暖奶器太大不便携）",
+      "copy": "A bulky warmer has no place on your nightstand.",
+      "footage_type": "AI_BROLL",
+      "notes": "Dim nursery bedroom at night, warm lamp on bedside table, baby bottle beside portable bottle warmer, soft shadows, slow push-in, no person face, no medical claim, 9:16"
+    },
+    {
+      "number": 3,
+      "role": "方案",
+      "timing": "8-13s",
+      "visual": "夜间卧室喂奶：产品使用演示（便携可充电设计、外出随时加热）",
+      "copy": "USB-C rechargeable — ready on your nightstand.",
+      "footage_type": "LIVE_ACTION",
+      "notes": "夜间卧室喂奶：产品使用演示（便携可充电设计、外出随时加热）；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16"
+    },
+    {
+      "number": 4,
+      "role": "证明",
+      "timing": "13-17s",
+      "visual": "夜间卧室喂奶：效果/细节证明",
+      "copy": "Quiet night feed setup — warm milk without leaving the room.",
+      "footage_type": "LIVE_ACTION",
+      "notes": "夜间卧室喂奶：效果/细节证明；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16"
+    },
+    {
+      "number": 5,
+      "role": "行动号召",
+      "timing": "17-20s",
+      "visual": "夜间卧室喂奶：口播对镜收束",
+      "copy": "Save this for your next night feed.",
+      "footage_type": "LIVE_ACTION",
+      "notes": "夜间卧室喂奶：口播对镜收束；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16"
+    }
+  ]
+}

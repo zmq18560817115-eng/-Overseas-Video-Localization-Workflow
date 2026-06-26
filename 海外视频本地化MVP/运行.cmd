@@ -6,6 +6,8 @@ if "%~1"=="" (
   echo  TikTok 竞品流水线
   echo  ─────────────────────────────────────
   echo   links      生成 50 条链接表
+  echo   discover   发现公开候选 URL -^> discovery_candidates
+  echo   promote    候选评分筛选 -^> raw_links
   echo   fetch      抓取视频信息
   echo   db         导入 MySQL（可选）
   echo   decompose  结构拆解（规则）→ video_analysis
@@ -14,7 +16,9 @@ if "%~1"=="" (
   echo   knowledge  知识库检索 ^(KRO^)
   echo   bridge     对接到 MVP 页面
   echo.
-  echo  示例: 运行.cmd fetch
+  echo  示例: 运行.cmd discover --limit-per-query 20
+  echo        运行.cmd promote --limit 20
+  echo        运行.cmd fetch
   echo        运行.cmd bridge --id 19
   echo.
   goto :eof

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import mimetypes
 import os
 import time
 from pathlib import Path
@@ -117,6 +119,180 @@ async def call_seedance(
     image_path: Path | None,
     shot_number: int,
 ) -> dict[str, Any]:
+    provider = settings.seedance_provider_resolved
+    if provider == "ark":
+        return await _call_seedance_ark(project, prompt, image_path, shot_number)
+    if provider == "fal":
+        return await _call_seedance_fal(project, prompt, image_path, shot_number)
+    raise RuntimeError(
+        "未配置 SeedDance 密钥：在 overseas-loc-mvp/.env 填写 ARK_API_KEY（火山方舟）或 FAL_KEY（fal.ai）"
+    )
+
+
+def _extract_video_url(payload: dict[str, Any]) -> str | None:
+    content = payload.get("content") or {}
+    if isinstance(content, dict):
+        for key in ("video_url", "url"):
+            if content.get(key):
+                return str(content[key])
+    video = payload.get("video") or {}
+    if isinstance(video, dict) and video.get("url"):
+        return str(video["url"])
+    videos = payload.get("videos") or []
+    if videos and isinstance(videos[0], dict) and videos[0].get("url"):
+        return str(videos[0]["url"])
+    output = payload.get("output") or {}
+    if isinstance(output, dict):
+        for key in ("video_url", "url"):
+            if output.get(key):
+                return str(output[key])
+    return None
+
+
+async def _ark_headers() -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {settings.ark_api_key}",
+        "Content-Type": "application/json",
+    }
+
+
+async def _ark_create_task(
+    client: httpx.AsyncClient,
+    *,
+    prompt: str,
+    image_path: Path | None,
+    duration: int,
+    resolution: str,
+) -> str:
+    model_id = (
+        settings.ark_image_model_resolved if image_path else settings.ark_text_model_resolved
+    )
+    content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+    if image_path and image_path.exists():
+        mime = mimetypes.guess_type(image_path.name)[0] or "image/jpeg"
+        data_uri = (
+            f"data:{mime};base64,"
+            f"{base64.b64encode(image_path.read_bytes()).decode('ascii')}"
+        )
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": data_uri},
+            "role": "reference_image",
+        })
+    payload = {
+        "model": model_id,
+        "content": content,
+        "resolution": resolution,
+        "ratio": "9:16",
+        "duration": duration,
+        "watermark": False,
+        "generate_audio": False,
+    }
+    response = await client.post(
+        f"{settings.ark_base_url}/contents/generations/tasks",
+        headers=await _ark_headers(),
+        json=payload,
+    )
+    if response.status_code in (401, 403):
+        detail = ""
+        try:
+            body = response.json()
+            detail = str(body.get("error", {}).get("message") or body.get("message") or "")
+        except Exception:
+            detail = (response.text or "")[:200]
+        hint = detail or f"HTTP {response.status_code}"
+        raise RuntimeError(
+            f"ARK_API_KEY 无效或无权限（{hint}）。请在火山方舟控制台检查密钥是否过期、"
+            "是否开通 SeedDance 2.0，并更新 overseas-loc-mvp/.env 后重启工作台"
+        )
+    response.raise_for_status()
+    data = response.json()
+    task_id = data.get("id") or data.get("task_id")
+    if not task_id:
+        raise RuntimeError(f"Ark 未返回任务 ID: {data}")
+    return str(task_id)
+
+
+async def _ark_wait_video_url(
+    client: httpx.AsyncClient,
+    task_id: str,
+    *,
+    timeout_s: float = 300,
+) -> str:
+    wait = 8.0
+    deadline = time.perf_counter() + timeout_s
+    while time.perf_counter() < deadline:
+        response = await client.get(
+            f"{settings.ark_base_url}/contents/generations/tasks/{task_id}",
+            headers=await _ark_headers(),
+        )
+        response.raise_for_status()
+        data = response.json()
+        status = str(data.get("status") or "").lower()
+        if status in ("succeeded", "success", "completed"):
+            video_url = _extract_video_url(data)
+            if video_url:
+                return video_url
+            raise RuntimeError(f"Ark 任务成功但无视频 URL: {list(data.keys())}")
+        if status in ("failed", "expired", "cancelled", "error"):
+            err = data.get("error") or data.get("message") or status
+            raise RuntimeError(f"Ark 任务失败: {err}")
+        await asyncio.sleep(wait)
+        wait = min(wait * 1.5, 45.0)
+    raise RuntimeError(f"Ark 任务超时（{int(timeout_s)}s）: {task_id}")
+
+
+async def _download_video(client: httpx.AsyncClient, video_url: str, output_path: Path) -> None:
+    response = await client.get(video_url)
+    response.raise_for_status()
+    output_path.write_bytes(response.content)
+
+
+async def _call_seedance_ark(
+    project: Path,
+    prompt: str,
+    image_path: Path | None,
+    shot_number: int,
+) -> dict[str, Any]:
+    if not settings.ark_api_key:
+        raise RuntimeError("未配置 ARK_API_KEY")
+    model_id = (
+        settings.ark_image_model_resolved if image_path else settings.ark_text_model_resolved
+    )
+    start = time.perf_counter()
+    async with httpx.AsyncClient(timeout=300) as client:
+        task_id = await _ark_create_task(
+            client, prompt=prompt, image_path=image_path, duration=5, resolution="720p"
+        )
+        video_url = await _ark_wait_video_url(
+            client, task_id, timeout_s=float(settings.ark_seedance_wait_timeout)
+        )
+        broll_dir = project / "broll"
+        broll_dir.mkdir(parents=True, exist_ok=True)
+        output_path = broll_dir / f"shot-{shot_number}.mp4"
+        await _download_video(client, video_url, output_path)
+    meta = {
+        "provider": "volcengine-ark",
+        "model": model_id,
+        "task_id": task_id,
+        "shot_number": shot_number,
+        "requested_at": utc_now(),
+        "latency_ms": round((time.perf_counter() - start) * 1000),
+        "prompt": prompt,
+        "remote_video_url": video_url,
+        "local_file": output_path.relative_to(project).as_posix(),
+        "status": "success",
+    }
+    write_json(broll_dir / f"shot-{shot_number}-seedance-meta.json", meta)
+    return meta
+
+
+async def _call_seedance_fal(
+    project: Path,
+    prompt: str,
+    image_path: Path | None,
+    shot_number: int,
+) -> dict[str, Any]:
     if not settings.fal_key:
         raise RuntimeError("未配置 FAL_KEY，请在 overseas-loc-mvp/.env 填写 fal.ai 密钥")
     os.environ["FAL_KEY"] = settings.fal_key
@@ -178,11 +354,70 @@ async def call_seedance(
 
 
 async def test_seedance_connection() -> dict[str, Any]:
+    """生成短测试片，验证 SeedDance 密钥与模型可用（Ark 或 fal.ai）。"""
+    provider = settings.seedance_provider_resolved
+    if not provider:
+        return {
+            "ok": False,
+            "configured": False,
+            "provider": "",
+            "message": "未配置 SeedDance 密钥",
+            "setup": (
+                "在 overseas-loc-mvp/.env 填写 ARK_API_KEY（火山方舟，推荐）"
+                " 或 FAL_KEY（fal.ai）"
+            ),
+        }
+    if provider == "ark":
+        return await _test_seedance_ark()
+    return await _test_seedance_fal()
+
+
+async def _test_seedance_ark() -> dict[str, Any]:
+    model_id = settings.ark_text_model_resolved
+    prompt = (
+        "Warm nursery night light, bedside table with baby bottle warmer, "
+        "slow cinematic push-in, no people, commercial b-roll test, vertical 9:16"
+    )
+    start = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=300) as client:
+            task_id = await _ark_create_task(
+                client, prompt=prompt, image_path=None, duration=4, resolution="480p"
+            )
+            video_url = await _ark_wait_video_url(
+                client, task_id, timeout_s=float(settings.ark_seedance_wait_timeout)
+            )
+            probe_dir = settings.runs_dir / "_seedance_probe"
+            probe_dir.mkdir(parents=True, exist_ok=True)
+            output_path = probe_dir / "connection-test.mp4"
+            await _download_video(client, video_url, output_path)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "configured": True,
+            "provider": "volcengine-ark",
+            "model": model_id,
+            "message": str(exc),
+        }
+    return {
+        "ok": True,
+        "configured": True,
+        "provider": "volcengine-ark",
+        "model": model_id,
+        "latency_ms": round((time.perf_counter() - start) * 1000),
+        "local_file": str(output_path),
+        "remote_video_url": video_url,
+        "message": "SeedDance 2.0（火山方舟 Ark）连接成功",
+    }
+
+
+async def _test_seedance_fal() -> dict[str, Any]:
     """调用 fal.ai 生成 4 秒测试片，验证 FAL_KEY 与模型可用。"""
     if not settings.fal_key:
         return {
             "ok": False,
             "configured": False,
+            "provider": "fal.ai",
             "message": "未配置 FAL_KEY",
             "setup": "在 overseas-loc-mvp/.env 填写 FAL_KEY=（从 https://fal.ai/dashboard/keys 获取）",
         }
@@ -241,10 +476,11 @@ async def test_seedance_connection() -> dict[str, Any]:
     return {
         "ok": True,
         "configured": True,
+        "provider": "fal.ai",
         "model": model_id,
         "latency_ms": round((time.perf_counter() - start) * 1000),
         "local_file": str(output_path),
         "remote_video_url": video_url,
-        "message": "SeedDance 2.0 连接成功",
+        "message": "SeedDance 2.0（fal.ai）连接成功",
     }
 

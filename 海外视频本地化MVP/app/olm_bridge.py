@@ -14,6 +14,7 @@ from typing import Any
 from paths import GENERATED_SCRIPTS_DIR, MVP_ROOT, OVERSEAS_MVP_DIR, OVERSEAS_RUNS_DIR
 
 from .llm_script import pack_to_bridge_shots
+from .product_assets import stage_seedance_source_image
 
 USER_DELIVERABLES = (
     "交付脚本包.md",
@@ -84,12 +85,29 @@ def ensure_delivery_project(link_id: int) -> str:
                     encoding="utf-8",
                 )
             _sync_brief_tags(proj, payload)
+            _stage_product_image(proj, payload)
         except (json.JSONDecodeError, OSError) as exc:
             raise RuntimeError(f"同步 script-pack 失败: {exc}") from exc
 
     if not proj.exists():
         raise RuntimeError(f"交付项目 {slug} 不存在，请先生成脚本")
     return slug
+
+
+def _stage_product_image(project: Path, payload: dict[str, Any]) -> None:
+    product_id = str(payload.get("product_id") or "").strip()
+    if not product_id:
+        brief_path = project / "localization-brief.yaml"
+        if brief_path.exists():
+            try:
+                import yaml
+
+                brief = yaml.safe_load(brief_path.read_text(encoding="utf-8")) or {}
+                product_id = str(brief.get("sku") or "").strip()
+            except Exception:
+                product_id = ""
+    if product_id:
+        stage_seedance_source_image(project, product_id)
 
 
 def _sync_brief_tags(project: Path, payload: dict[str, Any]) -> None:
@@ -149,6 +167,9 @@ def build_delivery_zip(slug: str) -> tuple[bytes, str]:
         if broll.exists():
             for mp4 in sorted(broll.glob("shot-*.mp4")):
                 zf.write(mp4, mp4.relative_to(project).as_posix())
+            final = broll / "final-video.mp4"
+            if final.is_file():
+                zf.write(final, final.relative_to(project).as_posix())
     return buf.getvalue(), f"{slug}-delivery.zip"
 
 

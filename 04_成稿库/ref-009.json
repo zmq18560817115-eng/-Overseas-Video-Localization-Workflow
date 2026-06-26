@@ -1,0 +1,32 @@
+{
+  "slug": "ref-009",
+  "link_id": "9",
+  "title": "熊猫布布便携恒温杯 tips for calmer night feeds",
+  "saved_at": "2026-06-24T01:26:08.083749+00:00",
+  "script_refs": {
+    "script_pack": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\9\\script-pack.json",
+    "delivery_pack": "交付脚本包.json",
+    "generated_dir": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\9",
+    "script_pack.md": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\海外视频本地化MVP\\生成脚本\\9\\script-pack.md"
+  },
+  "video_refs": [
+    "broll/shot-1.mp4",
+    "broll/shot-2.mp4"
+  ],
+  "template_id": "",
+  "template_label": "产品种草型",
+  "product_id": "便携恒温杯",
+  "product_name": "",
+  "delivery_files": [
+    "交付脚本包.md",
+    "交付脚本包.json",
+    "subtitles.srt",
+    "剪辑单.html"
+  ],
+  "source_tiktok_url": "https://www.tiktok.com/@cupcakegaboo/video/7106665278041394478",
+  "brief": {
+    "sku": "便携恒温杯",
+    "theme": "This is so much better than regular bottle warmers that take forever to warm mil",
+    "target_country": "US"
+  }
+}

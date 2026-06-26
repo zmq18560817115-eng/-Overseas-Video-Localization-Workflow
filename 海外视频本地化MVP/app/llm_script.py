@@ -14,6 +14,7 @@ from paths import DATA_DIR, SCRIPT_TEMPLATES_CSV
 
 from .brand_policy import OUR_BRAND, display_product_name
 from .product_tags import validate_delivery_selection
+from .output_standards import enrich_pack_with_standards
 from .scene_script import (
     build_storyboard,
     pump_voiceovers,
@@ -324,7 +325,7 @@ def normalize_pack(pack: dict[str, Any]) -> dict[str, Any]:
         pack["seedance_prompts"] = [
             s.get("seedance_prompt", "")
             for s in storyboard
-            if s.get("footage_type") == "AI_BROLL" and s.get("seedance_prompt")
+            if s.get("footage_type") in ("AI_BROLL", "AI_VIDEO") and s.get("seedance_prompt")
         ]
     return pack
 
@@ -363,6 +364,7 @@ def generate_script_pack(
         }
         meta["template_id"] = template.get("template_id", "")
         meta["template_label"] = template.get("label", "")
+        enrich_pack_with_standards(pack, product=product, market=market, analysis=analysis)
         return pack, meta
     except Exception as exc:
         pack = _rule_pack(
@@ -381,6 +383,7 @@ def generate_script_pack(
             "template_id": template.get("template_id", ""),
             "template_label": template.get("label", ""),
         }
+        enrich_pack_with_standards(pack, product=product, market=market, analysis=analysis)
         return pack, meta
 
 

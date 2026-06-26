@@ -8,18 +8,49 @@ from dotenv import load_dotenv
 
 
 MVP_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = MVP_ROOT / "数据表"
-DECOMPOSE_DIR = MVP_ROOT / "AI拆解结果"
+WORKFLOW_ROOT = MVP_ROOT.parent
+
+# ── 工作区目录（01 素材库 / 03 产出库 / 04 成稿 / 05 反馈）────────────────
+MATERIAL_LIBRARY_DIR = WORKFLOW_ROOT / "01_素材库"
+PRODUCTION_ARCHIVE_DIR = WORKFLOW_ROOT / "03_产出库"
+FINISHED_LIBRARY_DIR = WORKFLOW_ROOT / "04_成稿库"
+FEEDBACK_LIBRARY_DIR = WORKFLOW_ROOT / "05_反馈库"
+
+def _first_existing(*candidates: Path) -> Path:
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+DATA_DIR = _first_existing(
+    MATERIAL_LIBRARY_DIR / "竞品对标" / "数据表",
+    MVP_ROOT / "数据表",
+)
+DECOMPOSE_DIR = _first_existing(
+    MATERIAL_LIBRARY_DIR / "竞品对标" / "AI拆解结果",
+    MVP_ROOT / "AI拆解结果",
+)
+PRODUCT_MATERIALS_DIR = _first_existing(
+    MATERIAL_LIBRARY_DIR / "产品资料",
+    MVP_ROOT / "产品资料",
+)
+GENERATED_SCRIPTS_DIR = _first_existing(
+    MATERIAL_LIBRARY_DIR / "脚本快照",
+    MVP_ROOT / "生成脚本",
+)
+THUMBNAILS_DIR = MATERIAL_LIBRARY_DIR / "竞品对标" / "封面缓存"
+
 SQL_DIR = MVP_ROOT / "sql"
 
 RAW_LINKS_CSV = DATA_DIR / "raw_links.csv"
+DISCOVERY_QUERIES_CSV = DATA_DIR / "discovery_queries.csv"
+DISCOVERY_CANDIDATES_CSV = DATA_DIR / "discovery_candidates.csv"
 VIDEOS_META_CSV = DATA_DIR / "videos_meta.csv"
 VIDEO_ANALYSIS_CSV = DATA_DIR / "video_analysis.csv"
 SCRIPT_TEMPLATES_CSV = DATA_DIR / "script_templates.csv"
 SCRIPT_TEMPLATES_DIR = MVP_ROOT / "script_templates"
 PRODUCT_MATERIALS_CSV = DATA_DIR / "product_materials.csv"
-PRODUCT_MATERIALS_DIR = MVP_ROOT / "产品资料"
-GENERATED_SCRIPTS_DIR = MVP_ROOT / "生成脚本"
 WEB_DIR = MVP_ROOT / "web"
 DS223_ROOT = Path(r"\\DS223\obsidian知识库")
 DS223_PRODUCTS_ROOT = DS223_ROOT / "shared-knowledge" / "products"

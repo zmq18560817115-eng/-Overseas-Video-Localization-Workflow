@@ -9,11 +9,13 @@ from pathlib import Path
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
+from .ai_video import ai_video_max_shots, ai_video_on_finish, shot_generates_video, ai_video_mode, ai_video_concat_enabled, ai_video_concat_min_shots
+from .video_assemble import assemble_storyboard_video
 from .knowledge import context_text, search_knowledge
 from .models import (
     BriefRequest,
@@ -207,7 +209,7 @@ _ENGINE_NOTICE = """<!doctype html>
 </body></html>"""
 
 
-@app.get("/")
+@app.get("/", response_model=None)
 async def index() -> HTMLResponse | FileResponse:
     if _ENABLE_UI:
         return FileResponse(settings.static_dir / "index.html")
@@ -226,13 +228,14 @@ async def health() -> dict:
         "delivery_files": list(USER_DELIVERABLES),
         "aigc_primary": "seedance-2.0",
         "seedance": {
-            "configured": bool(settings.fal_key),
+            "configured": settings.seedance_configured,
+            "provider": settings.seedance_provider_resolved or "none",
             "label": "SeedDance 2.0（fal.ai · 视频 B-roll）",
             "provider": "fal.ai",
             "image_model": settings.seedance_image_model_resolved,
             "text_model": settings.seedance_text_model_resolved,
             "use_fast": settings.seedance_use_fast,
-            "setup": "在 overseas-loc-mvp/.env 填写 FAL_KEY；在工作台「设置」或脚本页测试连接",
+            "setup": "在 overseas-loc-mvp/.env 填写 ARK_API_KEY 或 FAL_KEY；在工作台测试连接",
             "docs": "https://fal.ai/models/bytedance/seedance-2.0/text-to-video/api",
         },
         "localize_mode": {
@@ -320,36 +323,81 @@ async def project_seedance(slug: str) -> dict:
 
 
 @app.post("/api/projects/{slug}/seedance/run")
-async def seedance_run_all(slug: str) -> dict:
+async def seedance_run_all(slug: str, force: bool = Query(False)) -> dict:
     project = project_dir(slug)
     status = seedance_status(project)
     if not status["shots"]:
-        raise HTTPException(status_code=409, detail="本项目无 AI_BROLL 镜头，无需 SeedDance")
-    results = await _seedance_generate_all(slug)
+        raise HTTPException(status_code=409, detail="本项目无可生成的 AI 分镜视频")
+    results = await _seedance_generate_all(slug, force=force)
+    assemble_result = _maybe_assemble_final_video(slug)
     payload = _project_payload(slug)
     payload["seedance_results"] = results
+    payload["assemble"] = assemble_result
     if any(item.get("status") == "ok" for item in results):
         save_finished_record(project)
     return payload
 
 
-async def _seedance_generate_all(slug: str) -> list[dict[str, Any]]:
+def _project_seedance_source_image(project: Path) -> Path | None:
+    inputs = project / "inputs"
+    if not inputs.is_dir():
+        return None
+    for pattern in ("seedance-source.jpg", "seedance-source.jpeg", "seedance-source.png", "seedance-source.webp"):
+        path = inputs / pattern
+        if path.is_file():
+            return path
+    for path in sorted(inputs.iterdir()):
+        if path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}:
+            return path
+    return None
+
+
+def _clear_broll_for_regenerate(project: Path) -> list[str]:
+    """删除已有分镜/成片，便于按最新 Prompt 与垫图重跑 SeedDance。"""
+    broll = project / "broll"
+    if not broll.is_dir():
+        return []
+    removed: list[str] = []
+    for pattern in ("*.mp4", "*-seedance-meta.json", "*-seedance-request.json", "final-video-meta.json"):
+        for path in broll.glob(pattern):
+            try:
+                path.unlink()
+                removed.append(path.name)
+            except OSError:
+                pass
+    return removed
+
+
+async def _seedance_generate_all(slug: str, *, force: bool = False) -> list[dict[str, Any]]:
     project = project_dir(slug)
+    if force:
+        _clear_broll_for_regenerate(project)
     status = seedance_status(project)
     if not status["shots"]:
         return []
-    if not settings.fal_key:
+    if not settings.seedance_configured:
         return [
             {
                 "number": shot["number"],
                 "status": "skipped",
-                "message": "未配置 FAL_KEY，仅生成了脚本与 Prompt",
+                "message": "未配置 ARK_API_KEY / FAL_KEY，仅生成了脚本与 Prompt",
             }
             for shot in status["shots"]
         ]
+    image_path = _project_seedance_source_image(project)
+    image_ref = image_path.relative_to(project).as_posix() if image_path else None
     results: list[dict[str, Any]] = []
+    max_n = ai_video_max_shots()
+    generated = 0
     for shot in status["shots"]:
         number = shot["number"]
+        if max_n and generated >= max_n:
+            results.append({
+                "number": number,
+                "status": "skipped",
+                "message": f"已达本次上限 {max_n} 镜（可调 AI_VIDEO_MAX_SHOTS）",
+            })
+            continue
         if shot["ready"]:
             results.append({"number": number, "status": "skipped", "message": "已有视频"})
             continue
@@ -364,12 +412,45 @@ async def _seedance_generate_all(slug: str) -> list[dict[str, Any]]:
                     shot_number=number,
                     prompt=prompt,
                     mode="submit",
+                    image_ref=image_ref,
+                    source_approved=bool(image_ref),
                 )
             )
             results.append({"number": number, "status": "ok", "file": meta.get("local_file")})
+            generated += 1
         except HTTPException as exc:
             results.append({"number": number, "status": "error", "message": exc.detail})
     return results
+
+
+def _maybe_assemble_final_video(slug: str) -> dict[str, Any]:
+    if not ai_video_concat_enabled():
+        return {"ok": False, "message": "AI_VIDEO_CONCAT=0，未拼接成片", "file": None}
+    project = project_dir(slug)
+    result = assemble_storyboard_video(project, min_shots=ai_video_concat_min_shots())
+    if result.get("ok"):
+        from .production_archive import archive_production
+
+        archive_production(project, slug, assemble_meta=result)
+        write_editor_deliverables(
+            project,
+            read_yaml(project / "localization-brief.yaml"),
+            read_json(project / "compliance-report.json"),
+        )
+    return result
+
+
+@app.post("/api/projects/{slug}/assemble")
+async def project_assemble(slug: str) -> dict:
+    project = project_dir(slug, create=False)
+    if not project.exists():
+        raise HTTPException(status_code=404, detail="项目不存在")
+    result = _maybe_assemble_final_video(slug)
+    payload = _project_payload(slug)
+    payload["assemble"] = result
+    if result.get("ok"):
+        save_finished_record(project)
+    return payload
 
 
 @app.get("/api/library/finished")
@@ -449,12 +530,20 @@ async def save_storyboard(request: StoryboardRequest) -> dict:
 
 @app.post("/api/quick/{slug}/finish")
 async def quick_finish(slug: str) -> dict:
-    """一键：英文+字幕+七项脚本包+SeedDance 空镜（有 Key 时）。"""
+    """一键：英文+字幕+七项脚本包；可选 SeedDance 空镜（SKIP_SEEDANCE=1 时跳过）。"""
     await _run_localize(slug, "demo_local")
     result = await srt(SlugRequest(slug=slug))
     compliance = result.get("compliance", {})
-    seedance_results = await _seedance_generate_all(slug)
+    skip_seedance = not ai_video_on_finish()
+    seedance_results: list[dict[str, Any]] = []
+    if not skip_seedance:
+        seedance_results = await _seedance_generate_all(slug)
     project = project_dir(slug)
+    assemble_result: dict[str, Any] | None = None
+    if not skip_seedance:
+        st = seedance_status(project)
+        if any(s.get("ready") for s in st.get("shots") or []):
+            assemble_result = _maybe_assemble_final_video(slug)
     if any(r.get("status") == "ok" for r in seedance_results):
         write_editor_deliverables(
             project,
@@ -465,10 +554,14 @@ async def quick_finish(slug: str) -> dict:
     result = _project_payload(slug)
     result["compliance"] = read_json(project / "compliance-report.json")
     result["seedance_results"] = seedance_results
-    result["message"] = (
-        "交付完成：七项脚本包 + 字幕"
-        + (" + SeedDance 空镜" if any(r.get("status") == "ok" for r in seedance_results) else "")
-    )
+    if assemble_result:
+        result["assemble"] = assemble_result
+    msg_extra = ""
+    if any(r.get("status") == "ok" for r in seedance_results):
+        msg_extra = " + AI 分镜视频"
+    if assemble_result and assemble_result.get("ok"):
+        msg_extra += " + 拼接成片"
+    result["message"] = "交付完成：七项脚本包 + 字幕" + msg_extra
     result["delivery_ready"] = True
     return result
 
@@ -643,8 +736,8 @@ async def seedance_broll(request: SeedanceRequest) -> dict:
     _require(project, "storyboard.json")
     shots = read_json(project / "storyboard.json")["shots"]
     shot = next((item for item in shots if item["number"] == request.shot_number), None)
-    if not shot or shot["footage_type"] != "AI_BROLL":
-        raise HTTPException(status_code=409, detail="SeedDance 只允许处理 [AI_BROLL] 镜头")
+    if not shot or not shot_generates_video(str(shot.get("footage_type") or ""), ai_video_mode()):
+        raise HTTPException(status_code=409, detail="该镜头未标记为 AI 可生成视频（AI_BROLL / AI_VIDEO）")
     image_path = None
     if request.image_ref:
         if not request.source_approved:
@@ -673,10 +766,10 @@ async def seedance_broll(request: SeedanceRequest) -> dict:
     write_json(broll_dir / f"shot-{request.shot_number}-seedance-request.json", preview)
     if request.mode == "preview":
         return preview
-    if not settings.fal_key:
+    if not settings.seedance_configured:
         raise HTTPException(
             status_code=409,
-            detail="未配置 FAL_KEY；请求预览已保存，请配置后再提交",
+            detail="未配置 ARK_API_KEY / FAL_KEY；请求预览已保存，请配置后再提交",
         )
     try:
         return await call_seedance(project, request.prompt, image_path, request.shot_number)

@@ -7,10 +7,16 @@ import json
 from pathlib import Path
 from typing import Any
 
-from paths import SCRIPT_TEMPLATES_CSV, WORKFLOW_ROOT
+from paths import (
+    FEEDBACK_LIBRARY_DIR,
+    FINISHED_LIBRARY_DIR,
+    SCRIPT_TEMPLATES_CSV,
+    WORKFLOW_ROOT,
+    _first_existing,
+)
 
-FINISHED_DIR = WORKFLOW_ROOT / "成稿库"
-FEEDBACK_DIR = WORKFLOW_ROOT / "反馈库"
+FINISHED_DIR = _first_existing(FINISHED_LIBRARY_DIR, WORKFLOW_ROOT / "成稿库")
+FEEDBACK_DIR = _first_existing(FEEDBACK_LIBRARY_DIR, WORKFLOW_ROOT / "反馈库")
 
 
 def _read_json_dir(folder: Path, sort_key: str) -> list[dict[str, Any]]:

@@ -59,8 +59,9 @@
 
 - 8788 脚本生成支持 `ANTHROPIC_API_KEY`；未配置时自动使用规则模板。
 - 当前未检测到 `ANTHROPIC_API_KEY`。
+- 8788 前期素材解析目前仍以规则模板生成 8 字段结构拆解；详细分镜解析目标接入豆包视频理解 + ASR，施工说明见 `海外视频本地化MVP/docs/豆包详细视频分解接入指南.md`。
 - 内部交付引擎负责英文稿、字幕、合规扫描和 ZIP 打包，不对用户暴露独立页面。
-- SeedDance 通过 fal.ai 的 `FAL_KEY` 接入；当前未配置，因此只保存请求预览，不生成视频。
+- SeedDance 已支持火山方舟 Ark 或 fal.ai；当前本机应优先按 `.env` 的 `ARK_API_KEY` / `SEEDANCE_PROVIDER` 判断实际路线。
 - 密钥只允许保存在 `.env` 或 Windows 用户环境变量中，禁止写入源码、JSON 配置或交付文件。
 
 ## 启动与验收

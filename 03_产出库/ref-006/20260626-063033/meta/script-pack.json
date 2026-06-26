@@ -1,0 +1,107 @@
+{
+  "title": "熊猫布布便携恒温杯 tips for calmer night feeds",
+  "subtitle": "Warm milk by the bedside, in minutes",
+  "voiceover_20s": "Middle-of-the-night feeds and milk still not warm enough? A bulky warmer has no place on your nightstand. USB-C rechargeable — ready on your nightstand. Quiet night feed setup — warm milk without leaving the room. Save this for your next night feed.",
+  "storyboard": [
+    {
+      "number": 1,
+      "role": "钩子",
+      "timing": "0-3s",
+      "visual": "夜间卧室喂奶：近景口播/问题特写",
+      "voiceover_en": "Middle-of-the-night feeds and milk still not warm enough?",
+      "subtitle_en": "Middle-of-the-night feeds and milk still not warm enough?",
+      "visual_prompt": "夜间卧室喂奶：近景口播/问题特写；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+      "seedance_prompt": "",
+      "footage_type": "LIVE_ACTION"
+    },
+    {
+      "number": 2,
+      "role": "痛点",
+      "timing": "3-8s",
+      "visual": "夜间卧室喂奶：呈现痛点（传统暖奶器太大不便携）",
+      "voiceover_en": "A bulky warmer has no place on your nightstand.",
+      "subtitle_en": "A bulky warmer has no place on your nightstand.",
+      "visual_prompt": "夜间卧室喂奶：呈现痛点（传统暖奶器太大不便携）；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+      "seedance_prompt": "Dim nursery bedroom at night, warm lamp on bedside table, baby bottle beside portable bottle warmer, soft shadows, slow push-in, no person face, no medical claim, 9:16",
+      "footage_type": "AI_BROLL"
+    },
+    {
+      "number": 3,
+      "role": "方案",
+      "timing": "8-13s",
+      "visual": "夜间卧室喂奶：产品使用演示（便携可充电设计、外出随时加热）",
+      "voiceover_en": "USB-C rechargeable — ready on your nightstand.",
+      "subtitle_en": "USB-C rechargeable — ready on your nightstand.",
+      "visual_prompt": "夜间卧室喂奶：产品使用演示（便携可充电设计、外出随时加热）；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+      "seedance_prompt": "",
+      "footage_type": "LIVE_ACTION"
+    },
+    {
+      "number": 4,
+      "role": "证明",
+      "timing": "13-17s",
+      "visual": "夜间卧室喂奶：效果/细节证明",
+      "voiceover_en": "Quiet night feed setup — warm milk without leaving the room.",
+      "subtitle_en": "Quiet night feed setup — warm milk without leaving the room.",
+      "visual_prompt": "夜间卧室喂奶：效果/细节证明；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+      "seedance_prompt": "",
+      "footage_type": "LIVE_ACTION"
+    },
+    {
+      "number": 5,
+      "role": "行动号召",
+      "timing": "17-20s",
+      "visual": "夜间卧室喂奶：口播对镜收束",
+      "voiceover_en": "Save this for your next night feed.",
+      "subtitle_en": "Save this for your next night feed.",
+      "visual_prompt": "夜间卧室喂奶：口播对镜收束；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+      "seedance_prompt": "",
+      "footage_type": "LIVE_ACTION"
+    }
+  ],
+  "subtitle_copy": [
+    "Middle-of-the-night feeds and milk still not warm enough?",
+    "A bulky warmer has no place on your nightstand.",
+    "USB-C rechargeable — ready on your nightstand.",
+    "Quiet night feed setup — warm milk without leaving the room.",
+    "Save this for your next night feed."
+  ],
+  "visual_prompts": [
+    "夜间卧室喂奶：近景口播/问题特写；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+    "夜间卧室喂奶：呈现痛点（传统暖奶器太大不便携）；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+    "夜间卧室喂奶：产品使用演示（便携可充电设计、外出随时加热）；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+    "夜间卧室喂奶：效果/细节证明；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16",
+    "夜间卧室喂奶：口播对镜收束；产品：熊猫布布便携恒温杯；人群：0-12月新手爸妈；场景：夜间卧室喂奶（全片统一，禁止混入其他场景）；竖屏9:16"
+  ],
+  "seedance_prompts": [
+    "Dim nursery bedroom at night, warm lamp on bedside table, baby bottle beside portable bottle warmer, soft shadows, slow push-in, no person face, no medical claim, 9:16"
+  ],
+  "inputs": {
+    "template": "产品种草型",
+    "market": {
+      "target_country": "US",
+      "language": "en",
+      "style": "us_tiktok_spoken",
+      "tone": "实用、亲切、像妈妈朋友分享技巧",
+      "audience_tags": [
+        "0-12月新手爸妈"
+      ],
+      "scenario_tags": [
+        "夜间卧室喂奶"
+      ],
+      "selling_tags": [
+        "便携可充电设计",
+        "外出随时加热"
+      ],
+      "pain_tags": [
+        "传统暖奶器太大不便携"
+      ]
+    },
+    "content_source": "user_selected_tags",
+    "structure_source": "competitor_analysis",
+    "scenario_profile": "bedroom",
+    "scenario_primary": "夜间卧室喂奶",
+    "scenario_conflict_note": "",
+    "reference_title": "My favorite warmer #bottlewarmer #drbrownbottles #drbrowns #liquidgold #colostru"
+  }
+}

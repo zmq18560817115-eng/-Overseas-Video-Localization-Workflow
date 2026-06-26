@@ -16,7 +16,7 @@ from paths import (
     VIDEOS_META_CSV,
 )
 
-from .brand_policy import detect_content_line
+from .thumbnails import public_thumbnail_url
 from .olm_bridge import delivery_ready
 
 
@@ -65,6 +65,99 @@ def load_analysis(link_id: str) -> dict[str, str] | None:
     return None
 
 
+def load_analysis_detail(link_id: str) -> dict[str, Any] | None:
+    base = DECOMPOSE_DIR / str(link_id)
+    shots_path = base / "shots.json"
+    transcript_path = base / "transcript.json"
+    analysis = load_analysis(str(link_id))
+    if not analysis and not shots_path.exists():
+        return None
+    detail: dict[str, Any] = {
+        "link_id": link_id,
+        "analysis": analysis,
+        "summary": (analysis or {}).get("summary", ""),
+        "full_transcript": (analysis or {}).get("full_transcript", ""),
+        "shot_count": (analysis or {}).get("shot_count", 0),
+        "analyze_provider": (analysis or {}).get("analyze_provider", ""),
+        "analyze_model": (analysis or {}).get("analyze_model", ""),
+        "shots": [],
+        "transcript": {},
+    }
+    if shots_path.exists():
+        try:
+            shots_doc = json.loads(shots_path.read_text(encoding="utf-8"))
+            detail["shots"] = shots_doc.get("shots") or []
+            detail["shot_count"] = len(detail["shots"])
+            if detail["shots"] and shots_doc.get("model"):
+                detail["analyze_provider"] = "doubao_video"
+                detail["analyze_model"] = shots_doc.get("model", "")
+        except (json.JSONDecodeError, OSError):
+            pass
+    if transcript_path.exists():
+        try:
+            detail["transcript"] = json.loads(transcript_path.read_text(encoding="utf-8"))
+            if not detail["full_transcript"]:
+                detail["full_transcript"] = detail["transcript"].get("full_transcript", "")
+        except (json.JSONDecodeError, OSError):
+            pass
+    if not detail.get("summary") and detail.get("shots"):
+        dlg = " ".join(
+            str(s.get("dialogue") or "") for s in detail["shots"] if s.get("dialogue")
+        ).strip()
+        if dlg:
+            detail["summary"] = dlg[:280]
+    return detail
+
+
+def shot_count_for(link_id: str, detail: dict[str, Any] | None = None) -> int:
+    if detail:
+        shots = detail.get("shots") or []
+        if shots:
+            return len(shots)
+    shots_path = DECOMPOSE_DIR / link_id / "shots.json"
+    if shots_path.exists():
+        try:
+            return len(json.loads(shots_path.read_text(encoding="utf-8")).get("shots") or [])
+        except (json.JSONDecodeError, OSError):
+            pass
+    return 0
+
+
+def material_already_analyzed(link_id: str, detail: dict[str, Any] | None = None) -> bool:
+    """是否已有拆解结果（含规则/豆包），用于避免重复调大模型。"""
+    if shot_count_for(link_id, detail) >= 1:
+        return True
+    if load_analysis(link_id):
+        return True
+    aj = DECOMPOSE_DIR / str(link_id) / "analysis.json"
+    return aj.exists()
+
+
+def needs_doubao_analysis(link_id: str, detail: dict[str, Any] | None = None) -> bool:
+    """是否需自动跑豆包精细拆解。"""
+    from .doubao_config import doubao_config, video_analysis_policy
+
+    policy = video_analysis_policy()
+    if not policy.get("llm_enabled"):
+        return False
+    if not policy.get("auto_enabled"):
+        return False
+    if not doubao_config().get("configured"):
+        return False
+    if material_already_analyzed(link_id, detail):
+        return False
+    detail = detail if detail is not None else load_analysis_detail(link_id)
+    analysis = (detail or {}).get("analysis") if detail else None
+    err = ""
+    if isinstance(analysis, dict):
+        err = str(analysis.get("error_message") or "")
+    if "doubao_fallback" in err:
+        return False
+    if not detail:
+        return True
+    return detail.get("analyze_provider") != "doubao_video"
+
+
 def load_materials() -> list[dict[str, Any]]:
     raw = {r["link_id"]: r for r in _read_csv(RAW_LINKS_CSV)}
     items: list[dict[str, Any]] = []
@@ -83,7 +176,7 @@ def load_materials() -> list[dict[str, Any]]:
                 "author": meta.get("author", ""),
                 "title": title,
                 "description": (meta.get("description") or "")[:280],
-                "thumbnail_url": meta.get("thumbnail_url", ""),
+                "thumbnail_url": public_thumbnail_url(lid),
                 "duration_sec": meta.get("duration_sec") or "",
                 "view_count": meta.get("view_count") or "",
                 "like_count": meta.get("like_count") or "",

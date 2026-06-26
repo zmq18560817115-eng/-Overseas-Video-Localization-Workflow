@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from dotenv import dotenv_values
@@ -12,10 +13,21 @@ from dotenv import dotenv_values
 from paths import OVERSEAS_ENV, OVERSEAS_MVP_DIR, OVERSEAS_RUNS_DIR
 
 from .olm_bridge import _olm_python
+from .product_assets import stage_seedance_source_image
 
-SEEDANCE_PIPELINE = (
-    "脚本生成 → 分镜生成 → 视频 Prompt → SeedDance 2.0 → 输出视频 → 保存成稿"
-)
+
+def _ai_video_mode() -> str:
+    env = dotenv_values(OVERSEAS_ENV)
+    return (env.get("AI_VIDEO_MODE") or "broll").strip().lower()
+
+
+def _pipeline_label() -> str:
+    if _ai_video_mode() == "script":
+        return "脚本生成 → 分镜 → 各镜 Prompt → SeedDance 2.0 → 分镜短视频 → 成稿 zip"
+    return "脚本生成 → 分镜生成 → 视频 Prompt → SeedDance 2.0 → 输出视频 → 保存成稿"
+
+
+SEEDANCE_PIPELINE = _pipeline_label()
 
 
 def _run_olm(code: str, *args: str) -> dict[str, Any]:
@@ -43,8 +55,28 @@ def _run_olm(code: str, *args: str) -> dict[str, Any]:
 
 def seedance_config() -> dict[str, Any]:
     env = dotenv_values(OVERSEAS_ENV)
+    ark_key = (env.get("ARK_API_KEY") or "").strip()
     fal_key = (env.get("FAL_KEY") or "").strip()
+    provider = (env.get("SEEDANCE_PROVIDER") or "").strip().lower()
+    if not provider:
+        provider = "ark" if ark_key else ("fal" if fal_key else "")
     use_fast = (env.get("SEEDANCE_USE_FAST") or "0").strip().lower() in ("1", "true", "yes")
+    if provider == "ark":
+        text_model = (env.get("ARK_SEEDANCE_TEXT_MODEL") or "doubao-seedance-2-0-260128").strip()
+        if use_fast:
+            text_model = (env.get("ARK_SEEDANCE_FAST_MODEL") or "doubao-seedance-2-0-fast-260128").strip()
+        return {
+            "configured": bool(ark_key),
+            "label": "SeedDance 2.0（火山方舟 Ark · AI 分镜视频）",
+            "provider": "volcengine-ark",
+            "mode": _ai_video_mode(),
+            "text_model": text_model,
+            "image_model": text_model,
+            "use_fast": use_fast,
+            "setup": "在 overseas-loc-mvp/.env 填写 ARK_API_KEY，或运行「配置SeedDance.cmd」",
+            "docs": "https://www.volcengine.com/docs/82379/1520757",
+            "env_path": str(OVERSEAS_ENV),
+        }
     text_model = (env.get("SEEDANCE_TEXT_MODEL") or "bytedance/seedance-2.0/text-to-video").strip()
     image_model = (env.get("SEEDANCE_IMAGE_MODEL") or "bytedance/seedance-2.0/image-to-video").strip()
     if use_fast:
@@ -52,12 +84,13 @@ def seedance_config() -> dict[str, Any]:
         image_model = image_model.replace("/image-to-video", "/image-to-video/fast")
     return {
         "configured": bool(fal_key),
-        "label": "SeedDance 2.0（fal.ai · 视频 B-roll）",
+        "label": "SeedDance 2.0（fal.ai · AI 分镜视频）",
         "provider": "fal.ai",
+        "mode": _ai_video_mode(),
         "text_model": text_model,
         "image_model": image_model,
         "use_fast": use_fast,
-        "setup": "双击工作区根目录「配置SeedDance.cmd」，在 overseas-loc-mvp/.env 填写 FAL_KEY",
+        "setup": "在 overseas-loc-mvp/.env 填写 FAL_KEY，或运行「配置SeedDance.cmd」",
         "docs": "https://fal.ai/models/bytedance/seedance-2.0/text-to-video/api",
         "env_path": str(OVERSEAS_ENV),
     }
@@ -92,17 +125,61 @@ print(json.dumps(seedance_status(project_dir(slug, create=False)), ensure_ascii=
     return _run_olm(code, slug)
 
 
-def run_all(slug: str) -> dict[str, Any]:
+def refresh_project_seedance_source(slug: str) -> Path | None:
+    """按 localization-brief 的 sku 刷新 inputs/seedance-source 垫图。"""
+    project = OVERSEAS_RUNS_DIR / slug
+    if not project.is_dir():
+        return None
+    product_id = ""
+    brief_path = project / "localization-brief.yaml"
+    if brief_path.exists():
+        try:
+            import yaml
+
+            brief = yaml.safe_load(brief_path.read_text(encoding="utf-8")) or {}
+            product_id = str(brief.get("sku") or "").strip()
+        except Exception:
+            product_id = ""
+    if not product_id:
+        return None
+    inputs = project / "inputs"
+    if inputs.is_dir():
+        for path in inputs.glob("seedance-source.*"):
+            try:
+                path.unlink()
+            except OSError:
+                pass
+    return stage_seedance_source_image(project, product_id)
+
+
+def run_all(slug: str, *, force: bool = False) -> dict[str, Any]:
     code = """
 import asyncio, json, sys
-from app.main import _seedance_generate_all
+from app.main import _seedance_generate_all, _maybe_assemble_final_video
 from app.storage import project_dir
-from app.workflow import seedance_status, save_finished_record
+from app.workflow import seedance_status
+from app.library import save_finished_record
 slug = sys.argv[1]
-results = asyncio.run(_seedance_generate_all(slug))
+force = sys.argv[2] == "1"
+results = asyncio.run(_seedance_generate_all(slug, force=force))
+assemble = _maybe_assemble_final_video(slug)
 status = seedance_status(project_dir(slug))
 if any(r.get("status") == "ok" for r in results):
     save_finished_record(project_dir(slug))
-print(json.dumps({"results": results, "seedance": status}, ensure_ascii=False))
+print(json.dumps({"results": results, "seedance": status, "assemble": assemble, "force": force}, ensure_ascii=False))
+"""
+    return _run_olm(code, slug, "1" if force else "0")
+
+
+def assemble_project(slug: str) -> dict[str, Any]:
+    code = """
+import json, sys
+from app.main import _maybe_assemble_final_video
+from app.storage import project_dir
+from app.workflow import seedance_status
+slug = sys.argv[1]
+assemble = _maybe_assemble_final_video(slug)
+status = seedance_status(project_dir(slug))
+print(json.dumps({"assemble": assemble, "seedance": status}, ensure_ascii=False))
 """
     return _run_olm(code, slug)

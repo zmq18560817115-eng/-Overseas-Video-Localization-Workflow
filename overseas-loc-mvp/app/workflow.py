@@ -10,6 +10,14 @@ import json
 
 from .storage import atomic_write, read_text, write_json
 from .config import settings
+from .ai_video import (
+    AI_VIDEO_FOOTAGE,
+    ai_video_mode,
+    build_shot_video_prompt,
+    footage_label,
+    pipeline_label,
+    shot_generates_video,
+)
 
 
 RETRYABLE_VALIDATION_RULES = frozenset({"V1", "V2", "V3", "V4"})
@@ -519,7 +527,7 @@ def _editor_shot_rows(project: Path, brief: dict[str, Any]) -> list[dict[str, st
                 "in_point": _format_time(start_ms),
                 "out_point": _format_time(end_ms),
                 "footage_type": ft,
-                "footage_label": "AI 空镜" if ft == "AI_BROLL" else "实拍",
+                "footage_label": footage_label(ft),
                 "seedance_prompt": str(pack_shot.get("seedance_prompt") or ""),
                 "visual_prompt": str(pack_shot.get("visual_prompt") or row.get("visual", "")),
             }
@@ -678,7 +686,7 @@ def collect_delivery_pack(project: Path, brief: dict[str, Any]) -> dict[str, Any
         seedance_prompts = [
             s.get("seedance_prompt", "")
             for s in storyboard
-            if s.get("footage_type") == "AI_BROLL" and s.get("seedance_prompt")
+            if s.get("footage_type") in ("AI_BROLL", "AI_VIDEO") and s.get("seedance_prompt")
         ]
 
     voiceover = pack.get("voiceover_20s", "")
@@ -748,7 +756,7 @@ def make_delivery_script_md(pack: dict[str, Any], brief: dict[str, Any]) -> str:
 {seedance_block}
 
 ---
-字幕文件：`subtitles.srt` · AI 空镜视频：`broll/shot-N.mp4`（配置 FAL_KEY 后自动生成）
+字幕文件：`subtitles.srt` · AI 分镜视频：`broll/shot-N.mp4`（配置 Ark/FAL 后按镜生成）
 {pack.get("generated_at", "")}
 """
 
@@ -825,18 +833,25 @@ USER_DELIVERABLES = (
     "剪辑单.html",
 )
 
-SEEDANCE_PIPELINE = (
-    "脚本生成 → 分镜生成 → 视频 Prompt → SeedDance 2.0 → 输出视频 → 保存成稿"
-)
+SEEDANCE_PIPELINE = pipeline_label()
 
 
 def seedance_status(project: Path) -> dict[str, Any]:
-    """Step 6：仅 AI_BROLL 镜；与实拍交付包分开。"""
+    """分镜 AI 视频状态：broll 模式仅空镜；script 模式覆盖脚本各镜。"""
     pack = _load_pack(project)
     pack_by_num = {
         int(row.get("number", index + 1)): row
         for index, row in enumerate(pack.get("storyboard") or [])
     }
+    brief = {}
+    brief_path = project / "localization-brief.yaml"
+    if brief_path.exists():
+        try:
+            import yaml
+
+            brief = yaml.safe_load(brief_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            brief = {}
 
     storyboard_shots: list[dict[str, Any]] = []
     sb_path = project / "storyboard.json"
@@ -846,19 +861,34 @@ def seedance_status(project: Path) -> dict[str, Any]:
         except (json.JSONDecodeError, OSError):
             storyboard_shots = []
 
+    mode = ai_video_mode()
+    product = str(brief.get("sku") or "portable bottle warmer")
+    scene_en = "daily baby feeding"
+
     shots: list[dict[str, Any]] = []
     for shot in storyboard_shots:
-        if shot.get("footage_type") != "AI_BROLL":
-            continue
         number = int(shot["number"])
         pack_shot = pack_by_num.get(number, {})
-        prompt = str(pack_shot.get("seedance_prompt") or shot.get("notes") or "").strip()
+        ft = str(pack_shot.get("footage_type") or shot.get("footage_type") or "LIVE_ACTION")
+        if not shot_generates_video(ft, mode):
+            continue
+        role = str(pack_shot.get("role") or shot.get("role") or "")
+        prompt = build_shot_video_prompt(
+            role=role,
+            pack_shot=pack_shot,
+            story_shot=shot,
+            scene_en=scene_en,
+            product_name=product,
+        )
         mp4 = project / "broll" / f"shot-{number}.mp4"
         shots.append(
             {
                 "number": number,
+                "role": role,
                 "timing": shot.get("timing", ""),
                 "visual": shot.get("visual", ""),
+                "footage_type": ft,
+                "footage_label": footage_label(ft),
                 "prompt": prompt,
                 "ready": mp4.exists(),
                 "file": f"broll/shot-{number}.mp4" if mp4.exists() else None,
@@ -867,9 +897,22 @@ def seedance_status(project: Path) -> dict[str, Any]:
 
     return {
         "available": bool(shots),
-        "configured": bool(settings.fal_key),
-        "pipeline": SEEDANCE_PIPELINE,
+        "configured": settings.seedance_configured,
+        "mode": mode,
+        "pipeline": pipeline_label(mode),
         "shots": shots,
+        "final_video": _final_video_status(project),
+    }
+
+
+def _final_video_status(project: Path) -> dict[str, Any]:
+    final = project / "broll" / "final-video.mp4"
+    if not final.is_file():
+        return {"ready": False, "file": None, "bytes": 0}
+    return {
+        "ready": True,
+        "file": "broll/final-video.mp4",
+        "bytes": final.stat().st_size,
     }
 
 

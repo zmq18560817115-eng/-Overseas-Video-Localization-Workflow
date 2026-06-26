@@ -10,8 +10,9 @@
 
 | 环节 | 引擎 |
 |------|------|
+| 发现候选 | Playwright 公开页面低频发现 URL → discovery_candidates |
 | 同步 TikTok | oEmbed + Playwright |
-| 结构拆解 | 规则模板（标题/话题） |
+| 结构拆解 | 当前规则模板（标题/话题）；下一步接豆包视频理解 + ASR 做详细分镜 |
 | 生成脚本 | Claude（`ANTHROPIC_API_KEY`）或规则模板 |
 | 完成交付 | `overseas-loc-mvp` 子进程 |
 | AI 空镜 | SeedDance 2.0 / fal.ai（`FAL_KEY`，可选） |
@@ -19,6 +20,8 @@
 ## 命令行（设置页可代替）
 
 ```bat
+运行.cmd discover --limit-per-query 20
+运行.cmd promote --limit 20
 运行.cmd fetch
 运行.cmd decompose      :: 结构拆解 → video_analysis
 运行.cmd templates
@@ -39,3 +42,5 @@
 ```
 
 知识库配置：根目录 `config/knowledge-sources.json`
+
+豆包详细视频分解接入说明见：`docs/豆包详细视频分解接入指南.md`。

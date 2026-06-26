@@ -1,0 +1,87 @@
+"""验证 overseas-video-output-standards skill 与当前工作流是否对齐。
+
+用法:
+  python scripts/validate_output_standards_skill.py
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+MVP_ROOT = Path(__file__).resolve().parents[1]
+WORKFLOW_ROOT = MVP_ROOT.parent
+SKILL_ROOT = WORKFLOW_ROOT / "overseas-video-output-standards"
+sys.path.insert(0, str(MVP_ROOT / "scripts"))
+sys.path.insert(0, str(MVP_ROOT))
+
+from app.data import load_materials  # noqa: E402
+from app.product_usage import THERMOS_USAGE_EN  # noqa: E402
+from paths import PRODUCT_MATERIALS_DIR, VIDEOS_META_CSV  # noqa: E402
+
+
+def check(name: str, ok: bool, detail: str = "") -> dict:
+    return {"name": name, "ok": ok, "detail": detail}
+
+
+def main() -> int:
+    results: list[dict] = []
+
+    for rel in (
+        "SKILL.md",
+        "references/product-rules.md",
+        "references/script-to-asset-workflow.md",
+        "references/material-asset-standards.md",
+        "references/qa-checklist.md",
+        "agents/openai.yaml",
+    ):
+        p = SKILL_ROOT / rel
+        results.append(check(f"skill:{rel}", p.is_file(), str(p)))
+
+    pour = PRODUCT_MATERIALS_DIR / "便携恒温杯" / "listing-0602-nw" / "主图" / "倒出口参考.png"
+    results.append(check("asset:倒出口参考.png", pour.is_file(), str(pour)))
+
+    keywords = ("flip-top", "spout hole", "storage bag", "FORBIDDEN", "wide-mouth")
+    missing = [k for k in keywords if k not in THERMOS_USAGE_EN]
+    results.append(
+        check(
+            "code:product_usage thermos rules",
+            not missing,
+            "missing: " + ", ".join(missing) if missing else "aligned with skill product-rules",
+        )
+    )
+
+    n = len(load_materials())
+    results.append(check("data:competitor materials", n > 0, f"{n} items"))
+
+    results.append(check("data:videos_meta.csv", VIDEOS_META_CSV.is_file(), str(VIDEOS_META_CSV)))
+
+    compliance = WORKFLOW_ROOT / "overseas-loc-mvp" / "knowledge" / "processes"
+    results.append(check("knowledge:compliance", compliance.is_dir()))
+
+    # skill 要求但代码尚未结构化的字段
+    app_dir = MVP_ROOT / "app"
+    for term in ("asset_manifest", "shot_asset_map", "scene_continuity", "character_continuity"):
+        found = any(term in py.read_text(encoding="utf-8", errors="ignore") for py in app_dir.glob("*.py"))
+        results.append(
+            check(
+                f"gap:code.{term}",
+                found,
+                "skill 已定义，代码待接入（生成脚本时由 Agent 按 skill 产出）" if not found else "present",
+            )
+        )
+
+    passed = sum(1 for r in results if r["ok"])
+    report = {
+        "skill_root": str(SKILL_ROOT),
+        "passed": passed,
+        "total": len(results),
+        "usable_for_workflow": passed == len(results),
+        "results": results,
+    }
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report["usable_for_workflow"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -37,6 +37,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from paths import (
     DECOMPOSE_DIR,
+    MVP_ROOT,
     OVERSEAS_RUNS_DIR,
     PRODUCT_MATERIALS_CSV,
     RAW_LINKS_CSV,
@@ -50,6 +51,9 @@ from paths import (
     kro_script_path,
 )
 from seed_links import seed_rows
+
+if str(MVP_ROOT) not in sys.path:
+    sys.path.insert(0, str(MVP_ROOT))
 
 VIDEO_ID_RE = re.compile(r"/video/(\d+)")
 AUTHOR_RE = re.compile(r"@([^/]+)")
@@ -241,6 +245,12 @@ def cmd_fetch(sleep: float = 0.4, engine: str = "oembed") -> int:
                     row["fetch_provider"] = provider
                     row["fetched_at"] = utc_now()
                     ok += 1
+                    try:
+                        from app.thumbnails import ensure_thumbnail_cached
+
+                        ensure_thumbnail_cached(row["link_id"], force=True)
+                    except Exception:
+                        pass
                 except Exception as exc:  # noqa: BLE001
                     row["error_message"] = str(exc)
                 rows.append(row)
@@ -258,6 +268,35 @@ def cmd_fetch(sleep: float = 0.4, engine: str = "oembed") -> int:
             w.writerow({k: row.get(k, "") for k in META_FIELDS})
     safe_print(f"OK {VIDEOS_META_CSV} ({ok}/{len(rows)} ok)")
     return 0
+
+
+def cmd_cache_thumbnails(*, force: bool = False) -> int:
+    """将 TikTok 封面下载到本地 01_素材库/竞品对标/封面缓存。"""
+    from app.thumbnails import cache_all_thumbnails
+
+    result = cache_all_thumbnails(force=force)
+    safe_print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result.get("cached", 0) else 1
+
+
+# ── discover ───────────────────────────────────────────────────────────────
+
+def cmd_discover(limit_per_query: int = 30, engine: str = "auto") -> int:
+    """低频发现公开候选 URL → discovery_candidates.csv。"""
+    from tiktok_discovery import discover_candidates
+
+    result = discover_candidates(limit_per_query=limit_per_query, engine=engine)
+    safe_print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result.get("ok") else 1
+
+
+def cmd_promote(limit: int = 20, min_score: float = 0.0) -> int:
+    """候选池评分筛选 → raw_links.csv。"""
+    from tiktok_discovery import promote_candidates
+
+    result = promote_candidates(limit=limit, min_score=min_score)
+    safe_print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result.get("ok") else 1
 
 
 # ── db ─────────────────────────────────────────────────────────────────────
@@ -508,48 +547,126 @@ def _analysis_to_storyboard(analysis: dict[str, str], theme: str) -> dict[str, A
     }
 
 
-def cmd_decompose(limit: int = 0) -> int:
+def cmd_decompose(
+    limit: int = 0,
+    provider: str = "auto",
+    link_id: int | None = None,
+    model: str = "auto",
+    force: bool = False,
+) -> int:
     if not VIDEOS_META_CSV.exists():
         safe_print("请先运行 fetch")
         return 1
     metas = [r for r in _read_csv(VIDEOS_META_CSV) if r.get("fetch_status") == "ok"]
+    if link_id:
+        metas = [r for r in metas if str(r.get("link_id")) == str(link_id)]
     if limit:
         metas = metas[:limit]
 
-    rows: list[dict[str, Any]] = []
+    from app.data import material_already_analyzed
+    from app.doubao_config import doubao_config, video_analysis_policy
+
+    policy = video_analysis_policy()
+
+    use_doubao = provider in ("doubao", "doubao_video")
+    if provider == "auto":
+        try:
+            use_doubao = doubao_config().get("configured", False) and policy.get("llm_enabled", True)
+        except Exception:
+            use_doubao = False
+
+    existing: dict[str, dict[str, Any]] = {}
+    if VIDEO_ANALYSIS_CSV.exists():
+        for row in _read_csv(VIDEO_ANALYSIS_CSV):
+            existing[str(row.get("link_id", ""))] = row
+
     DECOMPOSE_DIR.mkdir(parents=True, exist_ok=True)
+    skipped = 0
     for meta in metas:
         lid = meta["link_id"]
-        analysis = _rule_analysis(meta)
-        row: dict[str, Any] = {
-            "link_id": lid,
-            "url": meta.get("url", ""),
-            "video_id": meta.get("video_id", ""),
-            "author": meta.get("author", ""),
-            **analysis,
-            "analyzed_at": utc_now(),
-            "analyze_status": "ok",
-            "analyze_provider": "rule",
-            "error_message": "",
-        }
-        rows.append(row)
-        out = DECOMPOSE_DIR / lid
-        out.mkdir(parents=True, exist_ok=True)
-        (out / "analysis.json").write_text(
-            json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
-        old_sb = out / "storyboard.json"
-        if old_sb.exists():
-            old_sb.unlink()
+        key = str(lid)
+
+        if material_already_analyzed(key):
+            safe_print(f"  跳过 id={lid}: 已有拆解结果，不重复分析")
+            skipped += 1
+            continue
+
+        if not policy.get("auto_enabled") and not force:
+            safe_print(f"  跳过 id={lid}: 新素材分析已暂停（VIDEO_ANALYSIS_AUTO=0）")
+            skipped += 1
+            continue
+
+        if use_doubao and not policy.get("llm_enabled"):
+            safe_print(f"  跳过 id={lid}: 豆包拆解已暂停（DOUBAO_VIDEO_ANALYSIS_ENABLED=0）")
+            skipped += 1
+            continue
+
+        try:
+            if use_doubao:
+                from app.doubao_video_analysis import analyze_material
+
+                enrich = {
+                    **meta,
+                    "link_id": lid,
+                    "hashtags": _tags(meta),
+                    "thumbnail_url": meta.get("thumbnail_url", ""),
+                }
+                row = analyze_material(enrich, model_mode=model)
+            else:
+                analysis = _rule_analysis(meta)
+                row = {
+                    "link_id": lid,
+                    "url": meta.get("url", ""),
+                    "video_id": meta.get("video_id", ""),
+                    "author": meta.get("author", ""),
+                    **analysis,
+                    "analyzed_at": utc_now(),
+                    "analyze_status": "ok",
+                    "analyze_provider": "rule",
+                    "error_message": "",
+                }
+                out = DECOMPOSE_DIR / lid
+                out.mkdir(parents=True, exist_ok=True)
+                (out / "analysis.json").write_text(
+                    json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+                )
+        except Exception as exc:
+            analysis = _rule_analysis(meta)
+            row = {
+                "link_id": lid,
+                "url": meta.get("url", ""),
+                "video_id": meta.get("video_id", ""),
+                "author": meta.get("author", ""),
+                **analysis,
+                "analyzed_at": utc_now(),
+                "analyze_status": "ok",
+                "analyze_provider": "rule",
+                "error_message": f"doubao_fallback: {exc!r}"[:500],
+            }
+            out = DECOMPOSE_DIR / lid
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "analysis.json").write_text(
+                json.dumps(row, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            safe_print(f"  id={lid} 豆包失败，已回退规则: {exc}")
+        existing[str(lid)] = {k: row.get(k, "") for k in ANALYSIS_FIELDS}
+        prov = row.get("analyze_provider", "?")
+        safe_print(f"  id={lid} {prov} shots={row.get('shot_count', '-')}")
 
     VIDEO_ANALYSIS_CSV.parent.mkdir(parents=True, exist_ok=True)
+    all_rows = sorted(existing.values(), key=lambda r: int(r.get("link_id") or 0))
     with VIDEO_ANALYSIS_CSV.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=ANALYSIS_FIELDS)
         w.writeheader()
-        for row in rows:
+        for row in all_rows:
             w.writerow({k: row.get(k, "") for k in ANALYSIS_FIELDS})
 
-    safe_print(f"OK 数据表/video_analysis.csv（{len(rows)} 条，8 字段拆解）")
+    mode = "豆包+规则兜底" if use_doubao else "规则"
+    processed = len(metas) - skipped
+    safe_print(
+        f"OK 数据表/video_analysis.csv（本次处理 {processed} 条，跳过 {skipped} 条，"
+        f"合计 {len(all_rows)} 条，{mode}）"
+    )
     return 0
 
 
@@ -797,11 +914,27 @@ def main() -> int:
         default="oembed",
         help="oembed=官方 API（快）；auto=先 Playwright 再 oEmbed；playwright=仅浏览器",
     )
+    ds = sub.add_parser("discover", help="发现 TikTok 公开候选 URL → discovery_candidates")
+    ds.add_argument("--limit-per-query", type=int, default=30)
+    ds.add_argument("--engine", choices=("none", "oembed", "auto", "playwright"), default="auto")
+    pr = sub.add_parser("promote", help="候选评分筛选 → raw_links")
+    pr.add_argument("--limit", type=int, default=20)
+    pr.add_argument("--min-score", type=float, default=0.0)
     sub.add_parser("db", help="导入 MySQL")
-    d = sub.add_parser("decompose", help="结构拆解（规则）→ video_analysis（8字段）")
+    d = sub.add_parser("decompose", help="结构拆解 → video_analysis（规则或豆包）")
     d.add_argument("--limit", type=int, default=0)
+    d.add_argument("--link-id", type=int, default=0)
+    d.add_argument("--provider", choices=("auto", "rule", "doubao"), default="auto")
+    d.add_argument("--model", choices=("auto", "turbo", "pro"), default="auto")
+    d.add_argument(
+        "--force",
+        action="store_true",
+        help="忽略新素材暂停开关（已有拆解结果仍不会重复分析）",
+    )
     sub.add_parser("templates", help="归纳爆款结构 → script_templates")
     sub.add_parser("products", help="从 DS223 同步 product_materials")
+    ct = sub.add_parser("cache-thumbnails", help="下载封面到本地（修复列表缩略图）")
+    ct.add_argument("--force", action="store_true", help="强制重新下载")
     k = sub.add_parser("knowledge", help="KRO 知识库检索（默认列出来源）")
     k.add_argument("query", nargs="?", default="", help="检索词，如: 熊猫布布 吸奶器 合规")
     k.add_argument("--limit", type=int, default=6)
@@ -813,14 +946,32 @@ def main() -> int:
         return cmd_links()
     if args.cmd == "fetch":
         return cmd_fetch(engine=getattr(args, "engine", "auto"))
+    if args.cmd == "discover":
+        return cmd_discover(
+            limit_per_query=getattr(args, "limit_per_query", 30),
+            engine=getattr(args, "engine", "auto"),
+        )
+    if args.cmd == "promote":
+        return cmd_promote(
+            limit=getattr(args, "limit", 20),
+            min_score=getattr(args, "min_score", 0.0),
+        )
     if args.cmd == "db":
         return cmd_db()
     if args.cmd == "decompose":
-        return cmd_decompose(args.limit)
+        return cmd_decompose(
+            args.limit,
+            provider=getattr(args, "provider", "auto"),
+            link_id=getattr(args, "link_id", 0) or None,
+            model=getattr(args, "model", "auto"),
+            force=getattr(args, "force", False),
+        )
     if args.cmd == "templates":
         return cmd_templates()
     if args.cmd == "products":
         return cmd_products()
+    if args.cmd == "cache-thumbnails":
+        return cmd_cache_thumbnails(force=getattr(args, "force", False))
     if args.cmd == "knowledge":
         return cmd_knowledge(args.query, args.limit)
     if args.cmd == "bridge":

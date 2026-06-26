@@ -9,9 +9,20 @@ from .storage import atomic_write, read_json, read_yaml, write_json
 from .workflow import USER_DELIVERABLES, utc_now
 
 WORKFLOW_ROOT = Path(__file__).resolve().parents[2]
-FINISHED_DIR = WORKFLOW_ROOT / "成稿库"
-FEEDBACK_DIR = WORKFLOW_ROOT / "反馈库"
-COMPETITOR_SCRIPTS = WORKFLOW_ROOT / "海外视频本地化MVP" / "生成脚本"
+
+def _first_existing(*candidates: Path) -> Path:
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+FINISHED_DIR = _first_existing(WORKFLOW_ROOT / "04_成稿库", WORKFLOW_ROOT / "成稿库")
+FEEDBACK_DIR = _first_existing(WORKFLOW_ROOT / "05_反馈库", WORKFLOW_ROOT / "反馈库")
+COMPETITOR_SCRIPTS = _first_existing(
+    WORKFLOW_ROOT / "01_素材库" / "脚本快照",
+    WORKFLOW_ROOT / "海外视频本地化MVP" / "生成脚本",
+)
 
 FINISHED_INDEX = FINISHED_DIR / "成稿索引.csv"
 FEEDBACK_INDEX = FEEDBACK_DIR / "反馈记录.csv"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 
@@ -31,7 +32,74 @@ def split_tags(text: str, *, max_items: int = 12) -> list[str]:
     return out
 
 
+def _knowledge_md_path(product_id: str) -> Path | None:
+    if not product_id:
+        return None
+    root = Path(__file__).resolve().parents[2] / "overseas-loc-mvp" / "knowledge" / "products"
+    path = root / f"{product_id}.md"
+    return path if path.is_file() else None
+
+
+def _parse_knowledge_md(path: Path) -> dict[str, str]:
+    sections: dict[str, str] = {}
+    current = ""
+    buf: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^#{1,3}\s+(.+)$", line.strip())
+        if m:
+            if current and buf:
+                sections[current] = "\n".join(buf).strip()
+            current = m.group(1).strip()
+            buf = []
+        else:
+            buf.append(line)
+    if current and buf:
+        sections[current] = "\n".join(buf).strip()
+
+    field_map = [
+        ("适用人群", "target_audience"),
+        ("核心卖点", "core_selling_points"),
+        ("用户痛点", "pain_points"),
+        ("使用场景", "usage_scenarios"),
+        ("竞品", "competitor_ref"),
+    ]
+    out: dict[str, str] = {}
+    for title, content in sections.items():
+        for key, field in field_map:
+            if key in title and content:
+                chunk = re.sub(r"\s+", " ", content.replace("；", "；").strip())
+                out[field] = chunk
+    return out
+
+
+def enrich_product_from_knowledge(product: dict[str, str] | None) -> dict[str, str]:
+    """CSV 字段为空时，从公司 knowledge/products 素材库补全。"""
+    if not product:
+        return {}
+    enriched = dict(product)
+    path = Path(str(enriched.get("source_path") or ""))
+    if not path.is_file():
+        path = _knowledge_md_path(str(enriched.get("product_id") or ""))
+    if not path or not path.is_file():
+        return enriched
+    try:
+        row = _parse_knowledge_md(path)
+        for key in (
+            "target_audience",
+            "core_selling_points",
+            "pain_points",
+            "usage_scenarios",
+            "competitor_ref",
+        ):
+            if not str(enriched.get(key) or "").strip() and row.get(key):
+                enriched[key] = row[key]
+    except OSError:
+        pass
+    return enriched
+
+
 def product_delivery_tags(product: dict[str, str] | None) -> dict[str, list[str]]:
+    product = enrich_product_from_knowledge(product)
     if not product:
         return {"audience": [], "scenarios": [], "selling": [], "pains": []}
     return {

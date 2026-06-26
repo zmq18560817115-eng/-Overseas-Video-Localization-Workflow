@@ -26,7 +26,21 @@ class Settings:
     anthropic_model: str = os.getenv("OVERSEAS_LOC_MODEL", "claude-sonnet-4-6")
     max_tokens: int = int(os.getenv("OVERSEAS_LOC_MAX_TOKENS", "4096"))
     prompt_version: str = os.getenv("OVERSEAS_LOC_PROMPT_VERSION", "localize-v1.1")
-    fal_key: str = os.getenv("FAL_KEY", "")
+    fal_key: str = os.getenv("FAL_KEY", "").strip()
+    ark_api_key: str = os.getenv("ARK_API_KEY", "").strip()
+    ark_base_url: str = os.getenv(
+        "ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"
+    ).rstrip("/")
+    ark_text_model: str = os.getenv(
+        "ARK_SEEDANCE_TEXT_MODEL", "doubao-seedance-2-0-260128"
+    )
+    ark_image_model: str = os.getenv(
+        "ARK_SEEDANCE_IMAGE_MODEL", "doubao-seedance-2-0-260128"
+    )
+    ark_fast_model: str = os.getenv(
+        "ARK_SEEDANCE_FAST_MODEL", "doubao-seedance-2-0-fast-260128"
+    )
+    seedance_provider: str = os.getenv("SEEDANCE_PROVIDER", "").strip().lower()
     seedance_image_model: str = os.getenv(
         "SEEDANCE_IMAGE_MODEL", "bytedance/seedance-2.0/image-to-video"
     )
@@ -38,6 +52,7 @@ class Settings:
         "true",
         "yes",
     }
+    ark_seedance_wait_timeout: int = int(os.getenv("ARK_SEEDANCE_WAIT_TIMEOUT", "600") or "600")
     knowledge_roots_raw: str = os.getenv("KNOWLEDGE_RESEARCH_ROOT", "")
     kro_config_path: str = os.getenv(
         "KRO_CONFIG_PATH", str(BASE_DIR / "config" / "knowledge-sources.json")
@@ -57,6 +72,32 @@ class Settings:
         if self.seedance_use_fast:
             return "bytedance/seedance-2.0/fast/image-to-video"
         return self.seedance_image_model
+
+    @property
+    def seedance_provider_resolved(self) -> str:
+        if self.seedance_provider in ("ark", "fal"):
+            return self.seedance_provider
+        if self.ark_api_key:
+            return "ark"
+        if self.fal_key:
+            return "fal"
+        return ""
+
+    @property
+    def seedance_configured(self) -> bool:
+        return bool(self.seedance_provider_resolved)
+
+    @property
+    def ark_text_model_resolved(self) -> str:
+        if self.seedance_use_fast:
+            return self.ark_fast_model
+        return self.ark_text_model
+
+    @property
+    def ark_image_model_resolved(self) -> str:
+        if self.seedance_use_fast:
+            return self.ark_fast_model
+        return self.ark_image_model
 
     @property
     def knowledge_roots(self) -> list[Path]:
