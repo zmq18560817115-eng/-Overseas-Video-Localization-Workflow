@@ -14,7 +14,7 @@ from typing import Any
 from paths import GENERATED_SCRIPTS_DIR, MVP_ROOT, OVERSEAS_MVP_DIR, OVERSEAS_RUNS_DIR
 
 from .llm_script import pack_to_bridge_shots
-from .product_assets import stage_seedance_source_image
+from .character_assets import stage_project_production_assets
 
 USER_DELIVERABLES = (
     "交付脚本包.md",
@@ -107,7 +107,14 @@ def _stage_product_image(project: Path, payload: dict[str, Any]) -> None:
             except Exception:
                 product_id = ""
     if product_id:
-        stage_seedance_source_image(project, product_id)
+        stage_project_production_assets(
+            project,
+            product_id,
+            {
+                "audience_tags": payload.get("audience_tags") or [],
+                "scenario_tags": payload.get("scenario_tags") or [],
+            },
+        )
 
 
 def _sync_brief_tags(project: Path, payload: dict[str, Any]) -> None:

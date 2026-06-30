@@ -10,19 +10,9 @@ from .workflow import USER_DELIVERABLES, utc_now
 
 WORKFLOW_ROOT = Path(__file__).resolve().parents[2]
 
-def _first_existing(*candidates: Path) -> Path:
-    for path in candidates:
-        if path.exists():
-            return path
-    return candidates[0]
-
-
-FINISHED_DIR = _first_existing(WORKFLOW_ROOT / "04_成稿库", WORKFLOW_ROOT / "成稿库")
-FEEDBACK_DIR = _first_existing(WORKFLOW_ROOT / "05_反馈库", WORKFLOW_ROOT / "反馈库")
-COMPETITOR_SCRIPTS = _first_existing(
-    WORKFLOW_ROOT / "01_素材库" / "脚本快照",
-    WORKFLOW_ROOT / "海外视频本地化MVP" / "生成脚本",
-)
+FINISHED_DIR = WORKFLOW_ROOT / "04_成稿库"
+FEEDBACK_DIR = WORKFLOW_ROOT / "05_反馈库"
+COMPETITOR_SCRIPTS = WORKFLOW_ROOT / "01_素材库" / "脚本快照"
 
 FINISHED_INDEX = FINISHED_DIR / "成稿索引.csv"
 FEEDBACK_INDEX = FEEDBACK_DIR / "反馈记录.csv"
@@ -253,6 +243,9 @@ def init_feedback_record(project: Path, finished: dict[str, Any] | None = None) 
         "slug": slug,
         "link_id": finished.get("link_id", ""),
         "title": finished.get("title", slug),
+        "product_id": finished.get("product_id", "") or (finished.get("brief") or {}).get("sku", ""),
+        "scenario_tags": [],
+        "issue_tags": [],
         "created_at": utc_now(),
         "updated_at": utc_now(),
         "manual_edits": "",
@@ -264,6 +257,13 @@ def init_feedback_record(project: Path, finished: dict[str, Any] | None = None) 
         },
         "notes": "交付后由剪辑/运营填写人工修改与投放数据，用于反哺模型",
     }
+    brief_path = project / "localization-brief.yaml"
+    if brief_path.exists():
+        try:
+            brief = read_yaml(brief_path)
+            record["scenario_tags"] = list(brief.get("scenario_tags") or [])
+        except Exception:
+            pass
     write_json(FEEDBACK_DIR / f"{slug}.json", record)
     _sync_feedback_index(slug)
     return record

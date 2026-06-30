@@ -42,11 +42,13 @@ The product should enter as the solution to the scene, not as a floating ad. A u
 
 Every script must preserve:
 
+- **Script as execution contract**: after approval, generation and editing follow this script exactly.
 - Product facts from product docs or approved material.
 - Audience language appropriate to TikTok/Reels/short-form overseas viewers.
 - One clear Hook and one clear CTA.
 - A natural transition from pain to product demo.
 - No unsupported medical, guaranteed, superlative, or competitor comparison claims.
+- Every product-visible beat must name which approved asset anchors it: white hero, scenario image, or detail image.
 
 For each claim, mark it as:
 
@@ -78,24 +80,33 @@ Every product-visible shot must include an approved product image or a missing-a
 
 When generating video from images or text:
 
-1. Anchor product appearance with approved product identity or usage-step references.
-2. State the scene and product relationship explicitly.
-3. Keep one consistent person profile if a person appears.
-4. Avoid asking the model to invent logos, UI text, accessories, bottle type, or product structure.
-5. Use product-only or hands-only shots when identity consistency is not guaranteed.
-6. Preserve safe compliance language: the video can demonstrate handling, convenience, and context, but cannot prove medical or guaranteed outcomes.
+1. **Execute the approved script** — do not add, remove, or reorder beats during prompt writing.
+2. **Anchor product appearance** with the white-background hero (`白底主图`) for every product-visible shot.
+3. **Anchor usage and scene** with the matching scenario image for the selected scene tag.
+4. **Anchor structure details** with detail / usage-step images for pour, open, port, hinge, and accessory shots.
+5. State the scene and product relationship explicitly.
+6. Keep one consistent person profile if a person appears across multiple shots in the same video.
+7. Avoid asking the model to invent logos, UI text, accessories, bottle type, or product structure.
+8. Enforce **physical plausibility**: correct pour direction, gravity, hand grip, container separation, and approved usage order.
+9. Use product-only or hands-only shots when identity consistency is not guaranteed.
+10. **Enhance lighting realism** — motivated key light, soft fill, natural shadows, plausible reflections — while keeping product identity unchanged.
+11. Preserve safe compliance language: the video can demonstrate handling, convenience, and context, but cannot prove medical or guaranteed outcomes.
 
 Prompt fields to include:
 
 ```yaml
 shot_id: ""
 source_refs: []
+hero_ref: "白底主图 path"
+scenario_ref: "matching scene image path"
+detail_ref: "detail or usage-step path if needed"
 scene: ""
 person_profile: ""
 product_constraints: []
+physics_constraints: []
 action: ""
 camera: ""
-lighting: ""
+lighting: "motivated, realistic shadows and reflections"
 negative_constraints: []
 duration: ""
 ```

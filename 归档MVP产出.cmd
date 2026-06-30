@@ -11,7 +11,7 @@ if "%SLUG%"=="" (
 )
 
 if not exist "overseas-loc-mvp\.venv\Scripts\python.exe" (
-  echo 未找到 Python 环境，请先运行 启动页面MVP.cmd 完成依赖安装。
+  echo 未找到 Python 环境，请先运行 安装并检查开发环境.cmd 完成依赖安装。
   exit /b 1
 )
 

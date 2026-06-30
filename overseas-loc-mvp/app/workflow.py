@@ -18,6 +18,7 @@ from .ai_video import (
     pipeline_label,
     shot_generates_video,
 )
+from .character_assets import pick_shot_reference_path, resolve_character
 
 
 RETRYABLE_VALIDATION_RULES = frozenset({"V1", "V2", "V3", "V4"})
@@ -423,16 +424,19 @@ def generate_srt(markdown: str) -> str:
 
 
 def _load_pack(project: Path) -> dict[str, Any]:
-    """竞品桥接 script-pack 与交付后 交付脚本包 共用读取。"""
-    for name in ("交付脚本包.json", "script-pack.json"):
+    """竞品桥接 script-pack 与交付后 交付脚本包 共用读取；取 mtime 最新的一份。"""
+    candidates: list[Path] = []
+    for name in ("script-pack.json", "交付脚本包.json"):
         path = project / name
-        if not path.exists():
-            continue
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            continue
-    return {}
+        if path.is_file():
+            candidates.append(path)
+    if not candidates:
+        return {}
+    latest = max(candidates, key=lambda p: p.stat().st_mtime)
+    try:
+        return json.loads(latest.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 
 def _en_lines_from_pack(markdown: str) -> dict[int, str]:
@@ -862,8 +866,16 @@ def seedance_status(project: Path) -> dict[str, Any]:
             storyboard_shots = []
 
     mode = ai_video_mode()
-    product = str(brief.get("sku") or "portable bottle warmer")
+    product_id = str(brief.get("sku") or "便携恒温杯")
     scene_en = "daily baby feeding"
+    pack_scene = pack.get("scene_continuity") or {}
+    if pack_scene.get("main_scene_en"):
+        scene_en = str(pack_scene["main_scene_en"])
+    market = {
+        "audience_tags": brief.get("audience_tags") or [],
+        "scenario_tags": brief.get("scenario_tags") or [],
+    }
+    character = resolve_character(market)
 
     shots: list[dict[str, Any]] = []
     for shot in storyboard_shots:
@@ -878,8 +890,23 @@ def seedance_status(project: Path) -> dict[str, Any]:
             pack_shot=pack_shot,
             story_shot=shot,
             scene_en=scene_en,
-            product_name=product,
+            product_name=product_id,
+            character=character,
         )
+        ref_path, asset_type = pick_shot_reference_path(
+            product_id=product_id,
+            role=role,
+            character=character,
+            visual=str(shot.get("visual") or pack_shot.get("visual") or ""),
+            footage_type=ft,
+            project=project,
+        )
+        image_ref = None
+        if ref_path:
+            try:
+                image_ref = ref_path.relative_to(project).as_posix()
+            except ValueError:
+                image_ref = None
         mp4 = project / "broll" / f"shot-{number}.mp4"
         shots.append(
             {
@@ -890,6 +917,9 @@ def seedance_status(project: Path) -> dict[str, Any]:
                 "footage_type": ft,
                 "footage_label": footage_label(ft),
                 "prompt": prompt,
+                "image_ref": image_ref,
+                "asset_type": asset_type,
+                "character_id": character.get("id") if character and asset_type == "person" else "",
                 "ready": mp4.exists(),
                 "file": f"broll/shot-{number}.mp4" if mp4.exists() else None,
             }

@@ -27,7 +27,6 @@ output/
 Thumbs.db
 .idea/
 .vscode/
-.cursor/projects/
 *.swp
 *.swo
 
@@ -40,3 +39,7 @@ test-results/
 logs/*.log
 logs/*.out.log
 logs/*.err.log
+
+# TikTok 抓取运行时缓存（非工作流源码）
+tiktok_collector/data/browser_profile/
+tiktok_collector/data/raw/

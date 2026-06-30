@@ -2,7 +2,7 @@
   "slug": "ref-023",
   "version": "20260626-063033",
   "archived_at": "2026-06-26T06:30:33.160765+00:00",
-  "note": "migrate_workspace_layout",
+  "note": "scenario:office:办公室背奶",
   "prompt_fingerprint": "4186eb86",
   "shots": [
     "shot-1.mp4",
@@ -14,5 +14,7 @@
   "final_video": "final-video.mp4",
   "bytes": 7913652,
   "source_runs": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\overseas-loc-mvp\\runs\\ref-023",
-  "assemble": {}
+  "assemble": {},
+  "scenario_id": "office",
+  "scenario_label": "办公室背奶"
 }

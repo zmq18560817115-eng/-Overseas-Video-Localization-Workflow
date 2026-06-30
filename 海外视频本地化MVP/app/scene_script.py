@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .ai_video import default_footage_for_role, build_role_video_prompt
+from .character_assets import resolve_character
 from .product_usage import (
     THERMOS_USAGE_ZH,
     THERMOS_USAGE_EN,
@@ -270,6 +271,7 @@ def build_storyboard(
 ) -> tuple[list[dict[str, Any]], list[str], list[str], list[str]]:
     audience = _blob(market.get("audience_tags") or [])
     scene = profile["primary_tag"]
+    character = resolve_character(market)
     specs = shot_specs(profile=profile, market=market, voiceovers=voiceovers)
     storyboard: list[dict[str, Any]] = []
     subtitle_copy: list[str] = []
@@ -283,7 +285,7 @@ def build_storyboard(
         )
         sd = ""
         if ft in ("AI_BROLL", "AI_VIDEO"):
-            sd = build_role_video_prompt(role, profile, product_name, vo)
+            sd = build_role_video_prompt(role, profile, product_name, vo, character=character)
             seedance_prompts.append(sd)
         storyboard.append({
             "number": i,

@@ -65,13 +65,16 @@ If renaming would break existing paths, keep original names and create a manifes
 
 When building a shot or AI-video prompt, choose references in this order:
 
-1. Product identity image: confirms exact product appearance.
-2. Usage-step image: confirms how the product is handled.
-3. Scene image: confirms environment and mood.
-4. Person or hands reference: confirms demographic and visual consistency.
-5. AI-generated continuation: only after the above references are clear.
+1. **White-background hero (`白底主图`)**: locks exact product appearance — color, silhouette, UI, logo zone, proportions. Mandatory for every product-visible shot.
+2. **Scenario image (`场景图`)**: locks environment, props, placement, and usage context for the selected scene tag.
+3. **Usage-step image**: locks handling sequence — opening, pouring, wearing, cleaning, charging, assembly.
+4. **Detail / proof image (`细节图`)**: locks spout, port, hinge, accessory, and structural inserts.
+5. **Person or hands reference**: locks demographic and visual consistency for the whole video.
+6. **AI-generated continuation**: only after the above references are bound to the shot.
 
-For shots where the product is visible, the product identity or usage-step reference is mandatory. For shots where the product is not visible, scene and person references may be enough.
+For shots where the product is visible, the white-background hero reference is mandatory. Usage demos also require the matching scenario image and usage-step/detail reference when available.
+
+Do not let AI “interpret” or “improve” product design. If the hero image does not show a detail, do not invent it.
 
 ## Scene consistency rules
 
@@ -82,7 +85,7 @@ Define:
 - Main location: bedroom, office, car, airport, kitchen, nursery, park, etc.
 - Time: morning, night, commute, travel, work break, feeding time.
 - Props: bottle, milk storage bag, diaper bag, desk, stroller, suitcase, bedside table.
-- Lighting and color: soft home light, office light, car interior, travel daylight.
+- Lighting and color: soft home light, office light, car interior, travel daylight — **enhance realism** with motivated light, soft shadows, natural reflections, and plausible exposure; do not use lighting to disguise product shape changes.
 - Relationship to product: where the product sits, how it enters the shot, and what problem it solves.
 
 Do not jump randomly between bedroom, office, car, and travel scenes just because those images exist. Use scene changes as story beats.
@@ -103,6 +106,8 @@ allowed_scene_changes: []
 ```
 
 If there are no approved person references or the AI model cannot maintain identity, use product-only, hands-only, over-shoulder, or cropped lifestyle shots. This is better than an inconsistent “same person” who changes face, age, wardrobe, or family role across shots.
+
+**Same-video rule**: once a person profile is chosen for shot 1, every later person-visible shot in that video must reuse the same profile unless the script explicitly introduces a new character.
 
 ## Material intake decision
 

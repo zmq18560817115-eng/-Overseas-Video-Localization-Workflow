@@ -1,6 +1,6 @@
 ---
 name: overseas-video-output-standards
-description: "Use this skill when building, reviewing, or generating the overseas video localization workflow output: company product image/material library intake, TikTok competitor decomposition to brand-safe scripts, product-use display rules, scene and on-camera person consistency, SeedDance or other AI-video prompts, shot-to-asset mapping, editing task packs, and compliance checks for maternal/baby products."
+description: "Use this skill when building, reviewing, or generating overseas video localization output: strict script execution, product appearance locked to white-background hero images, usage/scene locked to scenario images, structural details locked to detail assets, physics-safe demonstrations, same-video person consistency, SeedDance/AI-video prompts, shot-to-asset mapping, editing task packs, and compliance checks. Apply the same asset-binding rules when onboarding new product categories."
 ---
 
 # Overseas Video Output Standards
@@ -43,25 +43,53 @@ The story line should usually be:
 
 Keep the user and scene first. The product should feel like the answer to a concrete moment, not like a hard advertisement dropped into a random viral template.
 
-Every generated output must preserve:
+### Product video fidelity (mandatory)
 
-- Product factuality: product shape, usage steps, accessories, and claims come from approved materials.
-- Asset traceability: every product image, scene image, generated clip, and reference image has a source path or status.
-- Scene continuity: location, lighting, props, time of day, and family/work/travel context do not drift without a scripted reason.
-- Person continuity: if a person appears, age range, role, wardrobe, hair, hands, and relationship to the product remain consistent.
-- Compliance: no unsupported medical, guaranteed, superlative, competitor, or restricted platform claims.
+When generating or reviewing product videos, treat approved assets as hard constraints — not inspiration.
+
+| Dimension | Source of truth | Rule |
+| --- | --- | --- |
+| Script | Approved script-pack / storyboard | Execute shot order, dialogue, timing, and CTA exactly. Do not improvise new beats, claims, or scenes. |
+| Product appearance & structure | White-background hero image (`白底主图`) | Match color, silhouette, lid type, ports, display, logo zone, and proportions exactly. Never redesign, recolor, simplify, or “beautify” the product. |
+| Usage flow & scene behavior | Matching scenario image (`场景图` / listing `M端` / `副图`) | Pouring, opening, placement, props, and environment must follow the selected scenario reference. |
+| Structural & functional details | Detail / proof images (`细节图`, usage-step refs such as `倒出口参考`) | Spout, hinge, buttons, charging port, accessories, and assembly must match detail assets. |
+| Physics & usage logic | Product docs + usage-step refs | No impossible pours, wrong container relationships, reversed gravity, wrong hand grip, or usage that contradicts the product type. |
+| Person continuity | Person reference or stable profile | Same role, age range, wardrobe, hair, skin tone, and hands across all person-visible shots in one video. |
+| Lighting & realism | Scene reference + physical plausibility | Enhance cinematic lighting (soft shadows, motivated light, natural reflections) while keeping scene identity stable. Do not use lighting to hide product shape changes. |
+
+If a visual detail is not visible in approved assets, mark it `missing` or `needs_review`. Never ask AI to infer product appearance.
+
+### Every generated output must preserve
+
+- **Script fidelity**: final edit and AI generation follow the approved script-pack; no silent rewrites during generation.
+- **Product factuality**: product shape, usage steps, accessories, and claims come from approved materials only.
+- **Asset traceability**: every product image, scene image, generated clip, and reference image has a source path or status.
+- **Scene continuity**: location, lighting, props, time of day, and family/work/travel context do not drift without a scripted reason.
+- **Person continuity**: if a person appears, age range, role, wardrobe, hair, hands, and relationship to the product remain consistent for the whole video.
+- **Compliance**: no unsupported medical, guaranteed, superlative, competitor, or restricted platform claims.
+
+### Onboarding new product categories
+
+When adding a new category for competitor benchmarking or production, require the same asset trio before scripting or generating:
+
+1. `白底主图` — product identity anchor (appearance lock)
+2. `场景图` — one or more approved scenario references per selectable use case
+3. `细节图` — structure, ports, accessories, and usage-step proof images
+
+Map every shot in `shot_asset_map` to one of these references. Competitor videos supply rhythm only; they never override company product assets.
 
 ## Required output contract
 
 When generating or reviewing a script/shot list/prompt, include these sections unless the user explicitly asks for a lighter answer:
 
 1. `product_sources`: product docs and material folders consulted.
-2. `asset_manifest`: approved/reference-only/missing assets with source paths.
-3. `shot_asset_map`: each shot mapped to script purpose, visual, asset path/status, and generation/editing method.
-4. `scene_continuity`: main scene, allowed transitions, and visual constraints.
+2. `asset_manifest`: approved/reference-only/missing assets with source paths, tagged as `product_identity` (白底主图), `scene`, `usage_step`, or `detail_proof`.
+3. `shot_asset_map`: each shot mapped to script purpose, visual, exact asset path/status, generation method, and `prompt_guardrails`.
+4. `scene_continuity`: main scene, lighting intent, allowed transitions, and visual constraints.
 5. `character_continuity`: person profile or reason to use product-only/hands-only shots.
-6. `claim_guardrails`: allowed claims, forbidden claims, and wording rewrites.
-7. `delivery_risks`: blockers, warnings, and what needs human review.
+6. `production_fidelity`: script-lock, white-hero lock, scenario lock, detail lock, physics checks, and lighting notes.
+7. `claim_guardrails`: allowed claims, forbidden claims, and wording rewrites.
+8. `delivery_risks`: blockers, warnings, and what needs human review.
 
 Never say “let the AI infer the product appearance.” If a product detail matters visually, require an approved product reference or mark the asset as missing.
 

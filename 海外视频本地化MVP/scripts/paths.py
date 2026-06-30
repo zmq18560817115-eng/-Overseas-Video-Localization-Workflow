@@ -16,29 +16,11 @@ PRODUCTION_ARCHIVE_DIR = WORKFLOW_ROOT / "03_产出库"
 FINISHED_LIBRARY_DIR = WORKFLOW_ROOT / "04_成稿库"
 FEEDBACK_LIBRARY_DIR = WORKFLOW_ROOT / "05_反馈库"
 
-def _first_existing(*candidates: Path) -> Path:
-    for path in candidates:
-        if path.exists():
-            return path
-    return candidates[0]
-
-
-DATA_DIR = _first_existing(
-    MATERIAL_LIBRARY_DIR / "竞品对标" / "数据表",
-    MVP_ROOT / "数据表",
-)
-DECOMPOSE_DIR = _first_existing(
-    MATERIAL_LIBRARY_DIR / "竞品对标" / "AI拆解结果",
-    MVP_ROOT / "AI拆解结果",
-)
-PRODUCT_MATERIALS_DIR = _first_existing(
-    MATERIAL_LIBRARY_DIR / "产品资料",
-    MVP_ROOT / "产品资料",
-)
-GENERATED_SCRIPTS_DIR = _first_existing(
-    MATERIAL_LIBRARY_DIR / "脚本快照",
-    MVP_ROOT / "生成脚本",
-)
+DATA_DIR = MATERIAL_LIBRARY_DIR / "竞品对标" / "数据表"
+DECOMPOSE_DIR = MATERIAL_LIBRARY_DIR / "竞品对标" / "AI拆解结果"
+PRODUCT_MATERIALS_DIR = MATERIAL_LIBRARY_DIR / "产品资料"
+GENERATED_SCRIPTS_DIR = MATERIAL_LIBRARY_DIR / "脚本快照"
+CHARACTER_LIBRARY_DIR = MATERIAL_LIBRARY_DIR / "人像角色"
 THUMBNAILS_DIR = MATERIAL_LIBRARY_DIR / "竞品对标" / "封面缓存"
 
 SQL_DIR = MVP_ROOT / "sql"

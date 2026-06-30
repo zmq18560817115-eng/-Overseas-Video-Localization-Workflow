@@ -7,12 +7,17 @@ Use this checklist before delivering scripts, shot lists, SeedDance prompts, gen
 Stop and ask for human review or mark as blocked if any item is true:
 
 - Target product is unclear.
-- Product-visible shot has no approved product reference or source path.
+- Product-visible shot has no approved **white-background hero** reference or source path.
+- Usage or scene shot has no matching **scenario image** reference when one exists for the selected scene tag.
+- Structural demo shot has no **detail / usage-step** reference when one exists for that action.
+- Final output deviates from the approved script (shot order, dialogue, timing, or CTA changed without revision).
 - Product usage contradicts the product document.
+- Obvious **physics or usage-scene error** (wrong pour direction, bottle inside cup, impossible grip, scene/use mismatch).
 - A claim is not backed by product docs or approved material.
 - Competitor brand/logo/model appears in consumer-facing output.
 - Scene or person continuity breaks in a way that changes the story.
 - AI output invents product appearance, UI, logo, accessory, bottle type, or product structure.
+- AI output **modifies** product appearance relative to the white-background hero (recolor, reshape, simplify, or restyle).
 - Maternal/baby product content includes prohibited medical, lactation, safety, or guarantee claims.
 
 ## Source and material checks
@@ -36,13 +41,15 @@ Stop and ask for human review or mark as blocked if any item is true:
 - Main scene is defined and stable.
 - Scene changes have a reason.
 - Props, lighting, product placement, and time of day remain coherent.
-- If a person appears, role, age range, wardrobe, hair, hands, and emotional state are consistent.
+- Lighting is realistic (motivated source, soft shadows, plausible reflections) without altering product identity.
+- If a person appears, role, age range, wardrobe, hair, hands, and emotional state are consistent **across the whole video**.
 - If consistency cannot be maintained, product-only or hands-only shots are used.
 
 ## Product-use checks
 
-- Demonstration follows approved usage steps.
-- Product-visible details match approved product images.
+- Demonstration follows approved usage steps and the matching scenario image.
+- Product-visible details match the **white-background hero** and relevant **detail images**.
+- Pour/open/charge/assembly actions follow **physics-safe** motion and container relationships.
 - Accessories and containers are approved.
 - Forbidden visuals are excluded.
 - Detail/proof images support only the exact safe wording used.

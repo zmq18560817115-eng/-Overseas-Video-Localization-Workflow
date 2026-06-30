@@ -14,6 +14,7 @@ from ensure_legacy_paths import ensure_legacy_junctions
 ensure_legacy_junctions()
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -42,6 +43,8 @@ from .doubao_config import doubao_config, video_analysis_policy
 from .doubao_video_analysis import test_connection as test_doubao_connection
 from .jobs import job_status, start_job
 from .library_api import list_feedback, list_finished, load_feedback, load_templates, save_feedback
+from .feedback_loop import preview_constraints
+from .feedback_tags import ISSUE_TAG_DEFS
 from .llm_script import pick_template
 from .olm_bridge import (
     build_delivery_zip,
@@ -55,6 +58,10 @@ from .products import get_product, list_products, update_product
 from .scene_script import scenario_conflict_note
 from .script_gen import generate_script
 from .thumbnails import ensure_thumbnail_cached
+from .tiktok_collector_bridge import run_collector_import
+from .tiktok_collector_bridge import query_collector_database
+from .tiktok_collector_bridge import collector_database_enabled
+from .tiktok_collector_bridge import sync_collector_database_to_workflow
 from .seedance_bridge import (
     assemble_project,
     project_status,
@@ -66,7 +73,7 @@ from .seedance_bridge import (
 
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 54
+UI_VERSION = 91
 
 
 def _friendly_analyze_message(detail: dict[str, Any] | None, link_id: int | str) -> str:
@@ -103,6 +110,13 @@ class GenerateRequest(BaseModel):
     scenario_tags: list[str] = Field(default_factory=list)
     selling_tags: list[str] = Field(default_factory=list)
     pain_tags: list[str] = Field(default_factory=list)
+    aspect_ratio: str = "9:16"
+    edit_mode: str = "multi_shot"
+    resolution: str = "720P"
+    duration_sec: int = 5
+    generate_count: int = 1
+    creative_brief: str = ""
+    prompt_enhanced: bool = False
 
 
 class ProductUpdateRequest(BaseModel):
@@ -120,6 +134,7 @@ class FeedbackUpdateRequest(BaseModel):
     manual_edits: str = ""
     adopted: str = "待定"
     notes: str = ""
+    issue_tags: list[str] = Field(default_factory=list)
     publish_views: str = ""
     publish_engagement: str = ""
     publish_notes: str = ""
@@ -128,6 +143,18 @@ class FeedbackUpdateRequest(BaseModel):
 class JobStartRequest(BaseModel):
     engine: str = "auto"
     provider: str = "auto"
+
+
+class TikTokCollectorRequest(BaseModel):
+    keywords: list[str] = Field(min_length=1)
+    limit_per_keyword: int = Field(default=20, ge=1, le=100)
+
+
+class TikTokCollectorDbSyncRequest(BaseModel):
+    q: str = ""
+    source_keyword: str = ""
+    processing_status: str = ""
+    limit: int = Field(default=20, ge=1, le=100)
 
 
 @app.get("/")
@@ -171,6 +198,13 @@ async def health() -> dict:
         },
         "aigc_primary": "seedance-2.0",
         "seedance": seedance_config(),
+        "tiktok_collector": {
+            "available": True,
+            "limit_per_keyword": 20,
+            "output_dir": str((ROOT.parent / "tiktok_collector" / "data" / "raw").resolve()),
+            "clean_output_dir": str((ROOT.parent / "tiktok_collector" / "data" / "raw" / "clean").resolve()),
+            "mysql_enabled": collector_database_enabled(),
+        },
     }
 
 
@@ -405,6 +439,13 @@ async def generate(link_id: int, body: GenerateRequest) -> dict:
                 "scenario_tags": body.scenario_tags,
                 "selling_tags": body.selling_tags,
                 "pain_tags": body.pain_tags,
+                "aspect_ratio": body.aspect_ratio,
+                "edit_mode": body.edit_mode,
+                "resolution": body.resolution,
+                "duration_sec": body.duration_sec,
+                "generate_count": body.generate_count,
+                "creative_brief": body.creative_brief,
+                "prompt_enhanced": body.prompt_enhanced,
             },
         )
         slug = f"ref-{link_id:03d}"
@@ -462,6 +503,25 @@ async def library_feedback_list() -> dict:
     return {"items": list_feedback()}
 
 
+@app.get("/api/library/feedback-tags")
+async def library_feedback_tags() -> dict:
+    return {
+        "items": [
+            {"id": tag_id, "label": meta["label"], "hint_zh": meta["hint_zh"]}
+            for tag_id, meta in ISSUE_TAG_DEFS.items()
+        ],
+    }
+
+
+@app.get("/api/library/feedback-constraints")
+async def library_feedback_constraints(
+    product_id: str = Query(..., min_length=1),
+    scenario_tags: str = Query("", description="逗号分隔场景标签"),
+) -> dict:
+    tags = [t.strip() for t in scenario_tags.split(",") if t.strip()]
+    return preview_constraints(product_id, tags)
+
+
 @app.get("/api/library/feedback/{slug}")
 async def library_feedback_one(slug: str) -> dict:
     record = load_feedback(slug)
@@ -479,6 +539,7 @@ async def library_feedback_save(slug: str, body: FeedbackUpdateRequest) -> dict:
                 "manual_edits": body.manual_edits,
                 "adopted": body.adopted,
                 "notes": body.notes,
+                "issue_tags": body.issue_tags,
                 "publish": {
                     "views": body.publish_views,
                     "engagement": body.publish_engagement,
@@ -508,6 +569,93 @@ async def jobs_start(job_name: str, body: JobStartRequest | None = None) -> dict
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/tiktok-collector/collect")
+async def tiktok_collector_collect(body: TikTokCollectorRequest) -> dict:
+    keywords = [item.strip() for item in body.keywords if item.strip()]
+    if not keywords:
+        raise HTTPException(status_code=400, detail="请至少输入一个关键词")
+    try:
+        result = await run_in_threadpool(
+            run_collector_import,
+            keywords,
+            limit_per_keyword=body.limit_per_keyword,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"TikTok 采集失败: {exc}") from exc
+    items = load_materials()
+    return {
+        "ok": True,
+        "keywords": keywords,
+        "limit_per_keyword": body.limit_per_keyword,
+        "total_collected": result.total_collected,
+        "total_cleaned": result.total_cleaned,
+        "total_dropped": result.total_dropped,
+        "imported_new_links": result.imported_new_links,
+        "updated_existing_links": result.updated_existing_links,
+        "json_path": result.json_path,
+        "csv_path": result.csv_path,
+        "clean_json_path": result.clean_json_path,
+        "clean_csv_path": result.clean_csv_path,
+        "review_json_path": result.review_json_path,
+        "output_dir": result.output_dir,
+        "materials_total": len(items),
+        "materials_analyzed": sum(1 for item in items if item.get("has_analysis")),
+    }
+
+
+@app.get("/api/tiktok-collector/db/videos")
+async def tiktok_collector_db_videos(
+    q: str = "",
+    source_keyword: str = "",
+    processing_status: str = "",
+    limit: int = Query(20, ge=1, le=100),
+) -> dict:
+    try:
+        result = await run_in_threadpool(
+            query_collector_database,
+            q=q,
+            source_keyword=source_keyword,
+            processing_status=processing_status,
+            limit=limit,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"TikTok MySQL 查询失败: {exc}") from exc
+    return {
+        "ok": True,
+        "db_enabled": result.db_enabled,
+        "total": result.total,
+        "items": result.items,
+        "filters": {
+            "q": q,
+            "source_keyword": source_keyword,
+            "processing_status": processing_status,
+            "limit": limit,
+        },
+    }
+
+
+@app.post("/api/tiktok-collector/db/sync")
+async def tiktok_collector_db_sync(body: TikTokCollectorDbSyncRequest) -> dict:
+    try:
+        result = await run_in_threadpool(
+            sync_collector_database_to_workflow,
+            q=body.q,
+            source_keyword=body.source_keyword,
+            processing_status=body.processing_status,
+            limit=body.limit,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"TikTok MySQL 同步失败: {exc}") from exc
+    return {
+        "ok": True,
+        "db_enabled": result.db_enabled,
+        "queried_total": result.queried_total,
+        "synced_count": result.synced_count,
+        "imported_new_links": result.imported_new_links,
+        "updated_existing_links": result.updated_existing_links,
+    }
 
 
 @app.post("/api/delivery/{slug}/finish")

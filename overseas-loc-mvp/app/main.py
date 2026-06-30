@@ -14,7 +14,15 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .ai_video import ai_video_max_shots, ai_video_on_finish, shot_generates_video, ai_video_mode, ai_video_concat_enabled, ai_video_concat_min_shots
+from .ai_video import (
+    ai_video_concat_enabled,
+    ai_video_concat_min_shots,
+    ai_video_max_shots,
+    ai_video_mode,
+    ai_video_on_finish,
+    sanitize_seedance_prompt,
+    shot_generates_video,
+)
 from .video_assemble import assemble_storyboard_video
 from .knowledge import context_text, search_knowledge
 from .models import (
@@ -401,10 +409,11 @@ async def _seedance_generate_all(slug: str, *, force: bool = False) -> list[dict
         if shot["ready"]:
             results.append({"number": number, "status": "skipped", "message": "已有视频"})
             continue
-        prompt = shot.get("prompt") or ""
+        prompt = sanitize_seedance_prompt(shot.get("prompt") or "")
         if len(prompt) < 10:
             results.append({"number": number, "status": "error", "message": "缺少视频 Prompt"})
             continue
+        shot_image_ref = shot.get("image_ref") or image_ref
         try:
             meta = await seedance_broll(
                 SeedanceRequest(
@@ -412,14 +421,34 @@ async def _seedance_generate_all(slug: str, *, force: bool = False) -> list[dict
                     shot_number=number,
                     prompt=prompt,
                     mode="submit",
-                    image_ref=image_ref,
-                    source_approved=bool(image_ref),
+                    image_ref=shot_image_ref,
+                    source_approved=bool(shot_image_ref),
                 )
             )
             results.append({"number": number, "status": "ok", "file": meta.get("local_file")})
             generated += 1
         except HTTPException as exc:
-            results.append({"number": number, "status": "error", "message": exc.detail})
+            # One retry for transient Ark/network failures (e.g. last shot timeout).
+            try:
+                meta = await seedance_broll(
+                    SeedanceRequest(
+                        slug=slug,
+                        shot_number=number,
+                        prompt=prompt,
+                        mode="submit",
+                        image_ref=shot_image_ref,
+                        source_approved=bool(shot_image_ref),
+                    )
+                )
+                results.append({
+                    "number": number,
+                    "status": "ok",
+                    "file": meta.get("local_file"),
+                    "retried": True,
+                })
+                generated += 1
+            except HTTPException:
+                results.append({"number": number, "status": "error", "message": exc.detail})
     return results
 
 

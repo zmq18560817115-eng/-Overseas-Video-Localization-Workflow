@@ -1,5 +1,25 @@
 # Product Rules
 
+## Universal asset-binding rules (all products)
+
+Before scripting, storyboarding, or generating AI video for any product:
+
+1. **Script lock**: The approved script-pack is the execution contract. Shot order, dialogue, subtitles, timing, and CTA must not change during generation or editing unless a human explicitly revises the script.
+2. **White-background hero lock**: Product appearance and overall structure must match `白底主图` (or approved product identity render). Do not alter shape, color, lid type, display layout, logo zone, proportions, or materials.
+3. **Scenario lock**: Usage flow, environment, props, and product placement must match the selected scenario image (`场景图`, listing `M端` / `副图`, or equivalent approved scene reference).
+4. **Detail lock**: Functional details — spout, hinge, button, port, accessory, size insert — must match detail / usage-step images (`细节图`, `倒出口参考`, etc.).
+5. **Physics & usage logic**: Demonstrations must obey real-world physics and approved usage steps. Reject outputs with obvious pour-direction errors, wrong container relationships, impossible hand poses, or scene/use-case mismatches.
+6. **Person lock**: If a person appears in multiple shots of one video, keep the same identity profile across all of them. Prefer hands-only or product-only shots when identity cannot be held.
+7. **Lighting realism**: Enhance motivated lighting, soft shadows, and natural reflections to make the scene believable — without changing product identity or inventing unsupported scene elements.
+
+When onboarding a new product category, create the same trio before production:
+
+- `required_reference_images` → white-background hero
+- `scene_reference_images` → per-scenario approved frames
+- detail / usage-step images → structure and handling proof
+
+Competitor videos never override these company assets.
+
 ## Universal rules
 
 Use product-specific documents as the source of truth. Do not infer product functions from competitor videos, AI output, or generic market knowledge.
@@ -58,10 +78,19 @@ Preferred scenes:
 
 High-value reference images:
 
-- `主图\倒出口参考.png` for correct pouring-spout/lid behavior.
-- `主图\白底主图.png` for product identity.
-- Listing `M端` and `副图` scene images for scene framing.
-- Detail images for battery, heating, waterproof, anti-leak, size, or structural inserts, only when the product doc supports the wording.
+- `主图\白底主图.png` — **mandatory** product identity anchor; all visible product shots must match this appearance.
+- `主图\倒出口参考.png` — **mandatory** for pour/demo shots; correct pouring-spout/lid behavior and physics.
+- Listing `M端` and `副图` scene images — **mandatory** for the selected scenario; usage flow and environment must follow the matching scene ref.
+- Detail images — battery, heating, waterproof, anti-leak, size, or structural inserts; only when the product doc supports the wording.
+
+Asset binding for this product:
+
+| Shot need | Required reference |
+| --- | --- |
+| Product visible (any angle) | `白底主图` |
+| Open lid / pour / tilt demo | `倒出口参考` + matching `场景图` |
+| Bedroom / car / travel / office / mall scene | corresponding `M端` or `副图` for that scenario |
+| Port / display / hinge / spout close-up | matching `细节图` |
 
 Do not say or show:
 

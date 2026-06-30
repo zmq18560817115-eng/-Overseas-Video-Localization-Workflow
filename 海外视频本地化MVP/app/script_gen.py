@@ -16,6 +16,7 @@ from .brand_policy import (
     sanitize_analysis,
 )
 from .product_assets import stage_seedance_source_image
+from .character_assets import stage_project_production_assets
 from .product_tags import validate_delivery_selection
 from .data import ANALYSIS_FIELDS, load_analysis, material_detail
 from .llm_script import generate_script_pack, pack_to_bridge_shots, pack_to_markdown
@@ -98,6 +99,13 @@ def generate_script(
         "scenario_tags": market.get("scenario_tags", []),
         "selling_tags": market.get("selling_tags", []),
         "pain_tags": market.get("pain_tags", []),
+        "aspect_ratio": market.get("aspect_ratio", "9:16"),
+        "edit_mode": market.get("edit_mode", "multi_shot"),
+        "resolution": market.get("resolution", "720P"),
+        "duration_sec": market.get("duration_sec", 5),
+        "generate_count": market.get("generate_count", 1),
+        "creative_brief": market.get("creative_brief", ""),
+        "prompt_enhanced": bool(market.get("prompt_enhanced")),
         "source_url": source_url,
         "shots": shots,
         "generated_at": utc_now(),
@@ -150,9 +158,10 @@ def _bridge(
 
     proj = OVERSEAS_RUNS_DIR / slug
     if proj.exists():
-        (proj / "script-pack.json").write_text(
-            json.dumps(pack, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        pack_text = json.dumps(pack, ensure_ascii=False, indent=2) + "\n"
+        (proj / "script-pack.json").write_text(pack_text, encoding="utf-8")
+        # Keep delivery pack in sync so SeedDance reads the latest scenario prompts.
+        (proj / "交付脚本包.json").write_text(pack_text, encoding="utf-8")
         if shots:
             (proj / "storyboard.json").write_text(
                 json.dumps({"shots": shots}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -173,5 +182,12 @@ def _bridge(
                     pass
             product_id = str(payload_extra.get("product_id") or "").strip()
             if product_id:
-                stage_seedance_source_image(proj, product_id)
+                stage_project_production_assets(
+                    proj,
+                    product_id,
+                    {
+                        "audience_tags": payload_extra.get("audience_tags") or [],
+                        "scenario_tags": payload_extra.get("scenario_tags") or [],
+                    },
+                )
     return slug

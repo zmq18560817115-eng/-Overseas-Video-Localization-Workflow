@@ -13,6 +13,11 @@ import httpx
 from paths import DATA_DIR, SCRIPT_TEMPLATES_CSV
 
 from .brand_policy import OUR_BRAND, display_product_name
+from .feedback_loop import (
+    apply_feedback_to_pack,
+    build_feedback_constraints,
+    format_constraints_for_llm,
+)
 from .product_tags import validate_delivery_selection
 from .output_standards import enrich_pack_with_standards
 from .scene_script import (
@@ -42,6 +47,13 @@ SYSTEM_PROMPT = f"""你是母婴出海短视频脚本策划。根据用户在脚
 7. 标题/副标题适合目标市场母婴人群。
 8. 口播、字幕、画面提示统一露出我方品牌产品名（见 user prompt 中的 brand_product）。
 9. 全部 5 镜必须在「本次定制下发」的投放场景内完成，visual/visual_prompt/口播禁止出现未选场景（例如选了卧室禁止车载/外出旅行/机场表述）；各镜 visual_prompt 需写明该场景下的具体画面。
+10. **脚本严格执行**：分镜顺序、口播、字幕、时长与 CTA 即为成片执行契约，生成阶段不得擅自增删改镜。
+11. **产品外观锁白底主图**：产品可见镜头的外观、颜色、比例、盖型、数显、Logo 区必须严格对照白底主图，严禁 AI 私自改造型、改色或简化结构。
+12. **场景与用法锁场景图**：使用流程、道具摆放、环境氛围必须严格对照所选场景标签对应的场景图（M端/副图等）。
+13. **结构细节锁细节图**：倒出口、翻盖、按键、充电口等必须对照细节图/倒出口参考图，遵守真实物理逻辑（流向、倾斜、容器关系）。
+14. **人物同一视频前后一致**：若出镜，全片保持同一人物档案（年龄、服饰、发型、肤色、手部）；无法保证时用产品特写或手部镜头。
+15. **光影增强真实感**：在保持场景统一的前提下，使用有动机的主光、柔和阴影与自然反射，提升画面真实感，但不得借光影掩盖产品变形。
+16. 后续新增品类时，同样必须绑定白底主图 + 场景图 + 细节图后再出脚本或生成。
 """
 
 OUTPUT_SCHEMA = {
@@ -78,7 +90,12 @@ def load_templates() -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def pick_template(analysis: dict[str, str], templates: list[dict[str, str]]) -> dict[str, str]:
+def pick_template(
+    analysis: dict[str, str],
+    templates: list[dict[str, str]],
+    *,
+    product_id: str = "",
+) -> dict[str, str]:
     text = " ".join(
         analysis.get(k, "") for k in ("reusable_template", "video_structure", "selling_points")
     ).lower()
@@ -92,12 +109,27 @@ def pick_template(analysis: dict[str, str], templates: list[dict[str, str]]) -> 
         key = "tutorial-hack"
     for row in templates:
         if row.get("template_id") == key:
-            return row
-    return templates[0] if templates else {
-        "template_id": "tutorial-hack",
-        "label": "教程技巧型",
-        "structure_chain": "痛点反问 → 步骤演示 → 效果验证 → 收藏引导",
-    }
+            chosen = row
+            break
+    else:
+        chosen = templates[0] if templates else {
+            "template_id": "tutorial-hack",
+            "label": "教程技巧型",
+            "structure_chain": "痛点反问 → 步骤演示 → 效果验证 → 收藏引导",
+        }
+    if product_id:
+        hint = build_feedback_constraints(product_id, []).get("template_hint") or {}
+        tpl_id = str(hint.get("template_id") or "").strip()
+        if tpl_id:
+            for row in templates:
+                if row.get("template_id") == tpl_id:
+                    return row
+        tpl_label = str(hint.get("template_label") or "").strip()
+        if tpl_label:
+            for row in templates:
+                if row.get("label") == tpl_label:
+                    return row
+    return chosen
 
 
 def _forbidden_from_product(product: dict[str, str]) -> list[str]:
@@ -116,10 +148,15 @@ def build_user_prompt(
     market: dict[str, str],
     video_title: str,
     source_url: str,
+    feedback_block: dict[str, Any] | None = None,
 ) -> str:
     tags = validate_delivery_selection(market)
     forbidden = _forbidden_from_product(product)
     pid = product.get("product_id", "")
+    if feedback_block is None:
+        feedback_block = build_feedback_constraints(pid, tags.get("scenario_tags"))
+    feedback_section = format_constraints_for_llm(feedback_block)
+    feedback_block_text = f"\n{feedback_section}\n" if feedback_section else ""
     brand_product = display_product_name(pid, product.get("product_name", OUR_BRAND))
     audience_line = "、".join(tags["audience_tags"])
     scenario_line = "、".join(tags["scenario_tags"])
@@ -128,6 +165,15 @@ def build_user_prompt(
     scene_note = scenario_conflict_note(tags["scenario_tags"])
     scene_warn = f"\n- 场景一致性说明: {scene_note}" if scene_note else ""
     profile = resolve_scenario_profile(tags["scenario_tags"])
+    creative = (market.get("creative_brief") or "").strip()
+    creative_block = f"\n## 创作指令（对话框）\n{creative}\n" if creative else ""
+    specs_block = f"""
+## 成片规格
+- 分辨率: {market.get("resolution", "720P")}
+- 宽高比: {market.get("aspect_ratio", "9:16")}
+- 目标时长: {market.get("duration_sec", 5)} 秒
+- 生成条数: {market.get("generate_count", 1)}
+- 提示词增强: {"是" if market.get("prompt_enhanced") else "否"}"""
     return f"""# 任务：生成 script-pack-v1 JSON
 
 ## 品牌与替换
@@ -146,6 +192,7 @@ def build_user_prompt(
 - 核心卖点: {selling_line}
 - 用户痛点: {pain_line}
 - 首要场景（全片统一）: {profile.get("primary_tag", scenario_line)}{scene_warn}
+{creative_block}{specs_block}{feedback_block_text}
 
 ## 合规禁词（禁止出现在口播/字幕）
 {chr(10).join("- " + t for t in forbidden)}
@@ -330,6 +377,21 @@ def normalize_pack(pack: dict[str, Any]) -> dict[str, Any]:
     return pack
 
 
+def _attach_feedback_and_standards(
+    pack: dict[str, Any],
+    *,
+    product: dict[str, str],
+    market: dict[str, Any],
+    analysis: dict[str, str] | None = None,
+    feedback_block: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    pid = str(product.get("product_id") or "")
+    fb = feedback_block or build_feedback_constraints(pid, market.get("scenario_tags") or [])
+    apply_feedback_to_pack(pack, fb)
+    enrich_pack_with_standards(pack, product=product, market=market, analysis=analysis)
+    return pack
+
+
 def generate_script_pack(
     *,
     product: dict[str, str],
@@ -340,7 +402,9 @@ def generate_script_pack(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     market = {**DEFAULT_MARKET, **(market or {})}
     validate_delivery_selection(market)
-    template = pick_template(analysis, load_templates())
+    pid = str(product.get("product_id") or "")
+    feedback_block = build_feedback_constraints(pid, market.get("scenario_tags") or [])
+    template = pick_template(analysis, load_templates(), product_id=pid)
     user_prompt = build_user_prompt(
         product=product,
         analysis=analysis,
@@ -348,6 +412,7 @@ def generate_script_pack(
         market=market,
         video_title=video_title,
         source_url=source_url,
+        feedback_block=feedback_block,
     )
     try:
         pack, meta = _call_anthropic(user_prompt)
@@ -361,10 +426,18 @@ def generate_script_pack(
             "content_source": "user_selected_tags",
             "structure_source": "competitor_analysis",
             "reference_url": source_url,
+            "feedback_matched": feedback_block.get("matched_count", 0),
         }
         meta["template_id"] = template.get("template_id", "")
         meta["template_label"] = template.get("label", "")
-        enrich_pack_with_standards(pack, product=product, market=market, analysis=analysis)
+        meta["feedback_matched"] = feedback_block.get("matched_count", 0)
+        _attach_feedback_and_standards(
+            pack,
+            product=product,
+            market=market,
+            analysis=analysis,
+            feedback_block=feedback_block,
+        )
         return pack, meta
     except Exception as exc:
         pack = _rule_pack(
@@ -382,8 +455,15 @@ def generate_script_pack(
             "generated_at": utc_now(),
             "template_id": template.get("template_id", ""),
             "template_label": template.get("label", ""),
+            "feedback_matched": feedback_block.get("matched_count", 0),
         }
-        enrich_pack_with_standards(pack, product=product, market=market, analysis=analysis)
+        _attach_feedback_and_standards(
+            pack,
+            product=product,
+            market=market,
+            analysis=analysis,
+            feedback_block=feedback_block,
+        )
         return pack, meta
 
 

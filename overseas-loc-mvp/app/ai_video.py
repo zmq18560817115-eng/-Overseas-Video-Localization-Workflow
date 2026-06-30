@@ -1,14 +1,15 @@
 """AI 分镜视频：空镜 (AI_BROLL) 与脚本展示镜 (AI_VIDEO) 的生成策略与 Prompt。"""
-
 from __future__ import annotations
 
 import os
 import re
 from typing import Any
 
+from .character_assets import build_character_prompt_block, shot_needs_person
 from .product_usage import THERMOS_USAGE_EN, THERMOS_PRODUCT_EN
 
 AI_VIDEO_FOOTAGE = frozenset({"AI_BROLL", "AI_VIDEO"})
+SEEDANCE_PROMPT_LIMIT = 1990
 
 
 def ai_video_mode() -> str:
@@ -66,6 +67,31 @@ def _clean_en(text: str, limit: int = 120) -> str:
     return t[:limit]
 
 
+def _clamp_prompt(text: str, limit: int = SEEDANCE_PROMPT_LIMIT) -> str:
+    t = re.sub(r"\s+", " ", (text or "").strip())
+    if len(t) <= limit:
+        return t
+    return t[: limit - 3].rstrip() + "..."
+
+
+def sanitize_seedance_prompt(text: str) -> str:
+    """Normalize and hard-cap prompts before they hit SeedanceRequest validation."""
+    return _clamp_prompt(text, SEEDANCE_PROMPT_LIMIT)
+
+
+def _usage_compact() -> str:
+    return (
+        "Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; "
+        "never put bottle inside cup"
+    )
+
+
+def _safe_suffix(character: dict[str, Any] | None, role: str) -> str:
+    if character and shot_needs_person(role):
+        return "vertical 9:16, TikTok product ad style, no medical claim, match approved person reference"
+    return "no person face, no medical claim, vertical 9:16, TikTok product ad style"
+
+
 def build_shot_video_prompt(
     *,
     role: str,
@@ -73,54 +99,78 @@ def build_shot_video_prompt(
     story_shot: dict[str, Any] | None = None,
     scene_en: str = "daily baby feeding",
     product_name: str = "portable milk-warming thermos cup",
+    character: dict[str, Any] | None = None,
 ) -> str:
     """从脚本镜位合成 SeedDance 英文 Prompt。"""
     story_shot = story_shot or {}
     explicit = str(pack_shot.get("seedance_prompt") or story_shot.get("notes") or "").strip()
     if len(explicit) >= 10:
-        return explicit
+        if character and shot_needs_person(role) and "approved caregiver" not in explicit:
+            person = build_character_prompt_block(character)
+            return _clamp_prompt(f"{explicit} {person}")
+        return _clamp_prompt(explicit)
 
     vo = _clean_en(
         str(pack_shot.get("voiceover_en") or pack_shot.get("subtitle_en") or story_shot.get("copy") or "")
     )
     visual = str(pack_shot.get("visual_prompt") or pack_shot.get("visual") or story_shot.get("visual") or "")
-    safe = "no person face, no medical claim, vertical 9:16, TikTok product ad style"
+    safe = _safe_suffix(character, role)
+    person = build_character_prompt_block(character) if character and shot_needs_person(role) else ""
     cup = THERMOS_PRODUCT_EN
+    usage = _usage_compact()
 
     role_key = (role or "").strip()
     if role_key == "钩子":
-        return (
+        if character and shot_needs_person(role_key):
+            return _clamp_prompt(
+                f"Hook opening, {scene_en}, {person}, medium shot with {cup} beside separate baby bottle, "
+                f"cinematic soft light, subtle push-in, {safe}. {usage}. "
+                f"Voiceover mood: {vo or 'attention grabbing'}"
+            )
+        return _clamp_prompt(
             f"Hook shot opening, {scene_en}, sharp close-up of {cup} on table, baby bottle beside, "
-            f"cinematic soft light, subtle push-in, {safe}. {THERMOS_USAGE_EN}. "
+            f"cinematic soft light, subtle push-in, {safe}. {usage}. "
             f"Voiceover mood: {vo or 'attention grabbing'}"
         )
     if role_key == "痛点":
-        return (
+        if character and shot_needs_person(role_key):
+            return _clamp_prompt(
+                f"Problem moment, {scene_en}, {person}, cold milk in baby bottle, bulky warmer contrast, "
+                f"moody lighting, realistic hand physics, {safe}. {usage}. {vo}"
+            )
+        return _clamp_prompt(
             f"Problem moment, {scene_en}, cold milk in baby bottle, bulky old bottle warmer contrast, "
-            f"moody lighting, {safe}. {THERMOS_USAGE_EN}. {vo}"
+            f"moody lighting, {safe}. {usage}. {vo}"
         )
     if role_key == "方案":
-        return (
-            f"Product demo, {scene_en}, flip-top lid open — pour breast milk FROM storage bag OR home baby bottle "
-            f"INTO {cup} interior; after warming, tilt cup so warm milk streams OUT from small circular spout hole "
-            f"in bowl-shaped lid recess into separate clear baby feeding bottle below, vertical °F display visible, {safe}. "
-            f"{THERMOS_USAGE_EN}. {vo}"
+        if character and shot_needs_person(role_key):
+            return _clamp_prompt(
+                f"Product demo, {scene_en}, {person}, side angle — flip-top lid open, pour milk INTO {cup}, "
+                f"then tilt to pour warm milk OUT from lid spout into baby feeding bottle, realistic pour physics, "
+                f"vertical display visible, {safe}. {usage}. {vo}"
+            )
+        return _clamp_prompt(
+            f"Product demo, {scene_en}, flip-top lid open — pour milk INTO {cup}; tilt to pour warm milk OUT "
+            f"from lid spout into baby feeding bottle, {safe}. {usage}. {vo}"
         )
     if role_key == "证明":
-        return (
-            f"Proof detail shot, {scene_en}, macro of warm milk pouring OUT from circular spout hole in flip-top lid recess "
-            f"of {cup} into baby feeding bottle, hinged lid open, pour-spout reference accurate, {safe}. "
-            f"{THERMOS_USAGE_EN}. {vo}"
+        return _clamp_prompt(
+            f"Proof detail shot, {scene_en}, macro of warm milk pouring OUT from lid spout of {cup} "
+            f"into baby feeding bottle, hinged lid open, {safe}. {usage}. {vo}"
         )
     if role_key == "行动号召":
-        return (
+        if character and shot_needs_person(role_key):
+            return _clamp_prompt(
+                f"CTA closing, {scene_en}, {person}, smiling with {cup} and baby bottle on clean surface, "
+                f"flip-top lid closed, digital display visible, {safe}. {usage}. {vo}"
+            )
+        return _clamp_prompt(
             f"CTA closing shot, {scene_en}, {cup} with flip-top lid closed, baby bottle beside, "
-            f"digital display and nurture wise band visible, {safe}. {THERMOS_USAGE_EN}. {vo}"
+            f"digital display visible, {safe}. {usage}. {vo}"
         )
 
-    return (
-        f"{scene_en}, {cup}, {_clean_en(visual, 80)}, cinematic product b-roll, {safe}. "
-        f"{THERMOS_USAGE_EN}. {vo}"
+    return _clamp_prompt(
+        f"{scene_en}, {cup}, {_clean_en(visual, 80)}, cinematic product b-roll, {safe}. {usage}. {vo}"
     )
 
 

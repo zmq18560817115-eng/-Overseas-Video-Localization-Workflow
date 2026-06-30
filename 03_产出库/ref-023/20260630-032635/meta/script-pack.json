@@ -1,0 +1,507 @@
+{
+  "title": "熊猫布布便携恒温杯 tips for working moms",
+  "subtitle": "Quick warm milk at the office, in minutes",
+  "voiceover_20s": "Need warm milk fast between meetings? Workdays leave little time for slow bottle prep. Quick, even heating at your desk. Discreet setup that fits a busy work routine. Save this for your workday routine.",
+  "storyboard": [
+    {
+      "number": 1,
+      "role": "钩子",
+      "timing": "0-3s",
+      "visual": "办公室背奶：近景口播/问题特写",
+      "voiceover_en": "Need warm milk fast between meetings?",
+      "subtitle_en": "Need warm milk fast between meetings?",
+      "visual_prompt": "办公室背奶：近景口播/问题特写；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+      "seedance_prompt": "Hook opening, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, medium shot holding portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo beside separate baby bottle on bedside table, warm soft light, subtle push-in, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Mood: Need warm milk fast between meetings?",
+      "footage_type": "AI_VIDEO"
+    },
+    {
+      "number": 2,
+      "role": "痛点",
+      "timing": "3-8s",
+      "visual": "办公室背奶：呈现痛点（传统暖奶器太大不便携）",
+      "voiceover_en": "Workdays leave little time for slow bottle prep.",
+      "subtitle_en": "Workdays leave little time for slow bottle prep.",
+      "visual_prompt": "办公室背奶：呈现痛点（传统暖奶器太大不便携）；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+      "seedance_prompt": "Problem moment, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, frustrated with cold milk in baby bottle, bulky old bottle warmer in background, moody lighting, realistic hand physics, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Workdays leave little time for slow bottle prep.",
+      "footage_type": "AI_VIDEO"
+    },
+    {
+      "number": 3,
+      "role": "方案",
+      "timing": "8-13s",
+      "visual": "办公室背奶：储奶袋/家用奶瓶经翻盖倒入杯内加热，倾斜经盖面圆孔出液嘴倒入干净奶瓶（便携可充电设计、外出随时加热；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热）",
+      "voiceover_en": "Quick, even heating at your desk.",
+      "subtitle_en": "Quick, even heating at your desk.",
+      "visual_prompt": "办公室背奶：储奶袋/家用奶瓶经翻盖倒入杯内加热，倾斜经盖面圆孔出液嘴倒入干净奶瓶（便携可充电设计、外出随时加热；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热）；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+      "seedance_prompt": "Product demo, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, side angle — flip-top lid open, pour milk INTO portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo, tilt to pour warm milk OUT from lid spout into baby feeding bottle, realistic pour physics, vertical display visible, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Quick, even heating at your desk.",
+      "footage_type": "AI_VIDEO"
+    },
+    {
+      "number": 4,
+      "role": "证明",
+      "timing": "13-17s",
+      "visual": "办公室背奶：效果/细节证明",
+      "voiceover_en": "Discreet setup that fits a busy work routine.",
+      "subtitle_en": "Discreet setup that fits a busy work routine.",
+      "visual_prompt": "办公室背奶：效果/细节证明；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+      "seedance_prompt": "Proof detail, office pumping or bottle prep, macro shot of warm milk pouring OUT from lid spout of portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo into baby feeding bottle, hinged lid open, no person face, no medical claim, vertical 9:16, TikTok product ad style. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Discreet setup that fits a busy work routine.",
+      "footage_type": "AI_VIDEO"
+    },
+    {
+      "number": 5,
+      "role": "行动号召",
+      "timing": "17-20s",
+      "visual": "办公室背奶：口播对镜收束",
+      "voiceover_en": "Save this for your workday routine.",
+      "subtitle_en": "Save this for your workday routine.",
+      "visual_prompt": "办公室背奶：口播对镜收束；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+      "seedance_prompt": "CTA closing, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, smiling to camera with portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo and baby bottle on clean surface, flip-top lid closed, digital display visible, natural gesture, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Save this for your workday routine.",
+      "footage_type": "AI_VIDEO"
+    }
+  ],
+  "subtitle_copy": [
+    "Need warm milk fast between meetings?",
+    "Workdays leave little time for slow bottle prep.",
+    "Quick, even heating at your desk.",
+    "Discreet setup that fits a busy work routine.",
+    "Save this for your workday routine."
+  ],
+  "visual_prompts": [
+    "办公室背奶：近景口播/问题特写；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+    "办公室背奶：呈现痛点（传统暖奶器太大不便携）；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+    "办公室背奶：储奶袋/家用奶瓶经翻盖倒入杯内加热，倾斜经盖面圆孔出液嘴倒入干净奶瓶（便携可充电设计、外出随时加热；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热）；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+    "办公室背奶：效果/细节证明；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16",
+    "办公室背奶：口播对镜收束；产品：熊猫布布便携恒温杯；人群：背奶职场妈妈、0-12月新手爸妈；场景：办公室背奶（全片统一，禁止混入其他场景）；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热；进液来源仅限：储奶袋（母乳储存袋）或家里日常使用的婴儿奶瓶倒奶；禁止出现：市售牛奶塑料瓶、鲜奶纸盒/利乐包、酸奶杯、任意商超乳制品包装；结构严格对照产品参考图：顶部为翻盖式铰链盖（侧面浅紫矩形按键弹开），非螺旋旋盖；倒出口为盖面碗形凹槽内的小圆孔出液嘴，倾斜杯身时暖奶从此圆孔流出；进液经翻开顶盖倒入杯内腔体；盖下深紫装饰环 nurture wise 标识；下段竖向数显屏（°F 温度）及图标；数显旁椭圆形 recessed 电源键；底部 recessed 充电口（硅胶盖内，非杯身侧面 USB 口）；禁止画成：圆顶旋盖、宽口直倒、杯身侧面充电口、奶瓶放入杯内；竖屏9:16"
+  ],
+  "seedance_prompts": [
+    "Hook opening, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, medium shot holding portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo beside separate baby bottle on bedside table, warm soft light, subtle push-in, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Mood: Need warm milk fast between meetings?",
+    "Problem moment, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, frustrated with cold milk in baby bottle, bulky old bottle warmer in background, moody lighting, realistic hand physics, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Workdays leave little time for slow bottle prep.",
+    "Product demo, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, side angle — flip-top lid open, pour milk INTO portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo, tilt to pour warm milk OUT from lid spout into baby feeding bottle, realistic pour physics, vertical display visible, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Quick, even heating at your desk.",
+    "Proof detail, office pumping or bottle prep, macro shot of warm milk pouring OUT from lid spout of portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo into baby feeding bottle, hinged lid open, no person face, no medical claim, vertical 9:16, TikTok product ad style. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Discreet setup that fits a busy work routine.",
+    "CTA closing, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, smiling to camera with portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo and baby bottle on clean surface, flip-top lid closed, digital display visible, natural gesture, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Save this for your workday routine."
+  ],
+  "inputs": {
+    "template": "产品种草型",
+    "market": {
+      "target_country": "US",
+      "language": "en",
+      "style": "us_tiktok_spoken",
+      "tone": "实用、亲切、像妈妈朋友分享技巧",
+      "audience_tags": [
+        "背奶职场妈妈",
+        "0-12月新手爸妈"
+      ],
+      "selling_tags": [
+        "便携可充电设计",
+        "外出随时加热"
+      ],
+      "pain_tags": [
+        "传统暖奶器太大不便携"
+      ],
+      "scenario_tags": [
+        "办公室背奶"
+      ]
+    },
+    "content_source": "user_selected_tags",
+    "structure_source": "competitor_analysis",
+    "scenario_profile": "office",
+    "scenario_primary": "办公室背奶",
+    "scenario_conflict_note": "",
+    "reference_title": "Are they essentially the same?? Which one do I go with?!😂🫠 #babybrezza #babybrez"
+  },
+  "product_sources": [
+    {
+      "type": "product_doc",
+      "path": "01_素材库/产品资料/便携恒温杯.md"
+    },
+    {
+      "type": "listing_assets",
+      "path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw"
+    },
+    {
+      "type": "knowledge_fallback",
+      "path": "overseas-loc-mvp/knowledge/products/便携恒温杯.md"
+    },
+    {
+      "type": "compliance",
+      "path": "overseas-loc-mvp/knowledge/processes/海外短视频合规禁词.md"
+    },
+    {
+      "type": "skill",
+      "path": "overseas-video-output-standards/SKILL.md"
+    }
+  ],
+  "asset_manifest": [
+    {
+      "asset_id": "便携恒温杯:倒出口参考.png",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/主图/倒出口参考.png",
+      "asset_type": "product_identity",
+      "approval_status": "approved",
+      "allowed_use": "SeedDance 垫图、产品外观锚点",
+      "forbidden_use": ""
+    },
+    {
+      "asset_id": "便携恒温杯:倒出口参考.png",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/主图/倒出口参考.png",
+      "asset_type": "usage_step",
+      "approval_status": "approved",
+      "allowed_use": "倒出口/翻盖/倾斜出液演示",
+      "forbidden_use": "宽口直倒、奶瓶入杯"
+    },
+    {
+      "asset_id": "便携恒温杯:白底主图.png",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/主图/白底主图.png",
+      "asset_type": "product_identity",
+      "approval_status": "approved",
+      "allowed_use": "产品身份白底图",
+      "forbidden_use": ""
+    },
+    {
+      "asset_id": "便携恒温杯:KV.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/KV.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:图片合集1.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/图片合集1.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:图片合集2.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/图片合集2.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:图片合集3.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/图片合集3.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:图片合集4.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/图片合集4.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:消毒页面-1.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/消毒页面-1.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:消毒页面.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/消毒页面.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:热奶板块.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/热奶板块.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:电池安全.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/电池安全.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:细节.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/A+/细节.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（A+）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:4卖点.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/M端/4卖点.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（M端）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "便携恒温杯:IPX5.jpg",
+      "product": "便携恒温杯",
+      "source_path": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/M端/IPX5.jpg",
+      "asset_type": "scene",
+      "approval_status": "approved",
+      "allowed_use": "场景/细节参考（M端）",
+      "forbidden_use": "unsupported efficacy claim"
+    },
+    {
+      "asset_id": "character:female_caregiver_01:front",
+      "product": "*",
+      "source_path": "01_素材库/人像角色/女性角色-照护者-01/front.png",
+      "asset_type": "person",
+      "approval_status": "approved",
+      "allowed_use": "on-camera caregiver in nursery/bedroom/travel lifestyle shots",
+      "forbidden_use": "medical claims, competitor branding, inconsistent wardrobe",
+      "person_profile": "female_caregiver_01",
+      "shot_roles": [
+        "行动号召",
+        "钩子",
+        "痛点",
+        "方案"
+      ],
+      "notes": "女性角色-照护者-01 · front view"
+    },
+    {
+      "asset_id": "character:female_caregiver_01:side",
+      "product": "*",
+      "source_path": "01_素材库/人像角色/女性角色-照护者-01/side.png",
+      "asset_type": "person",
+      "approval_status": "approved",
+      "allowed_use": "on-camera caregiver in nursery/bedroom/travel lifestyle shots",
+      "forbidden_use": "medical claims, competitor branding, inconsistent wardrobe",
+      "person_profile": "female_caregiver_01",
+      "shot_roles": [
+        "行动号召",
+        "钩子",
+        "痛点",
+        "方案"
+      ],
+      "notes": "女性角色-照护者-01 · side view"
+    },
+    {
+      "asset_id": "character:female_caregiver_01:back",
+      "product": "*",
+      "source_path": "01_素材库/人像角色/女性角色-照护者-01/back.png",
+      "asset_type": "person",
+      "approval_status": "approved",
+      "allowed_use": "on-camera caregiver in nursery/bedroom/travel lifestyle shots",
+      "forbidden_use": "medical claims, competitor branding, inconsistent wardrobe",
+      "person_profile": "female_caregiver_01",
+      "shot_roles": [
+        "行动号召",
+        "钩子",
+        "痛点",
+        "方案"
+      ],
+      "notes": "女性角色-照护者-01 · back view"
+    },
+    {
+      "asset_id": "character:male_caregiver_01:front",
+      "product": "*",
+      "source_path": "01_素材库/人像角色/男性角色-照护者-01/front.png",
+      "asset_type": "person",
+      "approval_status": "approved",
+      "allowed_use": "on-camera father/caregiver in home and travel scenes",
+      "forbidden_use": "medical claims, competitor branding, inconsistent wardrobe",
+      "person_profile": "male_caregiver_01",
+      "shot_roles": [
+        "行动号召",
+        "钩子",
+        "痛点",
+        "方案"
+      ],
+      "notes": "男性角色-照护者-01 · front view"
+    },
+    {
+      "asset_id": "character:male_caregiver_01:side",
+      "product": "*",
+      "source_path": "01_素材库/人像角色/男性角色-照护者-01/side.png",
+      "asset_type": "person",
+      "approval_status": "approved",
+      "allowed_use": "on-camera father/caregiver in home and travel scenes",
+      "forbidden_use": "medical claims, competitor branding, inconsistent wardrobe",
+      "person_profile": "male_caregiver_01",
+      "shot_roles": [
+        "行动号召",
+        "钩子",
+        "痛点",
+        "方案"
+      ],
+      "notes": "男性角色-照护者-01 · side view"
+    },
+    {
+      "asset_id": "character:male_caregiver_01:back",
+      "product": "*",
+      "source_path": "01_素材库/人像角色/男性角色-照护者-01/back.png",
+      "asset_type": "person",
+      "approval_status": "approved",
+      "allowed_use": "on-camera father/caregiver in home and travel scenes",
+      "forbidden_use": "medical claims, competitor branding, inconsistent wardrobe",
+      "person_profile": "male_caregiver_01",
+      "shot_roles": [
+        "行动号召",
+        "钩子",
+        "痛点",
+        "方案"
+      ],
+      "notes": "男性角色-照护者-01 · back view"
+    }
+  ],
+  "shot_asset_map": [
+    {
+      "shot_id": 1,
+      "time_range": "0-3s",
+      "script_role": "钩子",
+      "dialogue_or_subtitle": "Need warm milk fast between meetings?",
+      "visual_description": "办公室背奶：近景口播/问题特写",
+      "required_asset_type": "person",
+      "asset_path_or_status": "01_素材库/人像角色/女性角色-照护者-01/front.png",
+      "generation_or_edit_method": "SeedDance",
+      "prompt_guardrails": "Hook opening, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, medium shot holding portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo beside separate baby bottle on bedside table, warm soft light, subtle push-in, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Mood: Need warm milk fast between meetings? | person_ref=female_caregiver_01",
+      "compliance_note": "",
+      "character_id": "female_caregiver_01"
+    },
+    {
+      "shot_id": 2,
+      "time_range": "3-8s",
+      "script_role": "痛点",
+      "dialogue_or_subtitle": "Workdays leave little time for slow bottle prep.",
+      "visual_description": "办公室背奶：呈现痛点（传统暖奶器太大不便携）",
+      "required_asset_type": "person",
+      "asset_path_or_status": "01_素材库/人像角色/女性角色-照护者-01/front.png",
+      "generation_or_edit_method": "SeedDance",
+      "prompt_guardrails": "Problem moment, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, frustrated with cold milk in baby bottle, bulky old bottle warmer in background, moody lighting, realistic hand physics, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Workdays leave little time for slow bottle prep. | person_ref=female_caregiver_01",
+      "compliance_note": "",
+      "character_id": "female_caregiver_01"
+    },
+    {
+      "shot_id": 3,
+      "time_range": "8-13s",
+      "script_role": "方案",
+      "dialogue_or_subtitle": "Quick, even heating at your desk.",
+      "visual_description": "办公室背奶：储奶袋/家用奶瓶经翻盖倒入杯内加热，倾斜经盖面圆孔出液嘴倒入干净奶瓶（便携可充电设计、外出随时加热；产品为可充电加热保温杯（独立于奶瓶的圆柱暖奶容器，非奶瓶暖奶器）；用法：从储奶袋或家用奶瓶经翻开顶盖倒入杯内加热保温，再倾斜杯身经盖面圆孔出液嘴倒出到干净奶瓶喂哺；禁止：把奶瓶放进杯内、从宽口直倒（必须经过圆孔出液嘴）、奶瓶浸在杯中加热）",
+      "required_asset_type": "person",
+      "asset_path_or_status": "01_素材库/人像角色/女性角色-照护者-01/side.png",
+      "generation_or_edit_method": "SeedDance",
+      "prompt_guardrails": "Product demo, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, side angle — flip-top lid open, pour milk INTO portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo, tilt to pour warm milk OUT from lid spout into baby feeding bottle, realistic pour physics, vertical display visible, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Quick, even heating at your desk. | person_ref=female_caregiver_01",
+      "compliance_note": "",
+      "character_id": "female_caregiver_01"
+    },
+    {
+      "shot_id": 4,
+      "time_range": "13-17s",
+      "script_role": "证明",
+      "dialogue_or_subtitle": "Discreet setup that fits a busy work routine.",
+      "visual_description": "办公室背奶：效果/细节证明",
+      "required_asset_type": "usage_step",
+      "asset_path_or_status": "01_素材库/产品资料/便携恒温杯/listing-0602-nw/主图/倒出口参考.png",
+      "generation_or_edit_method": "SeedDance",
+      "prompt_guardrails": "Proof detail, office pumping or bottle prep, macro shot of warm milk pouring OUT from lid spout of portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo into baby feeding bottle, hinged lid open, no person face, no medical claim, vertical 9:16, TikTok product ad style. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Discreet setup that fits a busy work routine.",
+      "compliance_note": "",
+      "character_id": ""
+    },
+    {
+      "shot_id": 5,
+      "time_range": "17-20s",
+      "script_role": "行动号召",
+      "dialogue_or_subtitle": "Save this for your workday routine.",
+      "visual_description": "办公室背奶：口播对镜收束",
+      "required_asset_type": "person",
+      "asset_path_or_status": "01_素材库/人像角色/女性角色-照护者-01/front.png",
+      "generation_or_edit_method": "SeedDance",
+      "prompt_guardrails": "CTA closing, office pumping or bottle prep, same approved caregiver as reference: 女性角色-照护者-01; wardrobe cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers; match likeness and realistic hand physics, smiling to camera with portable rechargeable milk-warming thermos cup, matte lavender purple cylindrical body, flip-top hinged lid with integrated circular pour spout hole in bowl-shaped lid recess, light-purple lid release button, nurture wise band, vertical digital °F display, pour-spout reference photo and baby bottle on clean surface, flip-top lid closed, digital display visible, natural gesture, vertical 9:16, TikTok product ad style, no medical claim, match approved person reference. Portable thermos cup warms milk inside; pour warm milk OUT through lid spout into baby bottle; never put bottle inside cup. Save this for your workday routine. | person_ref=female_caregiver_01",
+      "compliance_note": "",
+      "character_id": "female_caregiver_01"
+    }
+  ],
+  "scene_continuity": {
+    "main_scene_zh": "办公室背奶",
+    "main_scene_en": "office pumping or bottle prep",
+    "time_of_day": "daytime",
+    "lighting": "natural daylight",
+    "props": [
+      "office desk",
+      "baby bottle",
+      "pumping bag"
+    ],
+    "allowed_transitions": "single-scene only unless scripted",
+    "conflict_note": "",
+    "constraints": "Do not mix bedroom/car/airport in one video without scripted reason"
+  },
+  "character_continuity": {
+    "character_id": "female_caregiver_01",
+    "label": "女性角色-照护者-01",
+    "gender": "female",
+    "role": "caregiver parent",
+    "age_range": "26-34",
+    "wardrobe": "cream chunky ribbed knit sweater, light-wash straight-leg jeans, white sneakers",
+    "hair": "light brown blonde high messy bun with soft face-framing waves",
+    "beard": "",
+    "visibility": "approved reference — match front/side/back per shot",
+    "emotional_state": "warm, calm, approachable new parent",
+    "relationship_to_product": "prepares warm milk with portable thermos cup beside separate baby bottle",
+    "allowed_scene_changes": [],
+    "source_refs": [
+      {
+        "view": "front",
+        "path": "01_素材库/人像角色/女性角色-照护者-01/front.png"
+      },
+      {
+        "view": "side",
+        "path": "01_素材库/人像角色/女性角色-照护者-01/side.png"
+      },
+      {
+        "view": "back",
+        "path": "01_素材库/人像角色/女性角色-照护者-01/back.png"
+      }
+    ],
+    "notes": "SeedDance 按镜选用三视图垫图；证明镜以产品倒出口参考为主"
+  },
+  "claim_guardrails": {
+    "allowed_claims": [
+      "portable rechargeable warming",
+      "pour into cup to warm then pour to bottle",
+      "fits cup holder / diaper bag (if selected in tags)"
+    ],
+    "forbidden_claims": [
+      "medical grade",
+      "guaranteed",
+      "sterilization guarantee",
+      "bottle inside cup",
+      "commercial milk bottle as input"
+    ],
+    "rewrites": {
+      "pain-free": "designed for a calmer routine",
+      "best": "handy for travel"
+    }
+  },
+  "delivery_risks": {
+    "status": "PASS",
+    "blockers": [],
+    "warnings": []
+  },
+  "output_standards_version": "overseas-video-output-standards-v1"
+}

@@ -1,0 +1,55 @@
+{
+  "slug": "ref-023",
+  "version": "20260630-032635",
+  "archived_at": "2026-06-30T03:26:35.106361+00:00",
+  "note": "batch-scenario:office:办公室背奶",
+  "prompt_fingerprint": "59fcfb8d",
+  "shots": [
+    "shot-1.mp4",
+    "shot-2.mp4",
+    "shot-3.mp4",
+    "shot-4.mp4",
+    "shot-5.mp4"
+  ],
+  "final_video": "final-video.mp4",
+  "bytes": 9606725,
+  "source_runs": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\overseas-loc-mvp\\runs\\ref-023",
+  "assemble": {
+    "ok": true,
+    "message": "已拼接 5 镜 → final-video.mp4",
+    "shots_used": 5,
+    "file": "broll/final-video.mp4",
+    "bytes": 9606725,
+    "meta": {
+      "assembled_at": "2026-06-30T03:26:35.078277+00:00",
+      "shots": [
+        {
+          "number": 1,
+          "file": "broll/shot-1.mp4"
+        },
+        {
+          "number": 2,
+          "file": "broll/shot-2.mp4"
+        },
+        {
+          "number": 3,
+          "file": "broll/shot-3.mp4"
+        },
+        {
+          "number": 4,
+          "file": "broll/shot-4.mp4"
+        },
+        {
+          "number": 5,
+          "file": "broll/shot-5.mp4"
+        }
+      ],
+      "output": "broll/final-video.mp4",
+      "bytes": 9606725,
+      "ffmpeg": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\overseas-loc-mvp\\.venv\\Lib\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe"
+    }
+  },
+  "scenario_id": "office",
+  "scenario_label": "办公室背奶",
+  "character_id": "female_caregiver_01"
+}

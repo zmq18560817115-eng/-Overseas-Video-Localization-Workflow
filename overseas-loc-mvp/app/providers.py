@@ -129,6 +129,52 @@ async def call_seedance(
     )
 
 
+def _ark_error_detail(response: httpx.Response) -> str:
+    try:
+        body = response.json()
+        err = body.get("error") or {}
+        return str(err.get("message") or err.get("code") or body.get("message") or response.text or "")
+    except Exception:
+        return (response.text or "")[:300]
+
+
+def _ark_person_image_rejected(response: httpx.Response) -> bool:
+    detail = _ark_error_detail(response).lower()
+    code = ""
+    try:
+        code = str((response.json().get("error") or {}).get("code") or "")
+    except Exception:
+        pass
+    return (
+        "privacyinformation" in code.lower()
+        or "real person" in detail
+        or "sensitivecontent" in code.lower()
+    )
+
+
+def _project_image_fallbacks(project: Path, primary: Path | None) -> list[Path | None]:
+    """When person refs are rejected, try product/usage stills, then text-only."""
+    ordered: list[Path | None] = []
+    seen: set[str] = set()
+
+    def add(path: Path | None) -> None:
+        key = str(path.resolve()) if path else ""
+        if key in seen:
+            return
+        seen.add(key)
+        ordered.append(path)
+
+    add(primary)
+    inputs = project / "inputs"
+    if inputs.is_dir():
+        for pattern in ("seedance-usage-ref.*", "seedance-source.*"):
+            for path in sorted(inputs.glob(pattern)):
+                if path.is_file():
+                    add(path)
+    add(None)
+    return ordered
+
+
 def _extract_video_url(payload: dict[str, Any]) -> str | None:
     content = payload.get("content") or {}
     if isinstance(content, dict):
@@ -194,16 +240,17 @@ async def _ark_create_task(
         json=payload,
     )
     if response.status_code in (401, 403):
-        detail = ""
-        try:
-            body = response.json()
-            detail = str(body.get("error", {}).get("message") or body.get("message") or "")
-        except Exception:
-            detail = (response.text or "")[:200]
+        detail = _ark_error_detail(response)
         hint = detail or f"HTTP {response.status_code}"
         raise RuntimeError(
             f"ARK_API_KEY 无效或无权限（{hint}）。请在火山方舟控制台检查密钥是否过期、"
             "是否开通 SeedDance 2.0，并更新 overseas-loc-mvp/.env 后重启工作台"
+        )
+    if response.status_code == 400:
+        raise httpx.HTTPStatusError(
+            _ark_error_detail(response) or "Ark 400 Bad Request",
+            request=response.request,
+            response=response,
         )
     response.raise_for_status()
     data = response.json()
@@ -256,14 +303,29 @@ async def _call_seedance_ark(
 ) -> dict[str, Any]:
     if not settings.ark_api_key:
         raise RuntimeError("未配置 ARK_API_KEY")
-    model_id = (
-        settings.ark_image_model_resolved if image_path else settings.ark_text_model_resolved
-    )
     start = time.perf_counter()
+    last_error: Exception | None = None
+    used_image: Path | None = image_path
+    used_model = settings.ark_image_model_resolved if image_path else settings.ark_text_model_resolved
+
     async with httpx.AsyncClient(timeout=300) as client:
-        task_id = await _ark_create_task(
-            client, prompt=prompt, image_path=image_path, duration=5, resolution="720p"
-        )
+        for candidate in _project_image_fallbacks(project, image_path):
+            model_id = settings.ark_image_model_resolved if candidate else settings.ark_text_model_resolved
+            try:
+                task_id = await _ark_create_task(
+                    client, prompt=prompt, image_path=candidate, duration=5, resolution="720p"
+                )
+                used_image = candidate
+                used_model = model_id
+                break
+            except httpx.HTTPStatusError as exc:
+                last_error = exc
+                if candidate is not None and _ark_person_image_rejected(exc.response):
+                    continue
+                raise RuntimeError(_ark_error_detail(exc.response) or str(exc)) from exc
+        else:
+            raise RuntimeError(str(last_error or "Ark 创建任务失败"))
+
         video_url = await _ark_wait_video_url(
             client, task_id, timeout_s=float(settings.ark_seedance_wait_timeout)
         )
@@ -273,12 +335,14 @@ async def _call_seedance_ark(
         await _download_video(client, video_url, output_path)
     meta = {
         "provider": "volcengine-ark",
-        "model": model_id,
+        "model": used_model,
         "task_id": task_id,
         "shot_number": shot_number,
         "requested_at": utc_now(),
         "latency_ms": round((time.perf_counter() - start) * 1000),
         "prompt": prompt,
+        "image_ref": used_image.relative_to(project).as_posix() if used_image else None,
+        "image_fallback": bool(image_path and used_image != image_path),
         "remote_video_url": video_url,
         "local_file": output_path.relative_to(project).as_posix(),
         "status": "success",

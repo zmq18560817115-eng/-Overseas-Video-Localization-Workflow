@@ -44,3 +44,33 @@
 知识库配置：根目录 `config/knowledge-sources.json`
 
 豆包详细视频分解接入说明见：`docs/豆包详细视频分解接入指南.md`。
+## TikTok 抓取工作流入口
+
+为了让本地工作台、命令行、Cursor 共用同一套本地文件入口，已固定提供：
+
+- 统一脚本：`scripts/tiktok_workflow.py`
+- 根目录命令包装：`..\运行TikTok抓取工作流.cmd`
+- 工作台 API：
+  - `GET /api/tiktok-collector/db/videos`
+  - `POST /api/tiktok-collector/db/sync`
+  - `POST /api/tiktok-collector/collect`
+
+推荐命令：
+
+```powershell
+cd 海外视频本地化MVP
+.\.venv\Scripts\python.exe scripts\tiktok_workflow.py status
+.\.venv\Scripts\python.exe scripts\tiktok_workflow.py collect-sync --keywords "wearable breast pump" "baby bottle" --limit 10 --headless false --manual-verify-wait-sec 180
+.\.venv\Scripts\python.exe scripts\tiktok_workflow.py query-db --q "wearable breast pump" --limit 10
+.\.venv\Scripts\python.exe scripts\tiktok_workflow.py sync-db --q "wearable breast pump" --limit 10
+```
+
+如果让 Cursor 接手，优先让它调用这一条：
+
+```powershell
+C:\Users\bu\Documents\海外视频本地化工作流\海外视频本地化MVP\.venv\Scripts\python.exe C:\Users\bu\Documents\海外视频本地化工作流\海外视频本地化MVP\scripts\tiktok_workflow.py collect-sync --keywords "wearable breast pump" "manual breast pump" "baby bottle" --limit 10 --headless false --manual-verify-wait-sec 180
+```
+
+这条链路会按当前工作流逻辑执行：
+
+`TikTok 搜索抓取 -> JSON/CSV 导出 -> MySQL 去重入库 -> clean 结果同步到 workflow CSV 素材库`

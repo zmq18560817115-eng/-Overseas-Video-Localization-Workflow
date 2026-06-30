@@ -18,6 +18,7 @@ from paths import (
 
 from .thumbnails import public_thumbnail_url
 from .olm_bridge import delivery_ready
+from .brand_policy import detect_content_line
 
 
 ANALYSIS_FIELDS = [

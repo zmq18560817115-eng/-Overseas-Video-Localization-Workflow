@@ -41,6 +41,17 @@ def main() -> int:
     pour = PRODUCT_MATERIALS_DIR / "便携恒温杯" / "listing-0602-nw" / "主图" / "倒出口参考.png"
     results.append(check("asset:倒出口参考.png", pour.is_file(), str(pour)))
 
+    skill_text = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8", errors="ignore")
+    fidelity_keywords = ("白底主图", "production_fidelity", "physics", "hero lock")
+    missing_fidelity = [k for k in fidelity_keywords if k.lower() not in skill_text.lower()]
+    results.append(
+        check(
+            "skill:production_fidelity_rules",
+            not missing_fidelity,
+            "missing: " + ", ".join(missing_fidelity) if missing_fidelity else "hero/scenario/detail locks documented",
+        )
+    )
+
     keywords = ("flip-top", "spout hole", "storage bag", "FORBIDDEN", "wide-mouth")
     missing = [k for k in keywords if k not in THERMOS_USAGE_EN]
     results.append(
@@ -61,7 +72,7 @@ def main() -> int:
 
     # skill 要求但代码尚未结构化的字段
     app_dir = MVP_ROOT / "app"
-    for term in ("asset_manifest", "shot_asset_map", "scene_continuity", "character_continuity"):
+    for term in ("asset_manifest", "shot_asset_map", "scene_continuity", "character_continuity", "production_fidelity"):
         found = any(term in py.read_text(encoding="utf-8", errors="ignore") for py in app_dir.glob("*.py"))
         results.append(
             check(

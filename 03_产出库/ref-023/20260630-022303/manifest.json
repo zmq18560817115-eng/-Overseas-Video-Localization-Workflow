@@ -1,0 +1,56 @@
+{
+  "slug": "ref-023",
+  "version": "20260630-022303",
+  "archived_at": "2026-06-30T02:23:03.671658+00:00",
+  "note": "batch-scenario:bedroom:夜间卧室喂奶",
+  "prompt_fingerprint": "e1321c1f",
+  "shots": [
+    "shot-1.mp4",
+    "shot-2.mp4",
+    "shot-3.mp4",
+    "shot-4.mp4",
+    "shot-5.mp4"
+  ],
+  "final_video": "final-video.mp4",
+  "bytes": 9159231,
+  "source_runs": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\overseas-loc-mvp\\runs\\ref-023",
+  "assemble": {
+    "ok": true,
+    "message": "已拼接 5 镜 → final-video.mp4",
+    "shots_used": 5,
+    "file": "broll/final-video.mp4",
+    "bytes": 9159231,
+    "meta": {
+      "assembled_at": "2026-06-30T02:23:03.642329+00:00",
+      "shots": [
+        {
+          "number": 1,
+          "file": "broll/shot-1.mp4"
+        },
+        {
+          "number": 2,
+          "file": "broll/shot-2.mp4"
+        },
+        {
+          "number": 3,
+          "file": "broll/shot-3.mp4"
+        },
+        {
+          "number": 4,
+          "file": "broll/shot-4.mp4"
+        },
+        {
+          "number": 5,
+          "file": "broll/shot-5.mp4"
+        }
+      ],
+      "output": "broll/final-video.mp4",
+      "bytes": 9159231,
+      "ffmpeg": "C:\\Users\\bu\\Documents\\海外视频本地化工作流\\overseas-loc-mvp\\.venv\\Lib\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe"
+    }
+  },
+  "scenario_id": "bedroom",
+  "scenario_label": "夜间卧室喂奶",
+  "output_standards_version": "overseas-video-output-standards",
+  "character_id": "female_caregiver_01"
+}

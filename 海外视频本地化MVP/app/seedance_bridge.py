@@ -13,7 +13,7 @@ from dotenv import dotenv_values
 from paths import OVERSEAS_ENV, OVERSEAS_MVP_DIR, OVERSEAS_RUNS_DIR
 
 from .olm_bridge import _olm_python
-from .product_assets import stage_seedance_source_image
+from .character_assets import stage_project_production_assets
 
 
 def _ai_video_mode() -> str:
@@ -29,6 +29,21 @@ def _pipeline_label() -> str:
 
 SEEDANCE_PIPELINE = _pipeline_label()
 
+_OLM_ENV_PREFIXES = ("AI_VIDEO_", "ARK_", "SEEDANCE_", "FAL_", "SKIP_SEEDANCE")
+
+
+def _olm_subprocess_env() -> dict[str, str]:
+    """子进程环境：overseas-loc-mvp/.env 优先于父 shell，避免 AI_VIDEO_MAX_SHOTS 等泄漏。"""
+    merged = {k: v for k, v in os.environ.items() if v is not None}
+    for key, value in dotenv_values(OVERSEAS_ENV).items():
+        if value is None:
+            continue
+        if key.startswith(_OLM_ENV_PREFIXES) or key in ("ARK_API_KEY", "FAL_KEY"):
+            merged[key] = value
+    merged["PYTHONIOENCODING"] = "utf-8"
+    merged["PYTHONUTF8"] = "1"
+    return merged
+
 
 def _run_olm(code: str, *args: str) -> dict[str, Any]:
     proc = subprocess.run(
@@ -38,11 +53,7 @@ def _run_olm(code: str, *args: str) -> dict[str, Any]:
         text=True,
         encoding="utf-8",
         errors="replace",
-        env={
-            **os.environ,
-            "PYTHONIOENCODING": "utf-8",
-            "PYTHONUTF8": "1",
-        },
+        env=_olm_subprocess_env(),
     )
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or "SeedDance 调用失败")[-800:]
@@ -149,7 +160,27 @@ def refresh_project_seedance_source(slug: str) -> Path | None:
                 path.unlink()
             except OSError:
                 pass
-    return stage_seedance_source_image(project, product_id)
+    return stage_project_production_assets(
+        project,
+        product_id,
+        _brief_market_tags(project),
+    )
+
+
+def _brief_market_tags(project: Path) -> dict[str, Any]:
+    brief_path = project / "localization-brief.yaml"
+    if not brief_path.exists():
+        return {}
+    try:
+        import yaml
+
+        brief = yaml.safe_load(brief_path.read_text(encoding="utf-8")) or {}
+        return {
+            "audience_tags": brief.get("audience_tags") or [],
+            "scenario_tags": brief.get("scenario_tags") or [],
+        }
+    except Exception:
+        return {}
 
 
 def run_all(slug: str, *, force: bool = False) -> dict[str, Any]:

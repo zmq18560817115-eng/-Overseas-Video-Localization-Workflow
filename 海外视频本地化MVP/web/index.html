@@ -18,22 +18,30 @@
       <p class="app-hero-sub">爆款结构迁移 · 品牌脚本出稿 · AI 分镜交付</p>
     </div>
     <nav class="top-nav-pills" id="mainNav" aria-label="主导航">
-      <button type="button" data-view="workspace" class="active">
-        <span class="nav-label">视频出稿</span>
-        <span class="nav-desc">选爆款 · 出脚本 · 成片</span>
+      <button type="button" data-view="generate" class="active">
+        <span class="nav-label">视频生成</span>
+        <span class="nav-desc">配场景 · 出脚本 · 成片</span>
       </button>
-      <button type="button" data-view="finished">
-        <span class="nav-label">成稿库</span>
-        <span class="nav-desc">已交付</span>
+      <button type="button" data-view="imitate">
+        <span class="nav-label">爆款模仿</span>
+        <span class="nav-desc">结构复刻</span>
       </button>
-      <button type="button" data-view="feedback">
-        <span class="nav-label">反馈库</span>
-        <span class="nav-desc">投放数据</span>
+      <button type="button" data-view="reverse">
+        <span class="nav-label">反推提示词</span>
+        <span class="nav-desc">视频 → Prompt</span>
+      </button>
+      <button type="button" data-view="draft-feedback">
+        <span class="nav-label">成稿反馈</span>
+        <span class="nav-desc">交付 · 投放数据</span>
       </button>
     </nav>
     <div class="top-stats" aria-label="数据概览">
-      <span class="top-stat-pill"><strong id="statMaterials">-</strong> 素材</span>
-      <span class="top-stat-pill"><strong id="statAnalyzed">-</strong> 已拆解</span>
+      <button type="button" class="top-stat-pill" id="openMaterialLibraryBtn" title="打开对标素材库">
+        <strong id="statMaterials">-</strong> 素材
+      </button>
+      <button type="button" class="top-stat-pill" id="openMaterialLibraryAnalyzedBtn" title="打开已拆解素材">
+        <strong id="statAnalyzed">-</strong> 已拆解
+      </button>
     </div>
   </header>
 
@@ -47,6 +55,15 @@
       <button type="button" class="settings-close" id="settingsCloseBtn" aria-label="关闭设置">×</button>
     </div>
     <div class="settings-drawer-body">
+      <details class="settings-block">
+        <summary>运行素材库</summary>
+        <p class="hint">公司运行素材 · 商品图 · 爬取视频 · 存储归档</p>
+        <div class="job-grid job-grid-pills job-grid-compact">
+          <button type="button" class="secondary pill-btn" id="openMaterialLibraryFromSettings">爬取视频素材库</button>
+          <button type="button" class="secondary pill-btn" id="openProductsFromSettings">商品图 / 产品资料</button>
+        </div>
+        <p class="hint muted">运行链接模型与 SeedDance 配置见下方引擎区块；成片归档见 <code>03_产出库</code>。</p>
+      </details>
       <details class="settings-block" open>
         <summary>数据同步</summary>
         <p class="hint">发现 → 入库 → 同步 TikTok → 拆解 → 更新模板</p>
@@ -90,133 +107,235 @@
     </div>
   </aside>
 
+  <div id="materialLibraryBackdrop" class="library-backdrop" hidden></div>
+  <aside id="materialLibraryDrawer" class="material-library-drawer" aria-hidden="true" hidden>
+    <div class="material-library-head">
+      <div>
+        <h2 class="material-library-title">对标素材库</h2>
+        <p class="material-library-sub">筛选、浏览全部竞品对标视频</p>
+      </div>
+      <button type="button" class="settings-close" id="materialLibraryCloseBtn" aria-label="关闭素材库">×</button>
+    </div>
+    <div class="material-library-filters">
+      <div class="filter-bar workspace-filters">
+        <label class="pill-field">品类<select id="categorySelect"><option value="">全部</option></select></label>
+        <label class="pill-field grow">搜索<input id="keywordInput" placeholder="标题、作者"></label>
+        <label class="check-inline pill-check"><input type="checkbox" id="analyzedOnly"> 仅已拆解</label>
+      </div>
+      <div class="workspace-sidebar-meta">
+        <label class="ref-filter-check">
+          <input type="checkbox" id="showAllMaterials">
+          <span>显示其他品类</span>
+        </label>
+        <span id="materialFilterHint" class="ref-filter-count"></span>
+      </div>
+    </div>
+    <details class="material-library-tiktok-db">
+      <summary class="material-library-tiktok-summary">TikTok 库查询 <span class="muted" id="materialLibraryTikTokSummary">（点击展开）</span></summary>
+      <div class="material-library-tiktok-body">
+        <div class="filter-bar workspace-filters">
+          <label class="pill-field grow">关键词
+            <input id="materialLibraryTikTokQuery" placeholder="baby bottle / 作者">
+          </label>
+          <button type="button" class="secondary pill-btn" id="materialLibraryTikTokSearchBtn">查询</button>
+        </div>
+        <div id="materialLibraryTikTokStatus" class="seedance-status muted">输入关键词后查询</div>
+        <div id="materialLibraryTikTokList" class="material-library-tiktok-list"></div>
+      </div>
+    </details>
+    <div id="materialList" class="list workspace-material-list material-library-list pane-scroll"></div>
+  </aside>
+
+  <div id="productFloatBackdrop" class="product-float-backdrop" hidden></div>
+  <div id="productFloatPanel" class="product-float-panel" role="dialog" aria-modal="true" aria-labelledby="productFloatTitle" aria-hidden="true" hidden style="display:none">
+    <div class="product-float-head">
+      <div>
+        <h2 id="productFloatTitle" class="product-float-title">你的商品</h2>
+        <p class="product-float-sub">补充商品信息与场景标签，提升脚本与分镜匹配度</p>
+      </div>
+      <button type="button" class="settings-close" id="productFloatCloseBtn" aria-label="关闭">×</button>
+    </div>
+    <div class="product-float-body pane-scroll">
+      <section class="product-float-section">
+        <label class="product-float-label" for="scriptProductSelect">商品 / 产品</label>
+        <select id="scriptProductSelect" class="product-float-select"><option value="">加载中…</option></select>
+      </section>
+      <section class="product-float-section product-float-tags-section">
+        <div class="product-float-section-head">
+          <span class="product-float-label">产品场景标签</span>
+          <span class="product-float-hint muted">人群 · 场景 · 卖点 · 痛点</span>
+        </div>
+        <div id="scriptProduct" class="script-tag-grid script-tag-grid-float detail-empty">选择产品后配置场景标签</div>
+      </section>
+    </div>
+    <footer class="product-float-foot">
+      <p id="productFloatStatus" class="product-float-status muted"></p>
+      <button type="button" class="primary primary-dark" id="productFloatConfirmBtn">确认</button>
+    </footer>
+  </div>
+
+  <div id="refFloatBackdrop" class="ref-drawer-backdrop" hidden></div>
+  <aside id="refFloatPanel" class="ref-drawer" role="dialog" aria-modal="true" aria-labelledby="refFloatTitle" aria-hidden="true" hidden style="display:none">
+    <div class="ref-drawer-head">
+      <div>
+        <h2 id="refFloatTitle" class="ref-drawer-title">对标爆款</h2>
+        <p class="ref-drawer-sub">在已选产品与场景标签下，挑选结构参考视频用于脚本生成</p>
+        <p id="refFloatProductLine" class="ref-drawer-product-line muted"></p>
+      </div>
+      <button type="button" class="settings-close" id="refFloatCloseBtn" aria-label="关闭">×</button>
+    </div>
+    <div class="ref-drawer-filters">
+      <label class="pill-field ref-filter-field">品类<select id="refFloatCategorySelect"><option value="">全部</option></select></label>
+      <label class="pill-field ref-filter-field grow">搜索<input id="refFloatKeywordInput" placeholder="标题、作者"></label>
+      <label class="check-inline pill-check ref-filter-check"><input type="checkbox" id="refFloatAnalyzedOnly" checked> 仅已拆解</label>
+      <label class="ref-filter-check ref-filter-field"><input type="checkbox" id="refFloatShowAllMaterials"><span>显示其他品类</span></label>
+      <span id="refFloatPoolHint" class="ref-drawer-pool-hint muted"></span>
+    </div>
+    <div class="ref-drawer-body">
+      <div class="ref-drawer-list-pane pane-scroll">
+        <div id="refFloatMaterialList" class="list workspace-material-list ref-float-list"></div>
+      </div>
+      <div class="ref-drawer-detail-pane pane-scroll">
+        <details class="workspace-analysis-fold" id="scriptAnalysisWrap" open>
+          <summary>结构迁移摘要</summary>
+          <div id="scriptAnalysis" class="panel-body panel-body-compact detail-empty">选择对标后显示</div>
+        </details>
+        <div id="materialDetail" class="detail-empty ref-float-detail">选择左侧对标视频查看拆解</div>
+      </div>
+    </div>
+    <footer class="ref-drawer-foot">
+      <p id="refFloatStatus" class="ref-drawer-status muted">未选择对标</p>
+      <button type="button" class="primary primary-dark" id="refFloatConfirmBtn">确认对标</button>
+    </footer>
+  </aside>
+
+  <div id="scriptFloatBackdrop" class="product-float-backdrop studio-float-backdrop" hidden></div>
+  <div id="scriptFloatPanel" class="product-float-panel studio-float-panel studio-float-script" role="dialog" aria-modal="true" aria-labelledby="scriptFloatTitle" aria-hidden="true" hidden style="display:none">
+    <div class="product-float-head">
+      <div>
+        <h2 id="scriptFloatTitle" class="product-float-title">脚本预览</h2>
+        <p class="product-float-sub">检查脚本与分镜，确认后再生成 AI 分镜视频</p>
+      </div>
+      <button type="button" class="settings-close" id="scriptFloatCloseBtn" aria-label="关闭">×</button>
+    </div>
+    <div class="product-float-body pane-scroll script-float-body">
+      <p id="loopHint" class="loop-hint muted script-float-hint"></p>
+      <p id="scriptMismatchWarn" class="workflow-warn hidden"></p>
+      <p id="scenarioConflictWarn" class="workflow-warn hidden"></p>
+      <div id="scriptFloatBody" class="output-body output-body-compact script-float-output"></div>
+      <p id="scriptActionStatus" class="script-action-status"></p>
+      <div id="seedanceFinalPreview" class="seedance-final-preview hidden"></div>
+    </div>
+    <footer class="product-float-foot script-float-foot">
+      <a class="btn-link hidden js-script-download" id="scriptDownloadBtnBottom" href="#" download>下载成片 zip</a>
+      <div class="script-float-actions">
+        <button type="button" class="secondary pill-btn" id="scriptFloatRegenBtn">重新生成脚本</button>
+        <button type="button" class="primary primary-dark" id="scriptFloatProduceBtn">确认生成视频</button>
+      </div>
+    </footer>
+    <input type="checkbox" id="seedanceForceRegen" checked hidden aria-hidden="true" />
+    <span id="seedanceStatus" class="sr-only-vis" aria-hidden="true"></span>
+    <span id="seedancePipeline" class="sr-only-vis" aria-hidden="true"></span>
+    <p id="seedanceHint" class="sr-only-vis" aria-hidden="true"></p>
+    <div id="seedanceShots" class="sr-only-vis" aria-hidden="true"></div>
+  </div>
+
   <div class="content-shell">
     <main id="viewWorkspace" class="view active view-script">
-      <div class="studio-page workspace-unified">
-        <ul class="loop-bar loop-bar-compact loop-bar-pills workspace-steps" id="scriptLoopBar">
-          <li data-step="ref"><span>①</span> 选爆款</li>
-          <li data-step="product"><span>②</span> 配场景</li>
-          <li data-step="produce"><span>③</span> 出脚本成片</li>
-        </ul>
+      <div class="module-studio" data-module="generate">
+        <div class="module-studio-scroll">
+          <header class="module-studio-head">
+            <nav class="module-studio-tabs" aria-label="视频生成视图">
+              <button type="button" class="active" data-studio-tab="featured">精选</button>
+              <button type="button" data-studio-tab="examples">示例</button>
+            </nav>
+            <button type="button" class="secondary pill-btn module-studio-back hidden" id="generateBackHomeBtn">← 返回首页</button>
+          </header>
 
-        <div class="studio-alerts workspace-alerts">
-          <p id="loopHint" class="loop-hint muted"></p>
-          <p id="scriptMismatchWarn" class="workflow-warn hidden"></p>
-          <p id="scenarioConflictWarn" class="workflow-warn hidden"></p>
+          <section class="module-feature-section" id="generateFeatureSection">
+            <h2 class="module-feature-title">爆款参考</h2>
+            <p class="module-feature-desc" id="generateViralGridDesc">从已抓取对标视频中选择参考，点击卡片即可设为对标</p>
+            <div class="feature-grid feature-grid-viral" id="generateFeatureGrid"></div>
+          </section>
+
+          <section class="module-studio-panel hidden" id="generateExamplesPanel" data-studio-panel="examples">
+            <h2 class="module-feature-title">示例参考</h2>
+            <p class="module-feature-desc muted">同品类对标爆款结构，点击可在工作台选用</p>
+            <div id="generateExamplesGrid" class="feature-grid feature-grid-examples"></div>
+          </section>
+
+          <select id="scriptMaterialSelect" class="sr-only" aria-hidden="true" tabindex="-1"></select>
         </div>
 
-        <div class="studio-mega-card workspace-card">
-          <div class="workspace-shell">
-            <aside class="workspace-sidebar pane-scroll">
-              <div class="workspace-sidebar-head">
-                <h3>对标爆款</h3>
-                <span class="zone-badge">必填</span>
-              </div>
-              <div class="filter-bar workspace-filters">
-                <label class="pill-field">品类<select id="categorySelect"><option value="">全部</option></select></label>
-                <label class="pill-field grow">搜索<input id="keywordInput" placeholder="标题、作者"></label>
-                <label class="check-inline pill-check"><input type="checkbox" id="analyzedOnly"> 仅已拆解</label>
-              </div>
-              <div class="workspace-sidebar-meta">
-                <label class="ref-filter-check">
-                  <input type="checkbox" id="showAllMaterials">
-                  <span>显示其他品类</span>
-                </label>
-                <span id="materialFilterHint" class="ref-filter-count"></span>
-              </div>
-              <div id="materialList" class="list workspace-material-list"></div>
-            </aside>
-
-            <div class="workspace-main pane-scroll">
-              <section id="scriptStepRef" class="script-step-panel active" data-step="ref">
-                <div id="materialDetail" class="detail-empty workspace-empty-hint">← 从左侧选择一条对标视频，查看结构拆解</div>
-                <details class="workspace-analysis-fold" id="scriptAnalysisWrap">
-                  <summary>结构迁移摘要（供脚本生成）</summary>
-                  <div id="scriptAnalysis" class="panel-body panel-body-compact detail-empty">选择爆款后显示</div>
-                </details>
-              </section>
-
-              <section id="scriptStepProduct" class="script-step-panel" data-step="product">
-                <div class="studio-zone script-tag-zone workspace-tag-zone">
-                  <div class="zone-head script-tag-zone-head">
-                    <div>
-                      <h2 class="zone-title">产品场景标签</h2>
-                      <p class="zone-desc">为四类标签各至少选择一项，用于结构迁移与脚本生成</p>
-                    </div>
-                    <label class="studio-field studio-field-inline zone-head-field">产品
-                      <select id="scriptProductSelect"><option value="">加载中…</option></select>
-                    </label>
-                  </div>
-                  <div id="scriptProduct" class="script-tag-grid script-tag-grid-spacious detail-empty">选择产品后配置场景标签</div>
-                </div>
-              </section>
-
-              <section id="scriptStepProduce" class="script-step-panel" data-step="produce">
-                <div class="studio-deliver-stack studio-deliver-page">
-                  <section id="scriptResult" class="studio-zone output-card hidden">
-                    <div class="zone-head zone-head-tight">
-                      <h2 class="zone-title">脚本与分镜</h2>
-                      <span class="zone-desc">生成结果</span>
-                    </div>
-                    <div class="output-body output-body-compact"></div>
-                    <footer class="script-inline-actions studio-config-bar">
-                      <button type="button" class="secondary pill-btn js-script-generate">重新生成</button>
-                      <button type="button" class="secondary pill-btn js-script-finish" id="scriptFinishBtn" disabled>完成交付</button>
-                      <button type="button" class="primary primary-dark js-script-produce" id="scriptProduceBtn" disabled>直接产出视频</button>
-                      <a class="btn-link hidden js-script-download" id="scriptDownloadBtnBottom" href="#" download>下载 zip</a>
-                    </footer>
-                    <p id="scriptActionStatus" class="script-action-status"></p>
-                  </section>
-
-                  <div id="scriptProduceEmpty" class="studio-zone script-produce-empty">
-                    <p class="muted">尚未生成脚本。请返回「配场景」步骤，配置标签后点击「生成脚本」。</p>
-                    <button type="button" class="secondary pill-btn" id="scriptStepProduceBack">返回配场景</button>
-                  </div>
-
-                  <section id="seedancePanel" class="studio-zone seedance-panel hidden">
-                    <div class="zone-head zone-head-split">
-                      <div>
-                        <h2 class="zone-title">AI 分镜视频</h2>
-                        <p class="zone-desc">SeedDance 分镜成片</p>
-                        <p class="seedance-status" id="seedanceStatus"></p>
-                      </div>
-                      <p class="seedance-pipeline" id="seedancePipeline"></p>
-                    </div>
-                    <div id="seedanceShots" class="seedance-shots"></div>
-                    <footer class="seedance-actions studio-config-bar">
-                      <button type="button" class="secondary pill-btn" id="btnSeedanceTest">测试连接</button>
-                      <button type="button" class="primary primary-dark" id="btnSeedanceRun">生成分镜视频</button>
-                    </footer>
-                    <label class="seedance-force-row">
-                      <input type="checkbox" id="seedanceForceRegen" checked />
-                      覆盖已有分镜，按最新垫图与 Prompt 强制重生成
-                    </label>
-                    <p class="seedance-foot-hint muted" id="seedanceHint"></p>
-                  </section>
-                </div>
-              </section>
+        <div class="studio-dock" id="generateDock">
+          <div class="studio-dock-head">
+            <nav class="studio-dock-modes" aria-label="生成模式">
+              <button type="button" class="active" data-gen-mode="imitate">视频模仿</button>
+              <button type="button" data-gen-mode="frames" disabled title="规划中">首尾帧</button>
+              <button type="button" data-gen-mode="image-text" disabled title="规划中">图文</button>
+            </nav>
+          </div>
+          <div class="studio-dock-body">
+            <div class="studio-dock-uploads">
+              <button type="button" class="dock-upload-slot" id="dockOpenProductBtn" title="先选产品与场景标签">
+                <span class="dock-upload-icon">📦</span>
+                <span>产品</span>
+              </button>
+              <button type="button" class="dock-upload-slot dock-upload-slot-ref" id="dockOpenMaterialsBtn" title="请先配置产品" disabled>
+                <span class="dock-upload-icon">▶</span>
+                <span>对标</span>
+              </button>
+            </div>
+            <div class="studio-dock-main">
+              <textarea id="generateDockPrompt" class="studio-dock-prompt" rows="2" placeholder="① 点击「产品」配置场景标签 → ② 点击「对标」选同品类爆款 → ③ 开始创作生成脚本"></textarea>
             </div>
           </div>
-
-          <footer class="workspace-action-bar" id="workspaceActionBar">
-            <div class="workspace-action-step" data-for-step="ref">
-              <span class="script-step-nav-hint muted">① 选择对标爆款，确认右侧结构拆解</span>
-              <button type="button" class="primary primary-dark" id="scriptStepRefNext">下一步：配场景</button>
+          <div id="seedanceProgress" class="seedance-progress hidden" aria-live="polite">
+            <div class="seedance-progress-row">
+              <span class="seedance-progress-label">AI 分镜</span>
+              <span id="seedanceProgressStatus" class="seedance-progress-status muted">准备中…</span>
             </div>
-            <div class="workspace-action-step hidden" data-for-step="product">
-              <button type="button" class="secondary pill-btn" id="scriptStepProductPrev">上一步</button>
-              <span class="script-step-nav-hint muted">② 点选标签后可生成脚本</span>
-              <button type="button" class="primary primary-dark" id="scriptGenerateBtn">生成脚本</button>
-              <button type="button" class="secondary pill-btn" id="scriptStepProductNext">进入成片</button>
+            <div class="seedance-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+              <div id="seedanceProgressFill" class="seedance-progress-fill"></div>
             </div>
-            <div class="workspace-action-step hidden" data-for-step="produce">
-              <button type="button" class="secondary pill-btn" id="scriptStepProducePrev">上一步</button>
-              <span class="script-step-nav-hint muted">③ 完成交付或直接产出视频</span>
+            <p id="seedancePipelineCompact" class="seedance-progress-meta muted"></p>
+          </div>
+          <footer class="studio-dock-toolbar">
+            <span class="dock-chip" id="dockModelChip">SeedDance · 脚本分镜</span>
+            <div class="dock-gen-actions">
+              <div class="dock-gen-popover-wrap" id="dockVideoSettingsWrap">
+                <button type="button" class="dock-gen-action-btn" id="dockVideoSettingsBtn" aria-expanded="false" aria-controls="dockVideoSettingsPanel">
+                  <span class="dock-gen-action-icon" aria-hidden="true">☰</span>
+                  <span id="dockVideoSettingsLabel">720P · 9:16</span>
+                </button>
+                <div id="dockVideoSettingsPanel" class="dock-video-settings-panel hidden" role="dialog" aria-label="视频参数" hidden>
+                  <div class="dock-settings-section">
+                    <div class="dock-settings-label">分辨率</div>
+                    <div class="dock-settings-pill-row" id="dockResolutionRow"></div>
+                  </div>
+                  <div class="dock-settings-section">
+                    <div class="dock-settings-label">宽高比</div>
+                    <div class="dock-settings-ratio-row" id="dockAspectRatioRow"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="dock-gen-popover-wrap" id="dockGenerateCountWrap">
+                <button type="button" class="dock-gen-action-btn" id="dockGenerateCountBtn" aria-expanded="false" aria-controls="dockGenerateCountMenu">
+                  <span class="dock-gen-action-icon" aria-hidden="true">▭</span>
+                  <span id="dockGenerateCountLabel">生成 1 条</span>
+                </button>
+                <div id="dockGenerateCountMenu" class="dock-gen-count-menu hidden" role="menu" aria-label="生成条数" hidden></div>
+              </div>
+              <button type="button" class="dock-gen-action-btn" id="dockPromptEnhanceBtn" title="结合标签与对标结构强化创作指令">
+                <span class="dock-gen-action-icon" aria-hidden="true">✦</span>
+                <span>提示词增强</span>
+              </button>
             </div>
+            <button type="button" class="primary primary-dark studio-dock-run" id="generateDockRun">
+              <span class="dock-run-icon">✦</span> 开始创作
+            </button>
           </footer>
         </div>
-
-        <select id="scriptMaterialSelect" class="sr-only" aria-hidden="true" tabindex="-1"></select>
       </div>
     </main>
 
@@ -224,7 +343,7 @@
       <div class="studio-workspace">
         <header class="view-intro">
           <h2>产品资料</h2>
-          <p>非日常流程：批量改卖点、禁用词、竞品参考等长文案（人群/场景标签请在「脚本生成」页维护）</p>
+          <p>非日常流程：批量改卖点、禁用词、竞品参考等长文案（人群/场景标签请在「视频生成」模块维护）</p>
         </header>
         <div class="studio-mega-card">
           <div class="split-2 split-narrow studio-split-body">
@@ -241,37 +360,168 @@
       </div>
     </main>
 
-    <main id="viewFinished" class="view">
-      <div class="studio-workspace">
-        <header class="view-intro">
-          <h2>成稿库</h2>
-          <p>已交付项目的脚本包与下载入口</p>
-        </header>
-        <div class="studio-mega-card">
-          <section class="studio-inner-pane pane-scroll table-card">
-            <div id="finishedList" class="table-wrap"></div>
+    <main id="viewImitate" class="view">
+      <div class="module-studio" data-module="imitate">
+        <div class="module-studio-scroll">
+          <header class="module-studio-head">
+            <nav class="module-studio-tabs" aria-label="爆款模仿视图">
+              <button type="button" class="active" data-studio-tab="featured">精选</button>
+              <button type="button" data-studio-tab="templates">模板</button>
+            </nav>
+          </header>
+          <section class="module-feature-section" id="imitateFeatureSection">
+            <h2 class="module-feature-title">复刻能力</h2>
+            <p class="module-feature-desc">从对标视频提取结构，套用至品牌脚本与分镜</p>
+            <div class="feature-grid" id="imitateFeatureGrid"></div>
           </section>
+          <section class="module-studio-panel hidden" id="imitateTemplatesPanel" data-studio-panel="templates">
+            <h2 class="module-feature-title">结构模板库</h2>
+            <p class="module-feature-desc muted">从已拆解对标中提取的可复用镜头结构（规划中）</p>
+            <div class="module-placeholder-inner compact">
+              <p class="muted">接入对标素材库拆解结果后，可在此浏览与套用模板。</p>
+            </div>
+          </section>
+        </div>
+        <div class="studio-dock" id="imitateDock">
+          <div class="studio-dock-head">
+            <nav class="studio-dock-modes" aria-label="输入方式">
+              <button type="button" class="active" data-imitate-input="image">产品图</button>
+              <button type="button" data-imitate-input="link">商品链接</button>
+              <button type="button" data-imitate-input="custom">自定义描述</button>
+            </nav>
+          </div>
+          <div class="studio-dock-body">
+            <div class="studio-dock-uploads">
+              <button type="button" class="dock-upload-slot" disabled title="规划中">
+                <span class="dock-upload-icon">🖼</span>
+                <span>产品图</span>
+              </button>
+              <button type="button" class="dock-upload-slot" id="imitateDockRefBtn">
+                <span class="dock-upload-icon">▶</span>
+                <span>原视频</span>
+              </button>
+            </div>
+            <div class="studio-dock-main">
+              <textarea class="studio-dock-prompt" rows="2" placeholder="粘贴商品链接或描述要模仿的爆款结构要点（功能规划中）" disabled></textarea>
+            </div>
+          </div>
+          <footer class="studio-dock-toolbar">
+            <span class="dock-chip muted">原视频提取模块</span>
+            <button type="button" class="primary primary-dark studio-dock-run" disabled>
+              <span class="dock-run-icon">✦</span> 生成模仿稿
+            </button>
+          </footer>
         </div>
       </div>
     </main>
 
-    <main id="viewFeedback" class="view">
-      <div class="studio-workspace">
-        <header class="view-intro">
-          <h2>反馈库</h2>
-          <p>记录剪辑修改与投放表现，反哺优化</p>
-        </header>
-        <div class="studio-mega-card">
-          <div class="split-2 split-narrow studio-split-body">
-            <section class="studio-inner-pane pane-scroll">
-              <div class="pane-title">成稿列表</div>
-              <div id="feedbackList" class="list compact"></div>
-            </section>
-            <section class="studio-inner-pane pane-scroll">
-              <div class="pane-title">反馈填写</div>
-              <div id="feedbackEditor" class="detail-empty">← 选择左侧成稿</div>
-            </section>
+    <main id="viewReverse" class="view">
+      <div class="module-studio" data-module="reverse">
+        <div class="module-studio-scroll">
+          <header class="module-studio-head">
+            <nav class="module-studio-tabs" aria-label="反推提示词视图">
+              <button type="button" class="active" data-studio-tab="featured">精选</button>
+              <button type="button" data-studio-tab="exports">导出</button>
+            </nav>
+          </header>
+          <section class="module-feature-section" id="reverseFeatureSection">
+            <h2 class="module-feature-title">反推方式</h2>
+            <p class="module-feature-desc">拆解参考视频或脚本，导出 SeedDance / 分镜 Prompt</p>
+            <div class="feature-grid" id="reverseFeatureGrid"></div>
+          </section>
+          <section class="module-studio-panel hidden" id="reverseExportsPanel" data-studio-panel="exports">
+            <h2 class="module-feature-title">已导出 Prompt</h2>
+            <p class="module-feature-desc muted">历史反推结果将在此管理（规划中）</p>
+            <div class="module-placeholder-inner compact">
+              <p class="muted">完成反推后可复制英文 Prompt 或写入脚本包。</p>
+            </div>
+          </section>
+        </div>
+        <div class="studio-dock" id="reverseDock">
+          <div class="studio-dock-head">
+            <nav class="studio-dock-modes" aria-label="反推类型">
+              <button type="button" class="active" data-reverse-type="video">视频反推</button>
+              <button type="button" data-reverse-type="script">脚本反推</button>
+            </nav>
           </div>
+          <div class="studio-dock-body">
+            <div class="studio-dock-uploads">
+              <button type="button" class="dock-upload-slot" disabled title="规划中">
+                <span class="dock-upload-icon">📹</span>
+                <span>上传</span>
+              </button>
+              <button type="button" class="dock-upload-slot" id="reverseDockMaterialBtn">
+                <span class="dock-upload-icon">▶</span>
+                <span>素材库</span>
+              </button>
+            </div>
+            <div class="studio-dock-main">
+              <textarea class="studio-dock-prompt" rows="2" placeholder="选择对标视频后，自动拆解镜头并生成可编辑英文 Prompt（功能规划中）" disabled></textarea>
+            </div>
+          </div>
+          <footer class="studio-dock-toolbar">
+            <span class="dock-chip muted">拆解 · 反推分析</span>
+            <button type="button" class="primary primary-dark studio-dock-run" disabled>
+              <span class="dock-run-icon">✦</span> 开始反推
+            </button>
+          </footer>
+        </div>
+      </div>
+    </main>
+
+    <main id="viewDraftFeedback" class="view">
+      <div class="module-studio" data-module="draft-feedback">
+        <div class="module-studio-scroll">
+          <header class="module-studio-head">
+            <nav class="module-studio-tabs" aria-label="成稿反馈视图">
+              <button type="button" class="active" data-studio-tab="featured">精选</button>
+              <button type="button" data-studio-tab="audit">审核</button>
+            </nav>
+            <nav class="draft-feedback-subnav module-studio-subnav" id="draftFeedbackSubNav" aria-label="成稿反馈子页">
+              <button type="button" data-sub="finished" class="active">成稿库</button>
+              <button type="button" data-sub="feedback">反馈库</button>
+            </nav>
+          </header>
+          <section class="module-feature-section" id="draftFeedbackFeatureSection">
+            <h2 class="module-feature-title">运行反哺</h2>
+            <p class="module-feature-desc">审核成片问题、记录投放反馈，纳入运行素材库迭代</p>
+            <div class="feature-grid feature-grid-stats" id="draftFeedbackFeatureGrid"></div>
+          </section>
+          <section class="module-studio-panel hidden" id="draftFeedbackAuditPanel" data-studio-panel="audit">
+            <h2 class="module-feature-title">问题调节审核</h2>
+            <p class="module-feature-desc muted">对生产视频标注问题并反哺至下一轮生成（规划中）</p>
+            <div class="module-placeholder-inner compact">
+              <p class="muted">审核标注将写入反馈库，并关联至对应成稿与场景标签。</p>
+            </div>
+          </section>
+          <section class="module-workspace-panel module-feedback-body" id="draftFeedbackBody">
+            <div id="draftFeedbackPanelFinished" class="draft-feedback-panel active">
+              <div class="studio-mega-card">
+                <section class="studio-inner-pane pane-scroll table-card">
+                  <div id="finishedList" class="table-wrap"></div>
+                </section>
+              </div>
+            </div>
+            <div id="draftFeedbackPanelFeedback" class="draft-feedback-panel hidden">
+              <div class="studio-mega-card">
+                <div class="split-2 split-narrow studio-split-body">
+                  <section class="studio-inner-pane pane-scroll">
+                    <div class="pane-title">成稿列表</div>
+                    <div id="feedbackList" class="list compact"></div>
+                  </section>
+                  <section class="studio-inner-pane pane-scroll feedback-editor-pane">
+                    <div class="pane-title">反馈填写</div>
+                    <div id="feedbackEditor" class="detail-empty">← 选择左侧成稿</div>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="module-history-section" id="draftFeedbackHistorySection" aria-label="历史成片">
+            <h2 class="module-feature-title">历史成片</h2>
+            <p class="module-feature-desc muted">最近归档于 <code>03_产出库</code> 的项目（进入工作台可继续编辑）</p>
+            <div id="draftFeedbackHistoryList" class="feature-history-list detail-empty">加载中…</div>
+          </section>
         </div>
       </div>
     </main>
