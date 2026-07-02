@@ -741,6 +741,26 @@ function renderProductPanel(p, apiTags, savedTags) {
   refreshTagGroupsUI();
 }
 
+async function loadProductTagPanel(productId) {
+  const productEl = document.getElementById("scriptProduct");
+  if (!productId || !productEl) return;
+  try {
+    const p = state.products.find((x) => x.product_id === productId)
+      || await api(`/api/products/${encodeURIComponent(productId)}`);
+    const hasSaved = ["audience", "scenarios", "selling", "pains"].some(
+      (key) => (state.tagSelection?.[key] || []).length > 0,
+    );
+    const saved = hasSaved ? readAllSelectedTags() : {};
+    renderProductPanel(p, {}, saved);
+    syncProductFloatStatus();
+    syncDockProductSlot();
+    syncDockRefSlot();
+  } catch (err) {
+    productEl.className = "script-tag-grid script-tag-grid-float detail-empty";
+    productEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
+  }
+}
+
 async function persistProductTags(productId, field, tags) {
   const body = {};
   body[field] = tags.join("；");
@@ -1547,8 +1567,14 @@ function initModuleStudios() {
   document.getElementById("productFloatBackdrop")?.addEventListener("click", closeProductFloatPanel);
   document.getElementById("productFloatConfirmBtn")?.addEventListener("click", async () => {
     syncProductFloatStatus();
-    if (!document.getElementById("scriptProductSelect")?.value) return;
-    if (!tagsSelectionOk()) return;
+    if (!document.getElementById("scriptProductSelect")?.value) {
+      setScriptActionStatus("请先选择产品");
+      return;
+    }
+    if (!tagsSelectionOk()) {
+      setScriptActionStatus("请为人群、场景、卖点、痛点各至少选择一项");
+      return;
+    }
     const hadScript = Boolean(state.lastPreview?.has_script);
     const tagsChanged = tagsChangedSinceScript();
     const productId = document.getElementById("scriptProductSelect")?.value;
@@ -2610,8 +2636,10 @@ async function openProductFloatPanel() {
   const backdrop = document.getElementById("productFloatBackdrop");
   if (!panel || !backdrop) return;
   await populateScriptProductSelect();
-  if (document.getElementById("scriptProductSelect")?.value) {
-    await refreshScriptPreview();
+  const productId = document.getElementById("scriptProductSelect")?.value;
+  if (productId) {
+    await loadProductTagPanel(productId);
+    if (state.selectedMaterialId) await refreshScriptPreview();
   }
   openFloatPanel("productFloatPanel", "productFloatBackdrop");
   syncProductFloatStatus();
@@ -2690,6 +2718,63 @@ function renderSeedanceSettings(health) {
   }
   const prov = sd.provider === "volcengine-ark" ? "火山方舟 Ark" : (sd.provider || "fal.ai");
   el.innerHTML = `已配置 ${esc(prov)} · ${esc(mode)}<br>模型 <code>${esc(sd.text_model || "")}</code>`;
+}
+
+function feishuResultText(data) {
+  if (!data) return "";
+  const payload = data.json && typeof data.json === "object" ? data.json : null;
+  const parts = [];
+  const url = payload?.verification_uri_complete || payload?.verification_url || payload?.url;
+  const userCode = payload?.user_code || payload?.code;
+  const deviceCode = payload?.device_code;
+  if (url) parts.push(`授权链接：${url}`);
+  if (userCode) parts.push(`用户码：${userCode}`);
+  if (deviceCode) parts.push(`device_code：${deviceCode}`);
+  const out = String(data.stdout || "").trim();
+  const err = String(data.stderr || "").trim();
+  if (out && !parts.includes(out)) parts.push(out);
+  if (err) parts.push(err);
+  return parts.join("\n\n") || (data.ok ? "完成" : "无输出");
+}
+
+function renderFeishuSettings(status) {
+  const el = document.getElementById("feishuSettingsStatus");
+  if (!el) return;
+  const fs = status?.feishu || status || {};
+  if (!fs.installed) {
+    el.innerHTML = `未安装 · 本地工具目录 <code>tools/feishu-cli</code><br><span class="muted">请重新执行 Feishu CLI 集成。</span>`;
+    return;
+  }
+  const version = fs.version || fs.package_version || "@larksuite/cli";
+  if (fs.authenticated) {
+    el.innerHTML = `已安装并授权 · <code>${esc(version)}</code>`;
+    return;
+  }
+  if (fs.configured === false) {
+    el.innerHTML = `已安装 · <code>${esc(version)}</code><br><span class="warn-inline">尚未配置/授权</span>：先运行根目录 <code>配置飞书CLI.cmd</code>，再回到这里检测。`;
+    return;
+  }
+  el.innerHTML = `已安装 · <code>${esc(version)}</code><br><span class="muted">点击「检测状态」查看配置和授权。</span>`;
+}
+
+function showFeishuOutput(data) {
+  const out = document.getElementById("feishuAuthOutput");
+  if (!out) return;
+  out.classList.remove("hidden");
+  out.textContent = feishuResultText(data);
+}
+
+async function refreshFeishuSettings() {
+  const el = document.getElementById("feishuSettingsStatus");
+  if (el) el.textContent = "正在检测飞书 CLI…";
+  try {
+    const status = await api("/api/feishu/status");
+    renderFeishuSettings(status);
+    return status;
+  } catch (err) {
+    if (el) el.textContent = err.message || "飞书 CLI 检测失败";
+    throw err;
+  }
 }
 
 function renderSeedance(slug, seedance, health) {
@@ -3374,6 +3459,9 @@ async function loadScriptView() {
   const ms = document.getElementById("scriptMaterialSelect");
   await populateScriptProductSelect();
   repopulateScriptMaterials();
+  if (state.selectedProductId) {
+    await loadProductTagPanel(state.selectedProductId);
+  }
   if (state.selectedMaterialId && ms?.querySelector(`option[value="${state.selectedMaterialId}"]`)) {
     ms.value = String(state.selectedMaterialId);
   }
@@ -3392,15 +3480,22 @@ async function refreshScriptPreview() {
   state.selectedMaterialId = linkId;
   const analysisEl = document.getElementById("scriptAnalysis");
   const productEl = document.getElementById("scriptProduct");
-  if (!productId || !linkId) {
+  if (!productId) {
     if (productEl) {
       productEl.className = "script-tag-grid script-tag-grid-float detail-empty";
-      productEl.innerHTML = productId ? "选择对标后查看结构摘要" : "选择产品后配置场景标签";
+      productEl.innerHTML = "选择产品后配置场景标签";
     }
     if (analysisEl) {
       analysisEl.innerHTML = linkId
         ? '<div class="detail-empty">选择产品后显示结构迁移摘要</div>'
         : '<div class="detail-empty">选择对标后显示</div>';
+    }
+    return;
+  }
+  if (!linkId) {
+    await loadProductTagPanel(productId);
+    if (analysisEl) {
+      analysisEl.innerHTML = '<div class="detail-empty">选择对标后显示结构迁移摘要</div>';
     }
     return;
   }
@@ -3481,12 +3576,14 @@ document.getElementById("scriptProductSelect")?.addEventListener("change", async
   setImitationPrompt("");
   state.generatePromptSelection = null;
   syncDockPromptSelectSlot();
-  if (pane) {
-    pane.className = "detail-empty ref-float-detail";
-    pane.innerHTML = "选择左侧对标视频查看拆解";
+  const materialPane = document.getElementById("materialDetail");
+  if (materialPane) {
+    materialPane.className = "detail-empty ref-float-detail";
+    materialPane.innerHTML = "选择左侧对标视频查看拆解";
   }
   onScriptSelectionChange();
   repopulateScriptMaterials();
+  if (state.selectedProductId) await loadProductTagPanel(state.selectedProductId);
   renderRefFloatMaterialList();
   syncRefFloatProductLine();
   renderGenerateViralGrid();
@@ -4115,6 +4212,8 @@ async function loadSettingsView() {
   state.healthCache = h;
   renderDoubaoSettings(h);
   renderSeedanceSettings(h);
+  renderFeishuSettings(h.feishu || {});
+  refreshFeishuSettings().catch(() => {});
   const policyNote = h.decompose?.policy?.paused
     ? `<br><span class="warn-inline">拆解已暂停</span>（已有结果不重复调豆包，新素材不分析）`
     : !h.decompose?.policy?.on_view
@@ -4388,6 +4487,36 @@ document.getElementById("btnDoubaoTestSettings")?.addEventListener("click", asyn
 
 document.getElementById("btnSeedanceTestSettings")?.addEventListener("click", () => {
   runSeedanceTest(document.getElementById("seedanceSettingsStatus"));
+});
+
+document.getElementById("btnFeishuStatusSettings")?.addEventListener("click", async () => {
+  const out = document.getElementById("feishuAuthOutput");
+  if (out) out.classList.add("hidden");
+  await refreshFeishuSettings();
+});
+
+document.getElementById("btnFeishuAuthUrlSettings")?.addEventListener("click", async () => {
+  const el = document.getElementById("feishuSettingsStatus");
+  if (el) el.textContent = "正在生成飞书授权链接…";
+  try {
+    const data = await api("/api/feishu/auth-url", { method: "POST" });
+    showFeishuOutput(data);
+    await refreshFeishuSettings();
+  } catch (err) {
+    if (el) el.textContent = err.message || "生成授权链接失败";
+  }
+});
+
+document.getElementById("btnFeishuDoctorSettings")?.addEventListener("click", async () => {
+  const el = document.getElementById("feishuSettingsStatus");
+  if (el) el.textContent = "正在运行飞书 doctor…";
+  try {
+    const data = await api("/api/feishu/doctor?offline=true");
+    showFeishuOutput(data);
+    await refreshFeishuSettings();
+  } catch (err) {
+    if (el) el.textContent = err.message || "飞书 doctor 运行失败";
+  }
 });
 
 async function bootstrapApp() {

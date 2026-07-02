@@ -93,7 +93,7 @@ from .seedance_bridge import (
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 135
+UI_VERSION = 137
 
 
 def _render_index() -> HTMLResponse:
