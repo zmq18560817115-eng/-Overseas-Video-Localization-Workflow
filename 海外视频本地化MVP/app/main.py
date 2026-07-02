@@ -79,7 +79,7 @@ from .olm_bridge import (
     project_exists,
     sync_project_video_settings,
 )
-from .product_tags import normalize_selected_tags, product_delivery_tags
+from .product_tags import normalize_selected_tags, product_delivery_tags, enrich_product_from_knowledge
 from .products import get_product, list_products, update_product
 from .prompt_library import ensure_default_presets, list_prompts, record_usage
 from .reverse_prompt import run_reverse_prompt
@@ -102,7 +102,7 @@ from .seedance_bridge import (
 app = FastAPI(title="海外视频本地化工作台", version="1.0.0")
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 146
+UI_VERSION = 147
 
 
 def _render_index() -> HTMLResponse:
@@ -621,7 +621,11 @@ async def product_one(product_id: str) -> dict:
     row = get_product(product_id)
     if not row:
         raise HTTPException(status_code=404, detail="产品不存在")
-    return row
+    enriched = enrich_product_from_knowledge(row)
+    return {
+        **enriched,
+        "delivery_tags": product_delivery_tags(enriched),
+    }
 
 
 @app.put("/api/products/{product_id}")

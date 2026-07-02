@@ -89,6 +89,22 @@ const SCENARIO_GROUPS = [
   { id: "public", keys: ["餐厅", "商场", "临时冲奶"] },
 ];
 
+/** 与后端 product_tags.PRODUCT_TAG_PRESETS 保持一致，供前端离线兜底 */
+const PRODUCT_TAG_PRESETS = {
+  "便携恒温杯": {
+    audience: ["0-12月新手爸妈", "夜奶/外出行程家庭", "混合喂养与瓶喂妈妈", "经常带娃出门、坐飞机、车内喂奶人群"],
+    scenarios: ["夜间卧室喂奶", "车内杯架加热", "机场/旅途出行", "公园遛娃", "办公室背奶妈妈", "餐厅/商场临时冲奶"],
+    selling: ["便携可充电设计，外出随时加热", "多档温控，奶液加热更均匀", "USB-C 充电，妈咪包/杯架都能放", "保温锁温，减少反复加热", "清洗简单，配件少"],
+    pains: ["外出没热水、找微波炉麻烦", "加热太慢宝宝哭闹", "温度忽高忽低", "传统暖奶器太大不便携", "夜喂等待久、手忙脚乱", "飞机上/车内难加热"],
+  },
+  "吸奶器": {
+    audience: ["0-6月新手妈妈", "背奶职场妈妈", "夜间吸奶人群", "混合喂养家庭"],
+    scenarios: ["夜间吸奶", "背奶通勤", "居家哺乳角", "办公室隐蔽吸奶", "乳头皲裂恢复期"],
+    selling: ["活塞泵技术，吸放节奏更接近婴儿吮吸", "可调吸力档位", "多种护罩尺寸", "可充电电池", "易拆洗结构", "夜奶场景下电机相对安静", "便携设计适合背奶"],
+    pains: ["吸不出来/吸不干净", "疼痛导致放弃母乳", "吸力不适", "护罩尺寸不合", "清洗繁琐", "夜间噪音打扰", "外出不便"],
+  },
+};
+
 const GENERATE_FEATURES = [
   { id: "bedroom", label: "夜间场景", sub: "卧室 · 夜奶", grad: "g-bedroom", scenarioTag: "卧室" },
   { id: "car", label: "车载场景", sub: "杯架 · 通勤", grad: "g-car", scenarioTag: "车内" },
@@ -161,6 +177,7 @@ const TAG_GROUPS = {
     savedKey: "audience",
     label: "目标人群",
     placeholder: "输入人群标签，如：夜奶家庭",
+    single: true,
   },
   scenario: {
     field: "usage_scenarios",
@@ -187,6 +204,8 @@ const TAG_GROUPS = {
 };
 
 function buildTagPool(p, apiTags) {
+  const pid = p?.product_id || "";
+  const presets = PRODUCT_TAG_PRESETS[pid] || {};
   const pool = {
     audience: (apiTags?.audience?.length ? apiTags.audience : parseTagList(p.target_audience)),
     scenarios: (apiTags?.scenarios?.length ? apiTags.scenarios : parseTagList(p.usage_scenarios)),
@@ -194,11 +213,20 @@ function buildTagPool(p, apiTags) {
     pains: (apiTags?.pains?.length ? apiTags.pains : parseTagList(p.pain_points)),
   };
   for (const key of ["audience", "scenarios", "selling", "pains"]) {
+    for (const t of presets[key] || []) {
+      if (!pool[key].includes(t)) pool[key].push(t);
+    }
     for (const t of state.tagPoolExtra[key] || []) {
       if (!pool[key].includes(t)) pool[key].push(t);
     }
   }
   return pool;
+}
+
+function tagSelectModeHint(cfg) {
+  return cfg.single
+    ? '<span class="tag-panel-hint muted">单选</span>'
+    : '<span class="tag-panel-hint muted">可多选</span>';
 }
 
 function defaultSelectedTags(pool, saved) {
@@ -212,7 +240,7 @@ function defaultSelectedTags(pool, saved) {
     return pool[poolKey][0] ? [pool[poolKey][0]] : [];
   };
   return {
-    audience: pick("audience", "audience"),
+    audience: pick("audience", "audience", true),
     scenarios: pick("scenarios", "scenarios", true),
     selling: pick("selling", "selling"),
     pains: pick("pains", "pains"),
@@ -1005,7 +1033,7 @@ function renderLibraryTagRow(containerId, options, selected, group) {
   if (!el) return;
   const picked = [...new Set(selected)];
   if (!options.length) {
-    el.innerHTML = '<span class="muted">素材库暂无该类别，请手动添加或到「设置」同步产品资料</span>';
+    el.innerHTML = '<span class="muted tag-preset-empty">暂无产品预设，请手动添加或到「设置」同步产品资料</span>';
     return;
   }
   el.innerHTML = options.map((t) =>
@@ -1017,7 +1045,7 @@ function renderProductPanel(p, apiTags, savedTags) {
   const pool = buildTagPool(p, apiTags);
   const selected = defaultSelectedTags(pool, savedTags);
   state.tagSelection = {
-    audience: [...selected.audience],
+    audience: [...selected.audience].slice(0, 1),
     scenarios: [...selected.scenarios].slice(0, 1),
     selling: [...selected.selling],
     pains: [...selected.pains],
@@ -1031,22 +1059,20 @@ function renderProductPanel(p, apiTags, savedTags) {
     <div class="tag-panel tag-panel-compact">
       <div class="tag-panel-head">
         <span class="tag-group-label">${cfg.label}</span>
-        ${cfg.single ? '<span class="tag-panel-hint muted">单选</span>' : ""}
+        ${tagSelectModeHint(cfg)}
       </div>
       <div class="tag-section tag-section-selected">
         <span class="tag-section-label">已选</span>
         <div id="${group}TagRow" class="tag-row tag-row-selected"></div>
       </div>
+      <div class="tag-preset-block">
+        <span class="tag-section-label">产品预设（点击选用）</span>
+        <div id="${group}LibraryRow" class="tag-row tag-library-row tag-preset-row"></div>
+      </div>
       <div class="tag-add-row">
         <input type="text" class="tag-input" data-group="${group}" placeholder="${cfg.placeholder}">
         <button type="button" class="tag-add-btn" data-group="${group}">添加</button>
       </div>
-      <details class="tag-library-fold">
-        <summary>素材库推荐</summary>
-        <div class="tag-library-block">
-          <div id="${group}LibraryRow" class="tag-row tag-library-row"></div>
-        </div>
-      </details>
     </div>`).join("");
   panel.innerHTML = groupsHtml;
   refreshTagGroupsUI();
@@ -1056,13 +1082,15 @@ async function loadProductTagPanel(productId) {
   const productEl = document.getElementById("scriptProduct");
   if (!productId || !productEl) return;
   try {
-    const p = state.products.find((x) => x.product_id === productId)
-      || await api(`/api/products/${encodeURIComponent(productId)}`);
+    const p = await api(`/api/products/${encodeURIComponent(productId)}`);
+    const idx = state.products.findIndex((x) => x.product_id === productId);
+    if (idx >= 0) state.products[idx] = { ...state.products[idx], ...p };
+    else state.products.push(p);
     const hasSaved = ["audience", "scenarios", "selling", "pains"].some(
       (key) => (state.tagSelection?.[key] || []).length > 0,
     );
     const saved = hasSaved ? readAllSelectedTags() : {};
-    renderProductPanel(p, {}, saved);
+    renderProductPanel(p, p.delivery_tags || {}, saved);
     syncProductFloatStatus();
     syncDockProductSlot();
     syncDockRefSlot();

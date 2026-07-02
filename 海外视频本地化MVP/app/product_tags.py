@@ -98,15 +98,108 @@ def enrich_product_from_knowledge(product: dict[str, str] | None) -> dict[str, s
     return enriched
 
 
+PRODUCT_TAG_PRESETS: dict[str, dict[str, list[str]]] = {
+    "便携恒温杯": {
+        "audience": [
+            "0-12月新手爸妈",
+            "夜奶/外出行程家庭",
+            "混合喂养与瓶喂妈妈",
+            "经常带娃出门、坐飞机、车内喂奶人群",
+        ],
+        "scenarios": [
+            "夜间卧室喂奶",
+            "车内杯架加热",
+            "机场/旅途出行",
+            "公园遛娃",
+            "办公室背奶妈妈",
+            "餐厅/商场临时冲奶",
+        ],
+        "selling": [
+            "便携可充电设计，外出随时加热",
+            "多档温控，奶液加热更均匀",
+            "USB-C 充电，妈咪包/杯架都能放",
+            "保温锁温，减少反复加热",
+            "清洗简单，配件少",
+        ],
+        "pains": [
+            "外出没热水、找微波炉麻烦",
+            "加热太慢宝宝哭闹",
+            "温度忽高忽低",
+            "传统暖奶器太大不便携",
+            "夜喂等待久、手忙脚乱",
+            "飞机上/车内难加热",
+        ],
+    },
+    "吸奶器": {
+        "audience": [
+            "0-6月新手妈妈",
+            "背奶职场妈妈",
+            "夜间吸奶人群",
+            "混合喂养家庭",
+        ],
+        "scenarios": [
+            "夜间吸奶",
+            "背奶通勤",
+            "居家哺乳角",
+            "办公室隐蔽吸奶",
+            "乳头皲裂恢复期",
+        ],
+        "selling": [
+            "活塞泵技术，吸放节奏更接近婴儿吮吸",
+            "可调吸力档位",
+            "多种护罩尺寸",
+            "可充电电池",
+            "易拆洗结构",
+            "夜奶场景下电机相对安静",
+            "便携设计适合背奶",
+        ],
+        "pains": [
+            "吸不出来/吸不干净",
+            "疼痛导致放弃母乳",
+            "吸力不适",
+            "护罩尺寸不合",
+            "清洗繁琐",
+            "夜间噪音打扰",
+            "外出不便",
+        ],
+    },
+}
+
+
+def product_tag_presets(product_id: str) -> dict[str, list[str]]:
+    return {
+        key: list(vals)
+        for key, vals in PRODUCT_TAG_PRESETS.get(str(product_id or "").strip(), {}).items()
+    }
+
+
+def _merge_unique_tags(*groups: list[str]) -> list[str]:
+    out: list[str] = []
+    for group in groups:
+        for raw in group:
+            tag = str(raw or "").strip()
+            if tag and tag not in out:
+                out.append(tag)
+    return out
+
+
 def product_delivery_tags(product: dict[str, str] | None) -> dict[str, list[str]]:
     product = enrich_product_from_knowledge(product)
     if not product:
         return {"audience": [], "scenarios": [], "selling": [], "pains": []}
-    return {
+    pid = str(product.get("product_id") or "").strip()
+    presets = product_tag_presets(pid)
+    parsed = {
         "audience": split_tags(product.get("target_audience", "")),
         "scenarios": split_tags(product.get("usage_scenarios", "")),
         "selling": split_tags(product.get("core_selling_points", ""), max_items=12),
         "pains": split_tags(product.get("pain_points", ""), max_items=10),
+    }
+    return {
+        "audience": _merge_unique_tags(presets.get("audience", []), parsed["audience"]),
+        "scenarios": _merge_unique_tags(presets.get("scenarios", []), parsed["scenarios"]),
+        "selling": _merge_unique_tags(presets.get("selling", []), parsed["selling"]),
+        "pains": _merge_unique_tags(presets.get("pains", []), parsed["pains"]),
     }
 
 

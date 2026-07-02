@@ -6014,6 +6014,27 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   font-size: 13px;
 }
 
+.tag-preset-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid var(--line-soft);
+}
+
+.tag-preset-row {
+  gap: 8px;
+  max-height: 132px;
+  overflow-y: auto;
+}
+
+.tag-preset-empty {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .product-float-foot {
   display: flex;
   align-items: center;
