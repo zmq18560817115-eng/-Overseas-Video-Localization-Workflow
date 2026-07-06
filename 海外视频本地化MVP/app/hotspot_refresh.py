@@ -114,15 +114,29 @@ def refresh_hotspot_videos(
             limit_per_keyword=max(1, min(200, int(limit_per_keyword or 30))),
             product_id=product_id,
         )
+        imported = int(result.imported_new_links or 0)
+        collected = int(result.total_collected or 0)
+        if collected <= 0:
+            msg = (
+                "浏览器采集未抓到视频：请在弹出的 Chrome 中完成 TikTok 登录/验证码后重试；"
+                "若未弹出窗口，请用「启动页面.cmd」启动工作台（勿用 Cursor 终端）"
+            )
+        elif imported <= 0:
+            msg = (
+                f"已抓取 {collected} 条但均未入库（可能已被清洗过滤）；"
+                f"可检查 tiktok_collector/data/raw 导出或调低清洗阈值"
+            )
+        else:
+            msg = (
+                f"浏览器采集完成：抓取 {collected} 条，新增 {imported} 条、"
+                f"更新 {result.updated_existing_links} 条对标"
+            )
         out.update(
             {
-                "total_collected": result.total_collected,
-                "imported_new_links": result.imported_new_links,
+                "total_collected": collected,
+                "imported_new_links": imported,
                 "updated_existing_links": result.updated_existing_links,
-                "message": (
-                    f"浏览器采集完成：新增 {result.imported_new_links} 条、"
-                    f"更新 {result.updated_existing_links} 条对标"
-                ),
+                "message": msg,
             }
         )
     elif mysql_enabled:
@@ -150,7 +164,10 @@ def refresh_hotspot_videos(
         out["ok"] = False
         out["message"] = "未配置 TikTok MySQL（TIKTOK_COLLECTOR_MYSQL_URL），无法后台同步"
     else:
-        out["message"] = "未配置 MySQL，已刷新本地素材；需新热点请点「浏览器采集」"
+        out["message"] = (
+            "未配置 MySQL，本地素材未增加；请点设置 → 素材维护 →「浏览器采集」"
+            "并在弹出的 Chrome 完成 TikTok 登录"
+        )
 
     items = load_materials()
     out["materials_total"] = len(items)

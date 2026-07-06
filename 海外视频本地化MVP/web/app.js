@@ -65,7 +65,10 @@ const state = {
   reverseType: "video",
   reverseMaterialId: null,
   reverseLastResult: null,
+  onboardingStepIndex: 0,
   hotspotRefreshBusy: false,
+  hotspotBusyMessage: "",
+  hotspotBusyTimer: null,
   hotspotAutoTimer: null,
 };
 
@@ -758,7 +761,7 @@ function resolveScenarioTagFromFeature(scenarioTag) {
 }
 
 function isAnyFloatPanelOpen() {
-  return ["scriptFloatPanel", "productFloatPanel", "refFloatPanel", "promptSelectFloatPanel", "starterGuidePanel", "workflowGuidePanel"]
+  return ["scriptFloatPanel", "productFloatPanel", "refFloatPanel", "promptSelectFloatPanel", "onboardingGuidePanel"]
     .some((id) => document.getElementById(id)?.classList.contains("open"));
 }
 
@@ -911,14 +914,9 @@ function closeDockTransientMenus() {
 
 function handleGlobalEscapeKey() {
   if (closeDockTransientMenus()) return;
-  const guidePanel = document.getElementById("starterGuidePanel");
-  if (guidePanel?.classList.contains("open")) {
-    dismissStarterGuide();
-    return;
-  }
-  const workflowGuidePanel = document.getElementById("workflowGuidePanel");
-  if (workflowGuidePanel?.classList.contains("open")) {
-    closeWorkflowGuidePanel();
+  const onboardingPanel = document.getElementById("onboardingGuidePanel");
+  if (onboardingPanel?.classList.contains("open")) {
+    closeOnboardingGuide();
     return;
   }
   const modal = document.getElementById("produceCompleteModal");
@@ -1032,7 +1030,7 @@ function syncDockScrollPadding() {
 }
 
 function dockRunDefaultHtml(view = state.view) {
-  return `<span class="dock-run-icon">✦</span> ${esc(dockRunDefaultText(view))}`;
+  return `<span class="dock-run-icon">✦</span><span class="dock-run-label">${esc(dockRunDefaultText(view))}</span>`;
 }
 
 function syncDockRunButtonLabels() {
@@ -1130,19 +1128,6 @@ function workflowStepSnapshot() {
   return { productReady, refReady, promptReady, promptNeeded, scriptReady, finalReady, activeStep };
 }
 
-function syncWorkflowStepClasses(snap) {
-  document.querySelectorAll("[data-workflow-step]").forEach((el) => {
-    const step = el.dataset.workflowStep;
-    let done = false;
-    if (step === "product") done = snap.productReady;
-    if (step === "prompt") done = snap.promptReady || !snap.promptNeeded || snap.scriptReady;
-    if (step === "ref") done = snap.refReady;
-    if (step === "create") done = snap.finalReady;
-    el.classList.toggle("is-done", done);
-    el.classList.toggle("is-active", step === snap.activeStep && !done);
-  });
-}
-
 function workflowActionTitle(view = state.view) {
   const snap = workflowStepSnapshot();
   if (!snap.productReady) return "先点击「产品」完成产品与场景标签配置";
@@ -1158,46 +1143,6 @@ function syncWorkflowGuide() {
   const productName = currentProductLabel();
   const refLabel = workflowRefLabel();
   const promptLabel = state.generatePromptSelection?.label || (snap.promptReady ? "已填写" : "");
-  let title = "可以开始创作";
-  let status = "产品、提示词和对标已就绪，点击「开始创作」会先生成脚本预览，再继续产出 AI 分镜视频。";
-  if (snap.finalReady) {
-    title = "成片已就绪";
-    status = "可下载成片 zip，或修改产品标签、提示词、对标后重新生成。";
-  } else if (snap.scriptReady && !scriptNeedsRegenerate(state.lastPreview || {})) {
-    title = "脚本已就绪，可继续出片";
-    status = "请检查脚本浮层中的分镜与口播，确认后继续生成 AI 视频。";
-  } else if (!snap.productReady) {
-    title = "先配置产品与场景标签";
-    status = "选择产品后，为人群、场景、卖点、痛点各选至少一项，避免脚本跑偏。";
-  } else if (snap.promptNeeded && !snap.promptReady) {
-    title = "选择提示词或填写创作要求";
-    status = "提示词用于控制风格和开场，爆款对标只迁移结构节奏，不复制文案。";
-  } else if (!snap.refReady) {
-    title = "选择同品类爆款对标";
-    status = "对标用于抽取镜头节奏和结构，产品外观仍以白底主图锁定。";
-  }
-
-  const titleEl = document.getElementById("workflowGuideTitle");
-  const statusEl = document.getElementById("workflowGuideStatus");
-  if (titleEl) titleEl.textContent = title;
-  if (statusEl) statusEl.textContent = status;
-  syncWorkflowStepClasses(snap);
-
-  const refBtn = document.getElementById("workflowPickRefBtn");
-  if (refBtn) {
-    refBtn.disabled = !snap.productReady;
-    refBtn.title = snap.productReady ? "选择同品类爆款参考" : "请先配置产品";
-  }
-  const promptBtn = document.getElementById("workflowPickPromptBtn");
-  if (promptBtn) {
-    promptBtn.classList.toggle("active", snap.promptReady);
-    promptBtn.textContent = promptLabel ? "换提示词" : "选提示词";
-  }
-  const startBtn = document.getElementById("workflowStartBtn");
-  if (startBtn) {
-    startBtn.textContent = dockRunDefaultText(state.view);
-    startBtn.title = workflowActionTitle(state.view);
-  }
 
   const parts = [
     snap.productReady ? `产品：${productName || "已配置"}` : "产品未配置",
@@ -3516,8 +3461,8 @@ function syncGenerateDockMode(mode = state.generateDockMode) {
   const promptTa = document.getElementById("generateDockPrompt");
   if (promptTa) {
     promptTa.placeholder = isGenerate
-      ? "① 产品场景 → ② 提示词模板/创作要求 → ③ 对标爆款节奏 → ④ 开始创作"
-      : "① 点击「产品」配置场景标签 → ② 点击上方爆款卡片（自动拆解+出片）或底部「开始创作」";
+      ? "填写创作要求，或点左侧「提示词」选用模板"
+      : "配置产品后，点击上方爆款卡片或底部「开始复刻」";
   }
   syncDockPromptSelectSlot();
   syncProducePreviewForActiveView();
@@ -3532,8 +3477,21 @@ function syncDockPromptSelectSlot() {
   const promptText = document.getElementById("generateDockPrompt")?.value?.trim() || "";
   const hasText = Boolean(sel?.text || promptText);
   btn.classList.toggle("has-value", hasText);
+  const labelSpan = btn.querySelector(".dock-upload-label");
+  if (labelSpan) {
+    labelSpan.textContent = sel?.label
+      ? truncateDockLabel(sel.label, 10)
+      : (hasText ? "已填写" : "提示词");
+  }
   btn.title = sel?.label ? `已选：${sel.label}` : (hasText ? "已填写创作提示词，点击更换" : "选择创作提示词模板");
   syncWorkflowGuide();
+}
+
+function truncateDockLabel(text, maxLen = 10) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+  if (raw.length <= maxLen) return raw;
+  return `${raw.slice(0, Math.max(1, maxLen - 1))}…`;
 }
 
 async function renderPromptSelectList() {
@@ -3682,7 +3640,7 @@ function syncReverseDockMaterial() {
   const item = linkId ? state.items.find((i) => i.link_id === linkId) : null;
   if (label) {
     label.textContent = item
-      ? (item.title || `#${linkId}`).slice(0, 14)
+      ? truncateDockLabel(item.title || `#${linkId}`, 10)
       : "素材库";
   }
   if (chip) {
@@ -3705,7 +3663,7 @@ function syncReverseDockProduct() {
   const productName = ps?.selectedOptions?.[0]?.textContent?.trim() || "";
   const ready = Boolean(ps?.value);
   btn.classList.toggle("has-value", ready);
-  label.textContent = ready && productName ? productName.slice(0, 8) : "产品";
+  label.textContent = ready && productName ? truncateDockLabel(productName, 10) : "产品";
   btn.title = ready && productName ? `已选：${productName}` : "选择产品以过滤素材与提示词库";
 }
 
@@ -3972,16 +3930,6 @@ function initModuleStudios() {
     ?.addEventListener("click", () => openGenerateModule());
   document.getElementById("generateDockRun")?.addEventListener("click", () => runStartCreate());
   document.getElementById("imitateDockRun")?.addEventListener("click", () => runStartCreate());
-  function workflowGuideAction(fn) {
-    return () => {
-      closeWorkflowGuidePanel();
-      fn();
-    };
-  }
-  document.getElementById("workflowPickProductBtn")?.addEventListener("click", workflowGuideAction(() => openProductFloatPanel()));
-  document.getElementById("workflowPickPromptBtn")?.addEventListener("click", workflowGuideAction(() => openPromptSelectFloatPanel()));
-  document.getElementById("workflowPickRefBtn")?.addEventListener("click", workflowGuideAction(() => openRefFloatPanel()));
-  document.getElementById("workflowStartBtn")?.addEventListener("click", workflowGuideAction(() => runStartCreate()));
   document.getElementById("dockOpenMaterialsBtn")?.addEventListener("click", () => openRefFloatPanel());
   document.getElementById("imitateOpenMaterialsBtn")?.addEventListener("click", () => openRefFloatPanel());
   document.getElementById("dockOpenProductBtn")?.addEventListener("click", () => openProductFloatPanel());
@@ -4791,13 +4739,17 @@ function closeSettingsDrawer() {
 }
 
 function openCollectorEntry() {
+  if (currentProductId()) {
+    void runOneClickCollect();
+    return;
+  }
   switchView("generate");
   openSettingsDrawer();
   window.setTimeout(() => {
     const block = document.getElementById("settingsMaintenanceBlock");
     if (block) block.open = true;
     document.getElementById("hotspotSyncBar")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    document.getElementById("hotspotCollectBtn")?.focus();
+    document.getElementById("hotspotOneClickCollectBtn")?.focus();
   }, 180);
 }
 
@@ -4810,54 +4762,134 @@ function openTikTokLibraryEntry() {
   }, 180);
 }
 
+const ONBOARDING_GUIDE_DISMISSED_KEY = "vl_onboarding_guide_dismissed";
 const STARTER_GUIDE_DISMISSED_KEY = "vl_starter_guide_dismissed";
 const WORKFLOW_GUIDE_DISMISSED_KEY = "vl_workflow_guide_dismissed";
 
-function isStarterGuideDismissed() {
+const ONBOARDING_STEPS = [
+  {
+    phase: "概览",
+    title: "海外视频本地化工作台",
+    desc: "用于分析 TikTok 爆款、迁移结构节奏、生成品牌脚本并产出 AI 分镜视频。建议先完成素材准备，再按底部工作台四步创作。",
+    workflowStep: null,
+  },
+  {
+    phase: "素材准备",
+    title: "抓取 TikTok 对标",
+    desc: "点顶栏「⟳ 一键采集」（或设置 → 素材维护 → 一键采集）。按当前产品自动打开 Chrome 抓取 TikTok，完成后整理品类与去重。请在弹出窗口完成 TikTok 登录/验证码。",
+    workflowStep: null,
+  },
+  {
+    phase: "素材准备",
+    title: "整理素材库",
+    desc: "点顶栏「素材」打开对标库，确认保留哪些视频；可在设置里点「拆解新素材」做规则拆解，或「整理素材库」做品类整理与去重。",
+    workflowStep: null,
+  },
+  {
+    phase: "创作流程",
+    title: "① 配置产品与场景标签",
+    desc: "在底部工作台点「产品」，选择产品并为人群、场景、卖点、痛点各选至少一项，避免脚本跑偏。",
+    workflowStep: "product",
+  },
+  {
+    phase: "创作流程",
+    title: "② 选择提示词或填写要求",
+    desc: "点「提示词」选用内置模板，或在输入框填写创作要求。提示词控制风格与开场，不复制对标文案。",
+    workflowStep: "prompt",
+  },
+  {
+    phase: "创作流程",
+    title: "③ 选择同品类对标",
+    desc: "点「对标」从素材库选爆款参考，用于迁移镜头节奏与结构；产品外观仍以白底主图锁定。",
+    workflowStep: "ref",
+  },
+  {
+    phase: "创作流程",
+    title: "④ 生成脚本与 AI 成片",
+    desc: "点「开始创作」先生成脚本预览，确认分镜与口播后继续产出 SeedDance 分镜视频，可下载成片 zip。",
+    workflowStep: "create",
+  },
+];
+
+function isOnboardingGuideDismissed() {
   return (
-    localStorage.getItem(STARTER_GUIDE_DISMISSED_KEY) === "1"
+    localStorage.getItem(ONBOARDING_GUIDE_DISMISSED_KEY) === "1"
+    || localStorage.getItem(STARTER_GUIDE_DISMISSED_KEY) === "1"
+    || localStorage.getItem(WORKFLOW_GUIDE_DISMISSED_KEY) === "1"
     || localStorage.getItem("vl_starter_guide_closed") === "1"
   );
 }
 
-function isWorkflowGuideDismissed() {
-  return localStorage.getItem(WORKFLOW_GUIDE_DISMISSED_KEY) === "1";
-}
-
-function dismissStarterGuide() {
+function dismissOnboardingGuide() {
+  localStorage.setItem(ONBOARDING_GUIDE_DISMISSED_KEY, "1");
   localStorage.setItem(STARTER_GUIDE_DISMISSED_KEY, "1");
-  localStorage.removeItem("vl_starter_guide_closed");
-  closeStarterGuidePanel();
-  maybeOpenWorkflowGuidePanel();
-}
-
-function dismissWorkflowGuide() {
   localStorage.setItem(WORKFLOW_GUIDE_DISMISSED_KEY, "1");
-  closeWorkflowGuidePanel();
+  localStorage.removeItem("vl_starter_guide_closed");
+  closeOnboardingGuide();
 }
 
-function openStarterGuidePanel() {
-  if (isStarterGuideDismissed()) return;
-  openFloatPanel("starterGuidePanel", "starterGuideBackdrop");
+function renderOnboardingGuideStep() {
+  const idx = Math.max(0, Math.min(state.onboardingStepIndex, ONBOARDING_STEPS.length - 1));
+  state.onboardingStepIndex = idx;
+  const step = ONBOARDING_STEPS[idx];
+  const total = ONBOARDING_STEPS.length;
+  const progressEl = document.getElementById("onboardingGuideProgress");
+  const phaseEl = document.getElementById("onboardingGuidePhase");
+  const titleEl = document.getElementById("onboardingGuideStepTitle");
+  const descEl = document.getElementById("onboardingGuideStepDesc");
+  const trackEl = document.getElementById("onboardingGuideTrack");
+  const workflowEl = document.getElementById("onboardingWorkflowSteps");
+  const prevBtn = document.getElementById("onboardingGuidePrevBtn");
+  const nextBtn = document.getElementById("onboardingGuideNextBtn");
+  if (progressEl) progressEl.textContent = `第 ${idx + 1} / ${total} 步`;
+  if (phaseEl) phaseEl.textContent = step.phase;
+  if (titleEl) titleEl.textContent = step.title;
+  if (descEl) descEl.textContent = step.desc;
+  if (trackEl) {
+    trackEl.innerHTML = ONBOARDING_STEPS.map((_, i) => {
+      const cls = i < idx ? "is-done" : (i === idx ? "is-active" : "");
+      return `<span class="${cls}"></span>`;
+    }).join("");
+  }
+  if (workflowEl) {
+    workflowEl.classList.toggle("hidden", !step.workflowStep);
+    workflowEl.querySelectorAll("[data-onboarding-workflow]").forEach((el) => {
+      const key = el.dataset.onboardingWorkflow;
+      const order = ["product", "prompt", "ref", "create"];
+      const cur = order.indexOf(step.workflowStep);
+      const pos = order.indexOf(key);
+      el.classList.toggle("is-done", cur >= 0 && pos < cur);
+      el.classList.toggle("is-active", key === step.workflowStep);
+    });
+  }
+  if (prevBtn) prevBtn.disabled = idx <= 0;
+  if (nextBtn) nextBtn.textContent = idx >= total - 1 ? "开始使用" : "下一步";
 }
 
-function closeStarterGuidePanel() {
-  closeFloatPanel("starterGuidePanel", "starterGuideBackdrop");
+function openOnboardingGuide({ manual = false, step = 0 } = {}) {
+  if (!manual && isOnboardingGuideDismissed()) return;
+  state.onboardingStepIndex = Math.max(0, Math.min(step, ONBOARDING_STEPS.length - 1));
+  renderOnboardingGuideStep();
+  openFloatPanel("onboardingGuidePanel", "onboardingGuideBackdrop");
 }
 
-function openWorkflowGuidePanel({ manual = false } = {}) {
-  if (!manual && isWorkflowGuideDismissed()) return;
-  syncWorkflowGuide();
-  openFloatPanel("workflowGuidePanel", "workflowGuideBackdrop");
+function closeOnboardingGuide() {
+  closeFloatPanel("onboardingGuidePanel", "onboardingGuideBackdrop");
 }
 
-function closeWorkflowGuidePanel() {
-  closeFloatPanel("workflowGuidePanel", "workflowGuideBackdrop");
+function nextOnboardingStep() {
+  if (state.onboardingStepIndex >= ONBOARDING_STEPS.length - 1) {
+    dismissOnboardingGuide();
+    return;
+  }
+  state.onboardingStepIndex += 1;
+  renderOnboardingGuideStep();
 }
 
-function maybeOpenWorkflowGuidePanel() {
-  if (isWorkflowGuideDismissed() || isAnyFloatPanelOpen()) return;
-  window.setTimeout(() => openWorkflowGuidePanel(), 320);
+function prevOnboardingStep() {
+  if (state.onboardingStepIndex <= 0) return;
+  state.onboardingStepIndex -= 1;
+  renderOnboardingGuideStep();
 }
 
 async function refreshCollectorRuntimeHint() {
@@ -5011,11 +5043,41 @@ function setHotspotAutoSyncEnabled(on) {
   else clearHotspotAutoSync();
 }
 
+function clearHotspotBusyTicker() {
+  if (state.hotspotBusyTimer) {
+    clearInterval(state.hotspotBusyTimer);
+    state.hotspotBusyTimer = null;
+  }
+}
+
+function startHotspotBusyMessage(baseMessage) {
+  clearHotspotBusyTicker();
+  state.hotspotBusyMessage = baseMessage;
+  state.hotspotBusyTimer = window.setInterval(() => {
+    const sec = Math.floor((Date.now() - (state.hotspotBusyStartedAt || Date.now())) / 1000);
+    state.hotspotBusyMessage = `${baseMessage}（已等待 ${sec}s，请勿关闭弹出的 Chrome）`;
+    syncHotspotStatusUi();
+  }, 1000);
+}
+
+function stopHotspotBusyMessage() {
+  clearHotspotBusyTicker();
+  state.hotspotBusyMessage = "";
+  state.hotspotBusyStartedAt = 0;
+}
+
 function syncHotspotStatusUi(hotspot = state.healthCache?.hotspot, maintenance = state.healthCache?.maintenance) {
   const statusEl = document.getElementById("hotspotSyncStatus");
   const bar = document.getElementById("hotspotSyncBar");
+  const noMysqlHint = document.getElementById("hotspotNoMysqlHint");
   if (!statusEl) return;
   const mysql = Boolean(state.healthCache?.tiktok_collector?.mysql_enabled);
+  noMysqlHint?.classList.toggle("hidden", mysql);
+  if (state.hotspotRefreshBusy && state.hotspotBusyMessage) {
+    statusEl.textContent = state.hotspotBusyMessage;
+    bar?.classList.toggle("is-busy", true);
+    return;
+  }
   const productId = currentProductId();
   const total = maintenance?.materials_total ?? hotspot?.materials_total ?? state.healthCache?.materials ?? 0;
   const analyzed = maintenance?.materials_analyzed ?? hotspot?.materials_analyzed ?? state.healthCache?.analyzed ?? 0;
@@ -5029,7 +5091,7 @@ function syncHotspotStatusUi(hotspot = state.healthCache?.hotspot, maintenance =
   const lastMaint = maintenance?.last_run_at || hotspot?.last_refresh_at;
   line += ` · ${formatHotspotLastSync(lastMaint)}`;
   if (!mysql) {
-    line += " · 无 MySQL 时需浏览器采集";
+    line += total > 0 ? " · 可点顶栏「一键采集」更新" : " · 素材为空，请点顶栏「一键采集」";
   }
   statusEl.textContent = line;
   bar?.classList.toggle("is-busy", Boolean(state.hotspotRefreshBusy));
@@ -5087,7 +5149,7 @@ async function runMaterialMaintenance({ sync = true, trim = true, prune = true, 
   }
 
   state.hotspotRefreshBusy = true;
-  const busyIds = ["hotspotMaintainBtn", "hotspotRefreshBtn", "hotspotPruneBtn", "hotspotDecomposeBtn", "hotspotCollectBtn", "hotspotClearLibraryBtn"];
+  const busyIds = HOTSPOT_BUSY_BTN_IDS;
   busyIds.forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = true; });
   const statusEl = document.getElementById("hotspotSyncStatus");
   syncHotspotStatusUi();
@@ -5157,6 +5219,7 @@ async function runClearMaterialLibrary() {
     renderRefFloatMaterialList();
     syncDockRefSlot();
     syncHotspotStatusUi();
+    syncOneClickCollectTopBtn();
     setScriptActionStatus(data.message || "对标素材库已清空，可重新采集测试。");
   } catch (err) {
     setScriptActionStatus(friendlyApiErrorMessage(err.message), { isError: true });
@@ -5188,6 +5251,124 @@ async function runDecomposeNewMaterials() {
   }
 }
 
+const HOTSPOT_BUSY_BTN_IDS = [
+  "hotspotOneClickCollectBtn",
+  "oneClickCollectTopBtn",
+  "hotspotMaintainBtn",
+  "hotspotRefreshBtn",
+  "hotspotPruneBtn",
+  "hotspotDecomposeBtn",
+  "hotspotCollectBtn",
+  "hotspotClearLibraryBtn",
+];
+
+function setHotspotBusyButtons(disabled) {
+  HOTSPOT_BUSY_BTN_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disabled;
+  });
+}
+
+async function runOneClickCollect({ silent = false } = {}) {
+  if (state.hotspotRefreshBusy) return false;
+  const productId = productIdForScopedCapture() || currentProductId();
+  if (!productId) {
+    if (!silent) {
+      setScriptActionStatus("一键采集前请先配置底部「产品」", { isError: true });
+      await openProductFloatPanel();
+    }
+    return false;
+  }
+  const mysql = Boolean(state.healthCache?.tiktok_collector?.mysql_enabled);
+  if (!silent) {
+    const label = currentProductLabel() || productId;
+    const msg = mysql
+      ? `将按「${label}」从 MySQL 同步热点并整理素材库。\n\n确定继续？`
+      : `将按「${label}」一键采集 TikTok 对标：\n\n`
+        + "① 自动弹出 Chrome（请在窗口内完成 TikTok 登录/验证码）\n"
+        + "② 抓取完成后自动整理品类与去重\n\n"
+        + "首次约 3–8 分钟，采集完成前请勿关闭 Chrome。\n\n确定开始？";
+    if (!window.confirm(msg)) return false;
+  }
+
+  state.hotspotRefreshBusy = true;
+  state.hotspotBusyStartedAt = Date.now();
+  setHotspotBusyButtons(true);
+  const keywordMap = state.healthCache?.hotspot?.keyword_map || {};
+  const collectKeywords = keywordMap[productId] || [productId];
+  const busyBase = mysql
+    ? `一键采集中：同步 MySQL 热点并整理…`
+    : `一键采集中：${collectKeywords.slice(0, 3).join(" / ")} · 请在弹出的 Chrome 完成 TikTok 登录`;
+  startHotspotBusyMessage(busyBase);
+  syncHotspotStatusUi();
+
+  try {
+    const data = await api("/api/materials/maintenance/one-click-collect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_id: productId, limit_per_keyword: 20 }),
+    });
+    if (state.healthCache) {
+      state.healthCache.maintenance = {
+        ...(state.healthCache.maintenance || {}),
+        last_run_at: data.refreshed_at,
+        last_product_id: productId,
+        last_message: data.message,
+        materials_total: data.materials_total,
+        materials_analyzed: data.materials_analyzed,
+      };
+      state.healthCache.hotspot = {
+        ...(state.healthCache.hotspot || {}),
+        last_refresh_at: data.refreshed_at,
+        last_product_id: productId,
+        last_mode: data.mode || "collect",
+        materials_total: data.materials_total,
+        materials_analyzed: data.materials_analyzed,
+      };
+      state.healthCache.materials = data.materials_total;
+      state.healthCache.analyzed = data.materials_analyzed;
+    }
+    await loadMaterials();
+    renderAllImitationViralGrids();
+    repopulateScriptMaterials();
+    syncHotspotStatusUi();
+    syncOneClickCollectTopBtn();
+    if (!silent) {
+      const zeroCollect = !mysql
+        && Number(data.collect?.total_collected || 0) === 0
+        && Number(data.collect?.imported_new_links || 0) === 0;
+      if (zeroCollect) {
+        setScriptActionStatus(
+          "一键采集未入库：未抓到 TikTok 视频。请确认 Chrome 已弹出并完成登录，用「启动页面.cmd」启动工作台后重试。",
+          { isError: true },
+        );
+      } else if (data.message) {
+        setScriptActionStatus(data.message);
+      }
+    }
+    return Boolean(data.ok);
+  } catch (err) {
+    if (!silent) setScriptActionStatus(friendlyApiErrorMessage(err.message), { isError: true });
+    syncHotspotStatusUi();
+    return false;
+  } finally {
+    stopHotspotBusyMessage();
+    state.hotspotRefreshBusy = false;
+    setHotspotBusyButtons(false);
+    syncHotspotStatusUi();
+    syncOneClickCollectTopBtn();
+  }
+}
+
+function syncOneClickCollectTopBtn() {
+  const btn = document.getElementById("oneClickCollectTopBtn");
+  if (!btn) return;
+  const total = Number(state.healthCache?.materials ?? 0);
+  const busy = Boolean(state.hotspotRefreshBusy);
+  btn.classList.toggle("is-empty-pulse", total <= 0 && !busy);
+  btn.disabled = busy;
+}
+
 async function runHotspotRefresh(mode = "auto", { silent = false } = {}) {
   if (state.hotspotRefreshBusy) return false;
   const productId = productIdForScopedCapture() || currentProductId();
@@ -5200,21 +5381,22 @@ async function runHotspotRefresh(mode = "auto", { silent = false } = {}) {
   }
   if (mode === "collect" && !silent) {
     const ok = window.confirm(
-      "将打开浏览器抓取 TikTok 新热点（需登录/验证码）。\n\n建议内网先完成一次登录后再批量采集。继续？",
+      "将打开 Chrome/Edge 抓取 TikTok 对标（需登录/验证码，首次约 3–8 分钟）。\n\n"
+      + "请留意弹出的浏览器窗口并完成 TikTok 登录，采集完成前不要关闭该窗口。\n\n继续？",
     );
     if (!ok) return false;
   }
 
   state.hotspotRefreshBusy = true;
-  const refreshBtn = document.getElementById("hotspotRefreshBtn");
-  const collectBtn = document.getElementById("hotspotCollectBtn");
-  const statusEl = document.getElementById("hotspotSyncStatus");
-  if (refreshBtn) refreshBtn.disabled = true;
-  if (collectBtn) collectBtn.disabled = true;
+  state.hotspotBusyStartedAt = Date.now();
+  setHotspotBusyButtons(true);
+  const keywordMap = state.healthCache?.hotspot?.keyword_map || {};
+  const collectKeywords = keywordMap[productId] || [productId];
+  const busyBase = mode === "collect"
+    ? `浏览器采集中：${collectKeywords.slice(0, 3).join(" / ")} · 请在弹出的 Chrome 完成 TikTok 登录`
+    : "正在同步热点对标…";
+  startHotspotBusyMessage(busyBase);
   syncHotspotStatusUi();
-  if (statusEl && !silent) {
-    statusEl.textContent = mode === "collect" ? "浏览器采集中…若弹出窗口请完成 TikTok 登录" : "正在同步热点对标…";
-  }
 
   try {
     const data = await api("/api/hotspot/refresh", {
@@ -5224,7 +5406,7 @@ async function runHotspotRefresh(mode = "auto", { silent = false } = {}) {
         product_id: productId,
         mode,
         limit: 80,
-        limit_per_keyword: 30,
+        limit_per_keyword: mode === "collect" ? 20 : 30,
       }),
     });
     if (state.healthCache) {
@@ -5243,8 +5425,18 @@ async function runHotspotRefresh(mode = "auto", { silent = false } = {}) {
     renderAllImitationViralGrids();
     repopulateScriptMaterials();
     syncHotspotStatusUi(state.healthCache?.hotspot);
-    if (!silent && data.message) {
-      setScriptActionStatus(data.message);
+    if (!silent) {
+      const zeroCollect = mode === "collect"
+        && Number(data.total_collected || 0) === 0
+        && Number(data.imported_new_links || 0) === 0;
+      if (zeroCollect) {
+        setScriptActionStatus(
+          "采集未入库：未抓到 TikTok 视频。请确认 Chrome 已弹出、已完成登录/验证码，并用「启动页面.cmd」启动工作台后重试。",
+          { isError: true },
+        );
+      } else if (data.message) {
+        setScriptActionStatus(data.message);
+      }
     }
     return Boolean(data.ok);
   } catch (err) {
@@ -5254,10 +5446,11 @@ async function runHotspotRefresh(mode = "auto", { silent = false } = {}) {
     syncHotspotStatusUi();
     return false;
   } finally {
+    stopHotspotBusyMessage();
     state.hotspotRefreshBusy = false;
-    if (refreshBtn) refreshBtn.disabled = false;
-    if (collectBtn) collectBtn.disabled = false;
+    setHotspotBusyButtons(false);
     syncHotspotStatusUi();
+    syncOneClickCollectTopBtn();
   }
 }
 
@@ -5267,6 +5460,12 @@ function initHotspotSync() {
     autoCb.checked = isHotspotAutoSyncEnabled();
     autoCb.addEventListener("change", () => setHotspotAutoSyncEnabled(autoCb.checked));
   }
+  document.getElementById("hotspotOneClickCollectBtn")?.addEventListener("click", () => {
+    void runOneClickCollect();
+  });
+  document.getElementById("oneClickCollectTopBtn")?.addEventListener("click", () => {
+    void runOneClickCollect();
+  });
   document.getElementById("hotspotMaintainBtn")?.addEventListener("click", () => {
     void runMaterialMaintenance();
   });
@@ -5280,7 +5479,7 @@ function initHotspotSync() {
     void runDecomposeNewMaterials();
   });
   document.getElementById("hotspotCollectBtn")?.addEventListener("click", () => {
-    void runHotspotRefresh("collect");
+    void runOneClickCollect();
   });
   document.getElementById("decomposeLibraryBtn")?.addEventListener("click", () => openMaterialLibraryDrawer());
   document.getElementById("hotspotClearLibraryBtn")?.addEventListener("click", () => {
@@ -5434,11 +5633,10 @@ function syncDockProductSlot() {
     const btn = document.getElementById(id);
     if (!btn) continue;
     btn.classList.toggle("has-value", ready);
-    const spans = btn.querySelectorAll("span");
-    const labelSpan = spans[spans.length - 1];
+    const labelSpan = btn.querySelector(".dock-upload-label");
     if (labelSpan) {
       labelSpan.textContent = ready && productName
-        ? productName.slice(0, 10)
+        ? truncateDockLabel(productName, 10)
         : "产品";
     }
     btn.title = ready && productName ? `已选：${productName}` : "先选产品与场景标签";
@@ -5456,11 +5654,12 @@ function syncDockRefSlot() {
     btn.classList.toggle("dock-upload-slot-locked", !ready);
     btn.classList.toggle("has-value", ready && Boolean(state.selectedMaterialId));
     const item = state.items.find((i) => i.link_id === state.selectedMaterialId);
-    const refTitle = item ? (item.title || "").trim().slice(0, 10) || `#${item.link_id}` : "";
-    const spans = btn.querySelectorAll("span");
-    const labelSpan = spans[spans.length - 1];
+    const refTitle = item ? (item.title || "").trim() || `#${item.link_id}` : "";
+    const labelSpan = btn.querySelector(".dock-upload-label");
     if (labelSpan) {
-      labelSpan.textContent = ready && state.selectedMaterialId && refTitle ? refTitle : "对标";
+      labelSpan.textContent = ready && state.selectedMaterialId && refTitle
+        ? truncateDockLabel(refTitle, 10)
+        : "对标";
     }
     btn.title = ready
       ? (state.selectedMaterialId ? `已选对标：${refTitle}` : "选择同品类对标视频")
@@ -5616,6 +5815,7 @@ async function refreshHealth() {
     if (anaEl) anaEl.textContent = h.analyzed ?? 0;
     syncDockChipsFromHealth();
     syncHotspotStatusUi(h.hotspot, h.maintenance);
+    syncOneClickCollectTopBtn();
     return h;
   } catch (err) {
     console.warn("refreshHealth failed", err);
@@ -7500,22 +7700,12 @@ document.getElementById("openMaterialLibraryFromSettings")?.addEventListener("cl
   closeSettingsDrawer();
   openMaterialLibraryDrawer();
 });
-document.getElementById("guideGoCollectorBtn")?.addEventListener("click", () => {
-  closeStarterGuidePanel();
-  openCollectorEntry();
-});
-document.getElementById("guideGoLibraryBtn")?.addEventListener("click", () => {
-  closeStarterGuidePanel();
-  openTikTokLibraryEntry();
-});
-document.getElementById("starterGuideSkipBtn")?.addEventListener("click", dismissStarterGuide);
-document.getElementById("starterGuideCloseBtn")?.addEventListener("click", dismissStarterGuide);
-document.getElementById("starterGuideBackdrop")?.addEventListener("click", dismissStarterGuide);
-document.getElementById("openWorkflowGuideBtn")?.addEventListener("click", () => openWorkflowGuidePanel({ manual: true }));
-document.getElementById("workflowGuideGotItBtn")?.addEventListener("click", () => closeWorkflowGuidePanel());
-document.getElementById("workflowGuideSkipBtn")?.addEventListener("click", dismissWorkflowGuide);
-document.getElementById("workflowGuideCloseBtn")?.addEventListener("click", () => closeWorkflowGuidePanel());
-document.getElementById("workflowGuideBackdrop")?.addEventListener("click", () => closeWorkflowGuidePanel());
+document.getElementById("openOnboardingGuideBtn")?.addEventListener("click", () => openOnboardingGuide({ manual: true, step: 0 }));
+document.getElementById("onboardingGuideNextBtn")?.addEventListener("click", () => nextOnboardingStep());
+document.getElementById("onboardingGuidePrevBtn")?.addEventListener("click", () => prevOnboardingStep());
+document.getElementById("onboardingGuideSkipBtn")?.addEventListener("click", dismissOnboardingGuide);
+document.getElementById("onboardingGuideCloseBtn")?.addEventListener("click", () => closeOnboardingGuide());
+document.getElementById("onboardingGuideBackdrop")?.addEventListener("click", () => closeOnboardingGuide());
 
 document.getElementById("runWorkspaceBackupBtn")?.addEventListener("click", async () => {
   const el = document.getElementById("backupStatus");
@@ -7786,10 +7976,8 @@ async function bootstrapApp() {
   syncRestoreWorkflowButton();
   initHotspotSync();
   activateView("generate");
-  if (!isStarterGuideDismissed()) {
-    window.setTimeout(() => openStarterGuidePanel(), 480);
-  } else if (!isWorkflowGuideDismissed()) {
-    window.setTimeout(() => openWorkflowGuidePanel(), 480);
+  if (!isOnboardingGuideDismissed()) {
+    window.setTimeout(() => openOnboardingGuide(), 480);
   }
 }
 

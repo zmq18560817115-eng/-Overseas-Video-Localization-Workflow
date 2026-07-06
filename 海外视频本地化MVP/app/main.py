@@ -88,7 +88,7 @@ from .feedback_tags import ISSUE_TAG_DEFS
 from .feishu_bridge import feishu_auth_url_payload, feishu_doctor_payload, feishu_status_payload
 from .hotspot_refresh import hotspot_status_payload, refresh_hotspot_videos
 from .llm_script import pick_template
-from .material_maintenance import maintenance_status_payload, run_material_maintenance, clear_material_library
+from .material_maintenance import maintenance_status_payload, run_material_maintenance, clear_material_library, run_one_click_collect
 from .olm_bridge import (
     build_delivery_zip,
     delivery_ready,
@@ -145,7 +145,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 194
+UI_VERSION = 200
 
 
 def _render_index() -> HTMLResponse:
@@ -293,6 +293,11 @@ class MaterialMaintenanceRequest(BaseModel):
     trim: bool = True
     prune: bool = True
     dry_run: bool = False
+
+
+class OneClickCollectRequest(BaseModel):
+    product_id: str = ""
+    limit_per_keyword: int = Field(default=20, ge=1, le=200)
 
 
 class EnsureAnalysisRequest(BaseModel):
@@ -1100,6 +1105,27 @@ async def materials_maintenance_run(body: MaterialMaintenanceRequest) -> dict:
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"素材维护失败: {exc}") from exc
+    return result
+
+
+@app.post("/api/materials/maintenance/one-click-collect")
+async def materials_one_click_collect(body: OneClickCollectRequest) -> dict:
+    os.environ["TIKTOK_COLLECTOR_HEADLESS"] = "false"
+    os.environ.setdefault("TIKTOK_COLLECTOR_MANUAL_VERIFY_WAIT_MS", "180000")
+    try:
+        result = await run_in_threadpool(
+            run_one_click_collect,
+            product_id=body.product_id or "",
+            limit_per_keyword=body.limit_per_keyword,
+        )
+    except Exception as exc:
+        msg = str(exc).strip() or "一键采集失败"
+        if not msg.startswith("TikTok") and "Playwright" not in msg:
+            msg = f"一键采集失败: {msg}"
+        raise HTTPException(status_code=500, detail=msg) from exc
+    items = load_materials()
+    result["materials_total"] = len(items)
+    result["materials_analyzed"] = sum(1 for item in items if item.get("has_analysis"))
     return result
 
 

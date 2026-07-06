@@ -49,6 +49,7 @@
       <button type="button" class="top-stat-pill" id="openMaterialLibraryAnalyzedBtn" title="打开已拆解素材">
         <strong id="statAnalyzed">-</strong> 已拆解
       </button>
+      <button type="button" class="top-stat-pill top-stat-pill-collect" id="oneClickCollectTopBtn" title="按当前产品一键采集 TikTok 对标并整理素材库">⟳ 一键采集</button>
       <button type="button" class="top-stat-pill hidden" id="restoreWorkflowBtn" title="恢复上次产品、标签与对标配置">↺ 上次配置</button>
     </div>
     </div>
@@ -126,7 +127,8 @@
       </details>
       <details class="settings-block" id="settingsMaintenanceBlock" open>
         <summary>素材维护</summary>
-        <p class="hint muted">同步热点、整理对标素材、浏览器采集与清空重测均在此操作。</p>
+        <p class="hint muted">首选顶栏「一键采集」；此处可整理素材库、拆解新素材或清空重测。</p>
+        <p class="hint muted" id="hotspotNoMysqlHint" hidden>未配置 MySQL 时，请点「一键采集」：自动打开 Chrome 抓取 TikTok 并整理素材库。</p>
         <div class="hotspot-sync-bar settings-hotspot-bar" id="hotspotSyncBar" aria-live="polite">
           <div class="hotspot-sync-main">
             <span class="hotspot-sync-icon" aria-hidden="true">⟳</span>
@@ -140,11 +142,12 @@
               <input type="checkbox" id="hotspotAutoSync" />
               <span>自动维护</span>
             </label>
-            <button type="button" class="primary pill-btn pill-btn-sm" id="hotspotMaintainBtn" title="同步热点 + 移除非品类 + 去重限额（保留已拆解/成稿）">一键维护</button>
+            <button type="button" class="primary pill-btn pill-btn-sm" id="hotspotOneClickCollectBtn" title="按当前产品采集 TikTok 对标并自动整理素材库">一键采集</button>
+            <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotMaintainBtn" title="仅同步 MySQL / 整理品类与去重（不打开浏览器）">整理素材库</button>
             <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotRefreshBtn" title="仅从 MySQL 拉取高互动热点">更新热点</button>
             <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotPruneBtn" title="移除非品类并去重限额，不拉取新数据">整理素材</button>
             <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotDecomposeBtn" title="对未拆解素材批量规则拆解（免费）">拆解新素材</button>
-            <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotCollectBtn" title="浏览器抓取 TikTok 新热点">浏览器采集</button>
+            <button type="button" class="secondary pill-btn pill-btn-sm hidden" id="hotspotCollectBtn" title="与「一键采集」相同，保留兼容" hidden>浏览器采集</button>
             <button type="button" class="secondary pill-btn pill-btn-sm" id="decomposeLibraryBtn" title="打开对标素材库">素材库</button>
             <button type="button" class="secondary pill-btn pill-btn-sm danger-outline" id="hotspotClearLibraryBtn" title="清空全部对标视频与拆解结果，保留产品与采集关键词">清空素材库</button>
           </div>
@@ -334,65 +337,31 @@
     </footer>
   </div>
 
-  <div id="starterGuideBackdrop" class="product-float-backdrop starter-guide-backdrop" hidden></div>
-  <div id="starterGuidePanel" class="product-float-panel starter-guide-panel" role="dialog" aria-modal="true" aria-labelledby="starterGuideTitle" aria-hidden="true" hidden style="display:none">
+  <div id="onboardingGuideBackdrop" class="product-float-backdrop onboarding-guide-backdrop" hidden></div>
+  <div id="onboardingGuidePanel" class="product-float-panel onboarding-guide-panel" role="dialog" aria-modal="true" aria-labelledby="onboardingGuideTitle" aria-hidden="true" hidden style="display:none">
     <div class="product-float-head">
       <div>
-        <h2 id="starterGuideTitle" class="product-float-title">新手使用指引</h2>
-        <p class="product-float-sub">首次使用建议按以下顺序完成配置</p>
+        <h2 id="onboardingGuideTitle" class="product-float-title">使用教程</h2>
+        <p class="product-float-sub" id="onboardingGuideProgress">第 1 / 7 步</p>
       </div>
-      <button type="button" class="settings-close" id="starterGuideCloseBtn" aria-label="跳过指引">×</button>
+      <button type="button" class="settings-close" id="onboardingGuideCloseBtn" aria-label="关闭">×</button>
     </div>
-    <div class="product-float-body starter-guide-float-body">
-      <p class="starter-guide-lead">推荐顺序：先抓 TikTok 对标，再看素材库，最后进入视频生成或爆款模仿。</p>
-      <ol class="starter-guide-steps starter-guide-steps-simple">
-        <li>点右上角「设置」，在 TikTok 采集里输入关键词开始抓取。</li>
-        <li>抓完后打开素材库，确认哪些视频值得保留、拆解和复用。</li>
-        <li>回到当前页选择产品、对标和场景，继续生成脚本与视频任务。</li>
+    <div class="product-float-body onboarding-guide-body">
+      <div class="onboarding-guide-track" id="onboardingGuideTrack" aria-hidden="true"></div>
+      <span class="onboarding-guide-phase" id="onboardingGuidePhase">概览</span>
+      <h3 class="onboarding-guide-step-title" id="onboardingGuideStepTitle">海外视频本地化工作台</h3>
+      <p class="onboarding-guide-step-desc" id="onboardingGuideStepDesc"></p>
+      <ol class="workflow-guide-steps onboarding-guide-workflow hidden" id="onboardingWorkflowSteps" aria-label="创作四步">
+        <li data-onboarding-workflow="product"><span>1</span><strong>产品</strong><em>场景标签</em></li>
+        <li data-onboarding-workflow="prompt"><span>2</span><strong>提示词/结构</strong><em>可选模板</em></li>
+        <li data-onboarding-workflow="ref"><span>3</span><strong>对标</strong><em>爆款节奏</em></li>
+        <li data-onboarding-workflow="create"><span>4</span><strong>生成</strong><em>脚本到成片</em></li>
       </ol>
     </div>
-    <footer class="product-float-foot starter-guide-foot">
-      <div class="starter-guide-actions">
-        <button type="button" class="secondary pill-btn" id="guideGoCollectorBtn">打开 TikTok 采集</button>
-        <button type="button" class="secondary pill-btn" id="guideGoLibraryBtn">打开素材库</button>
-      </div>
-      <button type="button" class="secondary pill-btn starter-guide-skip" id="starterGuideSkipBtn">跳过，不再提示</button>
-    </footer>
-  </div>
-
-  <div id="workflowGuideBackdrop" class="product-float-backdrop workflow-guide-backdrop" hidden></div>
-  <div id="workflowGuidePanel" class="product-float-panel workflow-guide-panel" role="dialog" aria-modal="true" aria-labelledby="workflowGuidePanelTitle" aria-hidden="true" hidden style="display:none">
-    <div class="product-float-head">
-      <div>
-        <h2 id="workflowGuidePanelTitle" class="product-float-title">创作路径</h2>
-        <p class="product-float-sub">按「产品 → 提示词/结构 → 对标 → 脚本预览 → AI 成片」推进</p>
-      </div>
-      <button type="button" class="settings-close" id="workflowGuideCloseBtn" aria-label="关闭">×</button>
-    </div>
-    <div class="product-float-body workflow-guide-float-body">
-      <div class="workflow-guide-card" id="workflowGuideCard" aria-live="polite">
-        <div class="workflow-guide-main">
-          <span class="workflow-guide-eyebrow">当前步骤</span>
-          <strong id="workflowGuideTitle">先配置产品与场景标签</strong>
-          <p id="workflowGuideStatus">产品、人群、场景、卖点、痛点会决定脚本和分镜的安全边界。</p>
-        </div>
-        <ol class="workflow-guide-steps" aria-label="视频生成步骤">
-          <li data-workflow-step="product"><span>1</span><strong>产品</strong><em>场景标签</em></li>
-          <li data-workflow-step="prompt"><span>2</span><strong>提示词/结构</strong><em>可选模板</em></li>
-          <li data-workflow-step="ref"><span>3</span><strong>对标</strong><em>爆款节奏</em></li>
-          <li data-workflow-step="create"><span>4</span><strong>生成</strong><em>脚本到成片</em></li>
-        </ol>
-        <div class="workflow-guide-actions">
-          <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickProductBtn">选产品</button>
-          <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickPromptBtn">选提示词</button>
-          <button type="button" class="secondary pill-btn pill-btn-sm" id="workflowPickRefBtn">选对标</button>
-          <button type="button" class="primary pill-btn pill-btn-sm" id="workflowStartBtn">开始创作</button>
-        </div>
-      </div>
-    </div>
-    <footer class="product-float-foot workflow-guide-foot">
-      <button type="button" class="primary primary-dark" id="workflowGuideGotItBtn">知道了，开始配置</button>
-      <button type="button" class="secondary pill-btn workflow-guide-skip" id="workflowGuideSkipBtn">不再提示</button>
+    <footer class="product-float-foot onboarding-guide-foot">
+      <button type="button" class="secondary pill-btn" id="onboardingGuidePrevBtn" disabled>上一步</button>
+      <button type="button" class="primary primary-dark" id="onboardingGuideNextBtn">下一步</button>
+      <button type="button" class="secondary pill-btn onboarding-guide-skip" id="onboardingGuideSkipBtn">跳过，不再提示</button>
     </footer>
   </div>
 
@@ -401,14 +370,10 @@
       <div class="module-studio" data-module="generate">
         <div class="module-studio-scroll">
           <div class="studio-page-layout">
-            <section class="studio-major-block" aria-labelledby="decomposeBlockTitle">
-              <header class="studio-major-head">
-                <div class="studio-major-head-text">
-                  <h2 class="studio-major-title" id="decomposeBlockTitle">视频生成</h2>
-                  <p class="studio-major-desc">按「产品 → 提示词/结构 → 对标 → 脚本预览 → AI 成片」推进；点击爆款卡片可直接复刻运行。</p>
-                </div>
+            <section class="studio-major-block" aria-label="爆款参考与选题">
+              <header class="studio-major-head studio-major-head-tutorial-only">
                 <div class="studio-major-actions">
-                  <button type="button" class="text-link" id="openWorkflowGuideBtn">创作教程</button>
+                  <button type="button" class="text-link" id="openOnboardingGuideBtn">创作教程</button>
                   <button type="button" class="secondary pill-btn hidden" id="decomposeCollectorBtn" hidden aria-hidden="true" tabindex="-1">素材收集</button>
                 </div>
               </header>
@@ -467,19 +432,19 @@
             <div class="studio-dock-uploads">
               <button type="button" class="dock-upload-slot" id="dockOpenProductBtn" title="先选产品与场景标签">
                 <span class="dock-upload-icon">📦</span>
-                <span>产品</span>
+                <span class="dock-upload-label">产品</span>
               </button>
               <button type="button" class="dock-upload-slot dock-upload-slot-prompt dock-gen-only" id="dockOpenPromptSelectBtn" title="选择创作提示词模板">
                 <span class="dock-upload-icon">✦</span>
-                <span>提示词选择</span>
+                <span class="dock-upload-label">提示词</span>
               </button>
               <button type="button" class="dock-upload-slot dock-upload-slot-ref" id="dockOpenMaterialsBtn" title="请先配置产品" disabled>
                 <span class="dock-upload-icon">▶</span>
-                <span>对标</span>
+                <span class="dock-upload-label">对标</span>
               </button>
             </div>
             <div class="studio-dock-main dock-gen-prompt-area">
-              <textarea id="generateDockPrompt" class="studio-dock-prompt" rows="3" placeholder="① 产品场景 → ② 提示词模板/创作要求 → ③ 对标爆款节奏 → ④ 开始创作"></textarea>
+              <textarea id="generateDockPrompt" class="studio-dock-prompt" rows="3" placeholder="填写创作要求，或点左侧「提示词」选用模板"></textarea>
             </div>
           </div>
           <div id="seedanceProgress" class="seedance-progress hidden" aria-live="polite">
@@ -508,7 +473,7 @@
               <div class="dock-gen-popover-wrap" id="dockVideoSettingsWrap">
                 <button type="button" class="dock-gen-action-btn" id="dockVideoSettingsBtn" aria-expanded="false" aria-controls="dockVideoSettingsPanel">
                   <span class="dock-gen-action-icon" aria-hidden="true">☰</span>
-                  <span id="dockVideoSettingsLabel">720P · 9:16</span>
+                  <span id="dockVideoSettingsLabel" class="dock-gen-action-text">720P · 9:16</span>
                 </button>
                 <div id="dockVideoSettingsPanel" class="dock-video-settings-panel hidden" role="dialog" aria-label="视频参数" hidden>
                   <div class="dock-settings-section">
@@ -534,19 +499,19 @@
               <div class="dock-gen-popover-wrap" id="dockGenerateCountWrap">
                 <button type="button" class="dock-gen-action-btn" id="dockGenerateCountBtn" aria-expanded="false" aria-controls="dockGenerateCountMenu">
                   <span class="dock-gen-action-icon" aria-hidden="true">▭</span>
-                  <span id="dockGenerateCountLabel">脚本变体 1</span>
+                  <span id="dockGenerateCountLabel" class="dock-gen-action-text">脚本变体 1</span>
                 </button>
                 <div id="dockGenerateCountMenu" class="dock-gen-count-menu hidden" role="menu" aria-label="脚本变体数" hidden></div>
               </div>
               <button type="button" class="dock-gen-action-btn" id="dockPromptEnhanceBtn" title="结合标签与对标结构强化创作指令">
                 <span class="dock-gen-action-icon" aria-hidden="true">✦</span>
-                <span>提示词增强</span>
+                <span class="dock-gen-action-text">提示词增强</span>
               </button>
             </div>
             </div>
             <button type="button" class="secondary pill-btn studio-dock-reassemble hidden" id="generateDockReassemble" title="仅拼接已有分镜 mp4，不会重新生成各镜">重新合成</button>
             <button type="button" class="primary primary-dark studio-dock-run" id="generateDockRun">
-              <span class="dock-run-icon">✦</span> 开始创作
+              <span class="dock-run-icon">✦</span><span class="dock-run-label">开始创作</span>
             </button>
           </footer>
         </div>
@@ -612,15 +577,15 @@
             <div class="studio-dock-uploads">
               <button type="button" class="dock-upload-slot" id="imitateOpenProductBtn" title="先选产品与场景标签">
                 <span class="dock-upload-icon">📦</span>
-                <span>产品</span>
+                <span class="dock-upload-label">产品</span>
               </button>
               <button type="button" class="dock-upload-slot dock-upload-slot-ref" id="imitateOpenMaterialsBtn" title="请先配置产品" disabled>
                 <span class="dock-upload-icon">▶</span>
-                <span>对标</span>
+                <span class="dock-upload-label">对标</span>
               </button>
             </div>
             <div class="studio-dock-main">
-              <textarea id="imitateDockPrompt" class="studio-dock-prompt" rows="2" placeholder="① 配置「产品」标签 → ② 点击上方爆款卡片（自动拆解+出片）"></textarea>
+              <textarea id="imitateDockPrompt" class="studio-dock-prompt" rows="2" placeholder="配置产品后，点击上方爆款卡片或底部「开始复刻」"></textarea>
             </div>
           </div>
           <div id="imitateSeedanceProgress" class="seedance-progress hidden" aria-live="polite">
@@ -675,13 +640,13 @@
               </div>
               <button type="button" class="dock-gen-action-btn" id="imitatePromptEnhanceBtn" title="结合标签与对标结构强化创作指令">
                 <span class="dock-gen-action-icon" aria-hidden="true">✦</span>
-                <span>提示词增强</span>
+                <span class="dock-gen-action-text">提示词增强</span>
               </button>
             </div>
             </div>
             <button type="button" class="secondary pill-btn studio-dock-reassemble hidden" id="imitateDockReassemble" title="仅拼接已有分镜 mp4，不会重新生成各镜">重新合成</button>
             <button type="button" class="primary primary-dark studio-dock-run" id="imitateDockRun">
-              <span class="dock-run-icon">✦</span> 开始复刻
+              <span class="dock-run-icon">✦</span><span class="dock-run-label">开始复刻</span>
             </button>
           </footer>
         </div>
@@ -721,15 +686,15 @@
             <div class="studio-dock-uploads">
               <button type="button" class="dock-upload-slot" id="reverseDockProductBtn" title="选择产品以过滤素材与提示词库">
                 <span class="dock-upload-icon">📦</span>
-                <span id="reverseDockProductLabel">产品</span>
+                <span class="dock-upload-label" id="reverseDockProductLabel">产品</span>
               </button>
               <button type="button" class="dock-upload-slot" disabled title="规划中">
                 <span class="dock-upload-icon">📹</span>
-                <span>上传</span>
+                <span class="dock-upload-label">上传</span>
               </button>
               <button type="button" class="dock-upload-slot" id="reverseDockMaterialBtn" title="从素材库选择对标视频">
                 <span class="dock-upload-icon">▶</span>
-                <span id="reverseDockMaterialLabel">素材库</span>
+                <span class="dock-upload-label" id="reverseDockMaterialLabel">素材库</span>
               </button>
             </div>
             <div class="studio-dock-main">

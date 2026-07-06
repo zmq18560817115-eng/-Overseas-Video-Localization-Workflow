@@ -155,14 +155,82 @@ body {
   line-height: 1.2;
 }
 
-.starter-guide-panel {
-  width: min(480px, calc(100vw - 32px));
-  max-height: min(80vh, 520px);
+.starter-guide-panel,
+.onboarding-guide-panel {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(85vh, 560px);
   z-index: 38;
 }
 
-.starter-guide-backdrop {
+.starter-guide-backdrop,
+.onboarding-guide-backdrop {
   z-index: 37;
+}
+
+.onboarding-guide-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.onboarding-guide-track {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.onboarding-guide-track span {
+  height: 4px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  transition: background .2s;
+}
+
+.onboarding-guide-track span.is-done {
+  background: #86efac;
+}
+
+.onboarding-guide-track span.is-active {
+  background: #111827;
+}
+
+.onboarding-guide-phase {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.onboarding-guide-step-title {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.onboarding-guide-step-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.onboarding-guide-workflow {
+  margin-top: 4px;
+}
+
+.onboarding-guide-foot {
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.onboarding-guide-foot .onboarding-guide-skip {
+  margin-left: auto;
 }
 
 .workflow-guide-panel {
@@ -438,6 +506,27 @@ body {
   margin-top: 0;
 }
 
+.top-stat-pill-collect {
+  font-weight: 700;
+  color: var(--accent);
+  border-color: #fecaca;
+  background: #fff7f6;
+}
+
+.top-stat-pill-collect.is-empty-pulse {
+  animation: collect-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes collect-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 93, 76, 0.25); }
+  50% { box-shadow: 0 0 0 4px rgba(232, 93, 76, 0.12); }
+}
+
+.top-stat-pill-collect:disabled {
+  opacity: 0.6;
+  animation: none;
+}
+
 .top-stat-pill-action {
   font-weight: 600;
   color: var(--ink);
@@ -466,6 +555,15 @@ body {
   margin-bottom: 8px;
   padding-top: 4px;
   border-top: 1px solid var(--line-soft);
+}
+
+.studio-major-head-tutorial-only {
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.studio-major-head-tutorial-only .studio-major-actions {
+  margin-left: auto;
 }
 
 .studio-major-head {
@@ -612,6 +710,11 @@ body {
   color: var(--muted);
   line-height: 1.45;
   max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .studio-major-block .module-studio-head {
@@ -4764,6 +4867,9 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   font-size: 13px;
   font-weight: 700;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .feature-card-label span {
@@ -4771,6 +4877,9 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   margin-top: 2px;
   font-size: 11px;
   opacity: .85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .feature-card-badge {
@@ -5596,7 +5705,7 @@ body.studio-focus-mode .produce-complete-banner {
 }
 
 #generateDock.dock-gen-mode-generate .dock-upload-slot-ref {
-  display: flex;
+  display: grid;
 }
 
 #generateDock.dock-gen-mode-generate .studio-dock-main {
@@ -5617,7 +5726,7 @@ body.studio-focus-mode .produce-complete-banner {
 }
 
 #generateDock.dock-gen-mode-generate .dock-gen-only {
-  display: flex;
+  display: grid;
 }
 
 #generateDock.dock-gen-mode-generate .dock-upload-slot-prompt.has-value {
@@ -5635,6 +5744,10 @@ body.studio-focus-mode .produce-complete-banner {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .dock-workflow-status.is-ready {
@@ -5683,13 +5796,14 @@ body.studio-focus-mode .produce-complete-banner {
 }
 
 .dock-upload-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 64px;
-  height: 64px;
+  display: grid;
+  grid-template-rows: 22px minmax(0, 1fr);
+  align-items: stretch;
+  justify-items: center;
+  gap: 2px;
+  width: 72px;
+  height: 68px;
+  padding: 5px 4px 4px;
   border: 1px dashed #d1d5db;
   border-radius: 12px;
   background: #fafafa;
@@ -5697,6 +5811,7 @@ body.studio-focus-mode .produce-complete-banner {
   color: var(--muted);
   cursor: pointer;
   font-family: inherit;
+  overflow: hidden;
   transition: border-color .15s, background .15s;
 }
 
@@ -5710,7 +5825,29 @@ body.studio-focus-mode .produce-complete-banner {
   cursor: not-allowed;
 }
 
-.dock-upload-icon { font-size: 18px; line-height: 1; }
+.dock-upload-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 22px;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dock-upload-label {
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
+}
 
 .studio-dock-main {
   flex: 1;
@@ -5754,6 +5891,8 @@ body.studio-focus-mode .produce-complete-banner {
   align-items: center;
   gap: 6px;
   min-height: 32px;
+  max-width: 100%;
+  min-width: 0;
   padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
@@ -5764,6 +5903,13 @@ body.studio-focus-mode .produce-complete-banner {
   font-family: inherit;
   cursor: pointer;
   transition: border-color .15s, background .15s, box-shadow .15s;
+}
+
+.dock-gen-action-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dock-gen-action-btn:hover {
@@ -5972,6 +6118,8 @@ body.studio-focus-mode .produce-complete-banner {
   align-items: center;
   gap: 4px;
   min-height: 32px;
+  max-width: min(100%, 200px);
+  min-width: 0;
   padding: 6px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line);
@@ -5979,6 +6127,9 @@ body.studio-focus-mode .produce-complete-banner {
   font-size: 11px;
   font-weight: 600;
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dock-quota-chip.quota-warn {
@@ -6004,8 +6155,17 @@ body.studio-focus-mode .produce-complete-banner {
   align-items: center;
   gap: 6px;
   min-height: 32px;
+  max-width: min(100%, 180px);
+  min-width: 0;
   padding: 6px 18px;
   font-size: 13px;
+}
+
+.dock-run-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .seedance-progress {
@@ -7554,7 +7714,7 @@ body.studio-focus-mode .produce-complete-banner {
   }
   .studio-dock-body { flex-direction: column; gap: 8px; padding: 8px 10px; }
   .studio-dock-uploads { width: 100%; }
-  .dock-upload-slot { flex: 1; width: auto; height: 56px; min-width: 0; }
+  .dock-upload-slot { flex: 1; width: auto; height: 64px; min-width: 0; max-width: 96px; }
   #generateDock.dock-gen-mode-generate .studio-dock-main,
   #imitateDock .studio-dock-main {
     display: none;
