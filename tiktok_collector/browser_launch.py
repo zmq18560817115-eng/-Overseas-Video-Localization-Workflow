@@ -21,6 +21,19 @@ COLLECTOR_BROWSER_ARGS = [
     "--disable-session-crashed-bubble",
 ]
 
+SERVER_LAUNCHERS = frozenset({"startup-cmd", "server", "systemd", "nohup", "docker", "openclaw"})
+
+
+def collector_server_mode() -> bool:
+    """True when workbench is deployed for LAN/server use (not Cursor dev terminal)."""
+    if os.getenv("TIKTOK_COLLECTOR_SERVER_MODE", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return True
+    launcher = os.environ.get("WORKBENCH_LAUNCHER", "").strip().lower()
+    if launcher in SERVER_LAUNCHERS:
+        return True
+    host = os.environ.get("WORKBENCH_HOST", "").strip()
+    return host in {"0.0.0.0", "::", "[::]"}
+
 
 def sanitize_playwright_env() -> bool:
     """Remove Cursor sandbox browser path so Playwright can use system Chrome/Edge."""
@@ -56,7 +69,10 @@ def collector_runtime_status() -> dict:
         "system_browsers": [str(path) for _, path in browsers],
         "collector_ready": bool(browsers) and not blocked,
         "launch_blocked": blocked,
+        "server_mode": collector_server_mode(),
+        "deployment_hint": collector_deployment_hint(),
         "workbench_launcher": os.environ.get("WORKBENCH_LAUNCHER", ""),
+        "workbench_host": os.environ.get("WORKBENCH_HOST", ""),
     }
 
 
@@ -100,17 +116,42 @@ def discover_system_browsers() -> list[tuple[str, Path]]:
     return found
 
 
+def collector_deployment_hint() -> str:
+    if collector_server_mode():
+        return (
+            "服务器部署模式：Chrome 在运行 8788 服务的机器桌面上弹出；"
+            "首次需管理员在该桌面完成 TikTok 登录，之后全员可共用已保存的登录态。"
+        )
+    return "本机模式：采集时 Chrome 在本机弹出，请完成 TikTok 登录/验证码。"
+
+
 def collector_launch_blocked_reason() -> str | None:
     """Return user-facing reason when TikTok collector cannot run in this process."""
     sanitize_playwright_env()
-    if os.environ.get("WORKBENCH_LAUNCHER") != "startup-cmd":
+    if running_in_cursor_sandbox() and not discover_system_browsers():
+        return cursor_sandbox_hint()
+    if not collector_server_mode() and os.environ.get("WORKBENCH_LAUNCHER") != "startup-cmd":
         return (
             "当前工作台不是通过「启动页面.cmd」启动（常见于 Cursor 内置终端）。"
             "请关闭本服务窗口，在资源管理器中双击 "
             "海外视频本地化MVP\\启动页面.cmd 或根目录「启动工作台.cmd」，再重试采集。"
         )
-    if running_in_cursor_sandbox() and not discover_system_browsers():
-        return cursor_sandbox_hint()
+    browsers = discover_system_browsers()
+    if not browsers:
+        return (
+            "未在本机找到 Google Chrome 或 Microsoft Edge。"
+            "服务器部署请先安装 Chrome，并用「启动服务器.cmd」或设置 WORKBENCH_HOST=0.0.0.0 启动。"
+        )
+    if sys.platform.startswith("linux"):
+        from .config import load_settings
+
+        settings = load_settings()
+        if not settings.headless and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+            return (
+                "服务器无图形桌面（无 DISPLAY），无法弹出 Chrome。"
+                "请管理员通过远程桌面登录服务器后采集，或安装 xvfb 并配置虚拟显示；"
+                "也可在任意内网电脑用「启动页面.cmd」采集，数据经 MySQL 同步给全员。"
+            )
     return None
 
 

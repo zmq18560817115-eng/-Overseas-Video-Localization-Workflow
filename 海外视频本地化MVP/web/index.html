@@ -55,6 +55,8 @@
     </div>
   </header>
 
+  <div id="collectorRuntimeBanner" class="collector-runtime-banner hidden" role="alert" aria-live="polite"></div>
+
   <div id="videoGenErrorBanner" class="video-gen-error-banner hidden" role="alert" aria-live="assertive">
     <span class="video-gen-error-banner-icon" aria-hidden="true">!</span>
     <span id="videoGenErrorBannerText" class="video-gen-error-banner-text"></span>
@@ -128,7 +130,8 @@
       <details class="settings-block" id="settingsMaintenanceBlock" open>
         <summary>素材维护</summary>
         <p class="hint muted">首选顶栏「一键采集」；此处可整理素材库、拆解新素材或清空重测。</p>
-        <p class="hint muted" id="hotspotNoMysqlHint" hidden>未配置 MySQL 时，请点「一键采集」：自动打开 Chrome 抓取 TikTok 并整理素材库。</p>
+        <p class="hint muted" id="hotspotNoMysqlHint" hidden>素材为空时请点顶栏「一键采集」：自动打开 Chrome 抓取 TikTok（MySQL 库内热点请用「更新热点」）。</p>
+        <p class="hint collector-runtime-hint hidden" id="collectorRuntimeHint" role="status"></p>
         <div class="hotspot-sync-bar settings-hotspot-bar" id="hotspotSyncBar" aria-live="polite">
           <div class="hotspot-sync-main">
             <span class="hotspot-sync-icon" aria-hidden="true">⟳</span>

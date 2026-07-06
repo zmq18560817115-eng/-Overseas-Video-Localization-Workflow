@@ -4893,32 +4893,53 @@ function prevOnboardingStep() {
 }
 
 async function refreshCollectorRuntimeHint() {
-  const hint = document.getElementById("collectorRuntimeHint");
-  if (!hint) return;
-  try {
-    const health = await api("/api/health");
-    const runtime = health.tiktok_collector?.runtime || {};
-    if (runtime.launch_blocked) {
-      hint.classList.remove("hidden");
-      hint.textContent = runtime.launch_blocked;
-      return;
-    }
-    if (runtime.cursor_sandbox || (runtime.playwright_sandbox_path && !runtime.collector_ready)) {
-      hint.classList.remove("hidden");
-      hint.textContent =
-        "当前服务在 Cursor 沙箱中运行，TikTok 采集不可用。请关闭 Cursor 内的 python 服务，在资源管理器中双击「启动页面.cmd」重新打开工作台。";
-      return;
-    }
-    if (!runtime.system_browsers?.length) {
-      hint.classList.remove("hidden");
-      hint.textContent = "未检测到本机 Chrome/Edge，请先安装浏览器后再采集。";
-      return;
-    }
-    hint.classList.add("hidden");
-    hint.textContent = "";
-  } catch {
-    hint.classList.add("hidden");
+  const h = state.healthCache || await api("/api/health");
+  state.healthCache = h;
+  syncCollectorRuntimeUi(h);
+}
+
+function syncCollectorRuntimeUi(health = state.healthCache) {
+  const runtime = health?.tiktok_collector?.runtime || {};
+  let text = "";
+  if (runtime.launch_blocked) {
+    text = runtime.launch_blocked;
+  } else if (!runtime.collector_ready) {
+    text = runtime.deployment_hint || "采集环境未就绪：请安装 Chrome 并由管理员用「启动服务器.cmd」启动服务。";
+  } else if (runtime.server_mode && runtime.deployment_hint && Number(health?.materials ?? 0) <= 0) {
+    text = runtime.deployment_hint;
   }
+  for (const id of ["collectorRuntimeBanner", "collectorRuntimeHint"]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (!text) {
+      el.classList.add("hidden");
+      el.textContent = "";
+    } else {
+      el.classList.remove("hidden");
+      el.textContent = text;
+    }
+  }
+  const collectBtn = document.getElementById("oneClickCollectTopBtn");
+  if (collectBtn && runtime.launch_blocked) {
+    collectBtn.title = runtime.launch_blocked;
+  }
+}
+
+async function ensureCollectorReady() {
+  const h = state.healthCache || await api("/api/health");
+  state.healthCache = h;
+  syncCollectorRuntimeUi(h);
+  const runtime = h.tiktok_collector?.runtime || {};
+  if (runtime.launch_blocked) {
+    setScriptActionStatus(runtime.launch_blocked, { isError: true });
+    return false;
+  }
+  if (!runtime.collector_ready) {
+    const msg = runtime.deployment_hint || "采集环境未就绪，请联系管理员检查服务器 Chrome 与启动方式。";
+    setScriptActionStatus(msg, { isError: true });
+    return false;
+  }
+  return true;
 }
 
 const TIKTOK_DB_PREVIEW_LIMIT = 20;
@@ -5072,7 +5093,8 @@ function syncHotspotStatusUi(hotspot = state.healthCache?.hotspot, maintenance =
   const noMysqlHint = document.getElementById("hotspotNoMysqlHint");
   if (!statusEl) return;
   const mysql = Boolean(state.healthCache?.tiktok_collector?.mysql_enabled);
-  noMysqlHint?.classList.toggle("hidden", mysql);
+  const totalEarly = maintenance?.materials_total ?? hotspot?.materials_total ?? state.healthCache?.materials ?? 0;
+  noMysqlHint?.classList.toggle("hidden", totalEarly > 0);
   if (state.hotspotRefreshBusy && state.hotspotBusyMessage) {
     statusEl.textContent = state.hotspotBusyMessage;
     bar?.classList.toggle("is-busy", true);
@@ -5090,8 +5112,12 @@ function syncHotspotStatusUi(hotspot = state.healthCache?.hotspot, maintenance =
   }
   const lastMaint = maintenance?.last_run_at || hotspot?.last_refresh_at;
   line += ` · ${formatHotspotLastSync(lastMaint)}`;
-  if (!mysql) {
-    line += total > 0 ? " · 可点顶栏「一键采集」更新" : " · 素材为空，请点顶栏「一键采集」";
+  if (total <= 0) {
+    line += " · 素材为空，请点顶栏「一键采集」";
+  } else if (!mysql) {
+    line += " · 可点顶栏「一键采集」更新";
+  } else {
+    line += " · 可点顶栏「一键采集」抓新视频或「更新热点」同步 MySQL";
   }
   statusEl.textContent = line;
   bar?.classList.toggle("is-busy", Boolean(state.hotspotRefreshBusy));
@@ -5279,15 +5305,23 @@ async function runOneClickCollect({ silent = false } = {}) {
     }
     return false;
   }
+  if (!silent && !(await ensureCollectorReady())) return false;
+
+  const runtime = state.healthCache?.tiktok_collector?.runtime || {};
+  const serverMode = Boolean(runtime.server_mode);
   const mysql = Boolean(state.healthCache?.tiktok_collector?.mysql_enabled);
   if (!silent) {
     const label = currentProductLabel() || productId;
-    const msg = mysql
-      ? `将按「${label}」从 MySQL 同步热点并整理素材库。\n\n确定继续？`
-      : `将按「${label}」一键采集 TikTok 对标：\n\n`
-        + "① 自动弹出 Chrome（请在窗口内完成 TikTok 登录/验证码）\n"
-        + "② 抓取完成后自动整理品类与去重\n\n"
-        + "首次约 3–8 分钟，采集完成前请勿关闭 Chrome。\n\n确定开始？";
+    const serverNote = serverMode
+      ? "\n（服务器模式：Chrome 在运行 8788 服务的机器桌面弹出；首次需管理员登录 TikTok，之后全员共用登录态）\n"
+      : "";
+    const mysqlNote = mysql
+      ? "\n（若浏览器未抓到新视频，将自动尝试从 MySQL 同步已有热点）\n"
+      : "";
+    const msg = `将按「${label}」一键采集 TikTok 对标：${serverNote}${mysqlNote}\n`
+      + "① 自动弹出 Chrome（请在窗口内完成 TikTok 登录/验证码）\n"
+      + "② 抓取完成后自动整理品类与去重\n\n"
+      + "首次约 3–8 分钟，采集完成前请勿关闭 Chrome。\n\n确定开始？";
     if (!window.confirm(msg)) return false;
   }
 
@@ -5296,9 +5330,7 @@ async function runOneClickCollect({ silent = false } = {}) {
   setHotspotBusyButtons(true);
   const keywordMap = state.healthCache?.hotspot?.keyword_map || {};
   const collectKeywords = keywordMap[productId] || [productId];
-  const busyBase = mysql
-    ? `一键采集中：同步 MySQL 热点并整理…`
-    : `一键采集中：${collectKeywords.slice(0, 3).join(" / ")} · 请在弹出的 Chrome 完成 TikTok 登录`;
+  const busyBase = `一键采集中：${collectKeywords.slice(0, 3).join(" / ")} · 请在弹出的 Chrome 完成 TikTok 登录`;
   startHotspotBusyMessage(busyBase);
   syncHotspotStatusUi();
 
@@ -5334,9 +5366,13 @@ async function runOneClickCollect({ silent = false } = {}) {
     syncHotspotStatusUi();
     syncOneClickCollectTopBtn();
     if (!silent) {
-      const zeroCollect = !mysql
-        && Number(data.collect?.total_collected || 0) === 0
-        && Number(data.collect?.imported_new_links || 0) === 0;
+      if (!data.ok && data.message) {
+        setScriptActionStatus(data.message, { isError: true });
+        return false;
+      }
+      const zeroCollect = Number(data.collect?.total_collected || 0) === 0
+        && Number(data.collect?.imported_new_links || 0) === 0
+        && !data.mysql_fallback?.imported_new_links;
       if (zeroCollect) {
         setScriptActionStatus(
           "一键采集未入库：未抓到 TikTok 视频。请确认 Chrome 已弹出并完成登录，用「启动页面.cmd」启动工作台后重试。",
@@ -5816,6 +5852,7 @@ async function refreshHealth() {
     syncDockChipsFromHealth();
     syncHotspotStatusUi(h.hotspot, h.maintenance);
     syncOneClickCollectTopBtn();
+    syncCollectorRuntimeUi(h);
     return h;
   } catch (err) {
     console.warn("refreshHealth failed", err);

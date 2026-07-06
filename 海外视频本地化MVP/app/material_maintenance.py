@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import shutil
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,8 @@ from paths import (
 from .data import load_materials
 from .hotspot_refresh import refresh_hotspot_videos, save_hotspot_state
 from .material_scope import trim_material_library_to_product
+
+_COLLECT_MUTEX = threading.Lock()
 
 SCRIPTS_DIR = MVP_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
@@ -148,15 +151,38 @@ def run_one_click_collect(
     trim: bool = True,
     prune: bool = True,
 ) -> dict[str, Any]:
-    """一键采集：无 MySQL 时浏览器抓取 TikTok，有 MySQL 时同步热点；随后整理品类并去重。"""
+    """一键采集：浏览器抓取 TikTok 新对标，随后整理品类并去重；MySQL 仅作失败回退同步。"""
+    from tiktok_collector.browser_launch import collector_launch_blocked_reason
+
     from .tiktok_collector_bridge import collector_database_enabled
 
     product_id = (product_id or "").strip()
     if not product_id:
         return {"ok": False, "message": "请先选择产品后再一键采集", "materials_total": 0, "materials_analyzed": 0}
 
+    blocked = collector_launch_blocked_reason()
+    if blocked:
+        return {
+            "ok": False,
+            "message": blocked,
+            "product_id": product_id,
+            "materials_total": len(load_materials()),
+            "materials_analyzed": 0,
+            "launch_blocked": True,
+        }
+
+    if not _COLLECT_MUTEX.acquire(blocking=False):
+        return {
+            "ok": False,
+            "message": "另有采集任务进行中，请稍候再试（服务器同一时间只运行一个浏览器窗口）",
+            "product_id": product_id,
+            "materials_total": len(load_materials()),
+            "materials_analyzed": 0,
+            "busy": True,
+        }
+
     mysql_enabled = collector_database_enabled()
-    mode = "auto" if mysql_enabled else "collect"
+    mode = "collect"
     report: dict[str, Any] = {
         "ok": True,
         "product_id": product_id,
@@ -166,70 +192,87 @@ def run_one_click_collect(
         "message": "",
     }
 
-    collect_out = refresh_hotspot_videos(
-        product_id=product_id,
-        mode=mode,
-        limit_per_keyword=max(1, min(200, int(limit_per_keyword or 20))),
-    )
-    report["collect"] = collect_out
-    if not collect_out.get("ok", True):
-        report["ok"] = False
-
-    if trim and product_id:
-        trim_out = trim_material_library_to_product(product_id)
-        report["trim"] = trim_out
-        report["steps"].append("trim")
-
-    if prune:
-        prune_out = prune_materials(
-            max_total=_env_int("MATERIAL_MAX_TOTAL", 80),
-            max_candidates=_env_int("DISCOVERY_CANDIDATE_MAX", 150),
-            keep_analyzed=_env_bool("MATERIAL_KEEP_ANALYZED", True),
+    try:
+        collect_out = refresh_hotspot_videos(
+            product_id=product_id,
+            mode=mode,
+            limit_per_keyword=max(1, min(200, int(limit_per_keyword or 20))),
         )
-        report["prune"] = prune_out
-        report["steps"].append("prune")
+        report["collect"] = collect_out
+        if not collect_out.get("ok", True):
+            report["ok"] = False
 
-    items = load_materials()
-    report["materials_total"] = len(items)
-    report["materials_analyzed"] = sum(1 for i in items if i.get("has_analysis"))
-    report["refreshed_at"] = _utc_now()
+        imported = int(collect_out.get("imported_new_links") or 0)
+        collected = int(collect_out.get("total_collected") or 0)
 
-    imported = int(collect_out.get("imported_new_links") or 0)
-    collected = int(collect_out.get("total_collected") or 0)
-    trim_n = int((report.get("trim") or {}).get("removed") or 0)
-    prune_n = int((report.get("prune") or {}).get("materials_removed") or 0)
-    parts: list[str] = []
-    if mode == "collect":
-        if collected <= 0:
+        if mysql_enabled and imported <= 0 and collected <= 0:
+            sync_out = refresh_hotspot_videos(
+                product_id=product_id,
+                mode="sync",
+                limit=80,
+            )
+            report["mysql_fallback"] = sync_out
+            report["steps"].append("mysql_fallback")
+            sync_new = int(sync_out.get("imported_new_links") or 0)
+            if sync_new > 0:
+                collect_out = {**collect_out, **sync_out}
+                report["collect"] = collect_out
+                imported = sync_new
+
+        if trim and product_id:
+            trim_out = trim_material_library_to_product(product_id)
+            report["trim"] = trim_out
+            report["steps"].append("trim")
+
+        if prune:
+            prune_out = prune_materials(
+                max_total=_env_int("MATERIAL_MAX_TOTAL", 80),
+                max_candidates=_env_int("DISCOVERY_CANDIDATE_MAX", 150),
+                keep_analyzed=_env_bool("MATERIAL_KEEP_ANALYZED", True),
+            )
+            report["prune"] = prune_out
+            report["steps"].append("prune")
+
+        items = load_materials()
+        report["materials_total"] = len(items)
+        report["materials_analyzed"] = sum(1 for i in items if i.get("has_analysis"))
+        report["refreshed_at"] = _utc_now()
+
+        trim_n = int((report.get("trim") or {}).get("removed") or 0)
+        prune_n = int((report.get("prune") or {}).get("materials_removed") or 0)
+        parts: list[str] = []
+        if collected <= 0 and imported <= 0:
             parts.append(collect_out.get("message") or "浏览器采集未抓到视频")
+            if report.get("mysql_fallback") and int((report["mysql_fallback"] or {}).get("imported_new_links") or 0) <= 0:
+                parts.append("MySQL 库内也无新热点可同步")
         elif imported > 0:
-            parts.append(f"采集入库 {imported} 条（共抓取 {collected} 条）")
+            if collected > 0:
+                parts.append(f"采集入库 {imported} 条（共抓取 {collected} 条）")
+            else:
+                parts.append(f"MySQL 同步入库 {imported} 条（浏览器未抓到新视频）")
         else:
             parts.append(f"抓取 {collected} 条，清洗后无新增入库")
-    else:
-        if imported > 0:
-            parts.append(f"MySQL 同步新增 {imported} 条")
-        elif collect_out.get("message"):
-            parts.append(str(collect_out["message"]))
-    if trim_n:
-        parts.append(f"移除非品类 {trim_n} 条")
-    if prune_n:
-        parts.append(f"整理删除 {prune_n} 条")
-    if not parts:
-        parts.append("素材库已整理，暂无新增")
-    report["message"] = " · ".join(parts)
+        if trim_n:
+            parts.append(f"移除非品类 {trim_n} 条")
+        if prune_n:
+            parts.append(f"整理删除 {prune_n} 条")
+        if not parts:
+            parts.append("素材库已整理，暂无新增")
+        report["message"] = " · ".join(parts)
 
-    save_maintenance_state(
-        {
-            "last_run_at": report["refreshed_at"],
-            "last_product_id": product_id,
-            "last_message": report["message"],
-            "last_trim_removed": trim_n,
-            "last_prune_removed": prune_n,
-            "last_sync_new": imported,
-        }
-    )
-    return report
+        save_maintenance_state(
+            {
+                "last_run_at": report["refreshed_at"],
+                "last_product_id": product_id,
+                "last_message": report["message"],
+                "last_trim_removed": trim_n,
+                "last_prune_removed": prune_n,
+                "last_sync_new": imported,
+            }
+        )
+        return report
+    finally:
+        _COLLECT_MUTEX.release()
 
 
 def _write_csv_header(path: Path, header_line: str) -> None:

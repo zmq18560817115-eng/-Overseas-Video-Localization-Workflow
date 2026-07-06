@@ -522,8 +522,31 @@ body {
   50% { box-shadow: 0 0 0 4px rgba(232, 93, 76, 0.12); }
 }
 
+.collector-runtime-banner,
+.collector-runtime-hint {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #7c2d12;
+  background: #fff7ed;
+  border-bottom: 1px solid #fed7aa;
+}
+
+.collector-runtime-banner.hidden,
+.collector-runtime-hint.hidden {
+  display: none;
+}
+
+.collector-runtime-hint {
+  border-radius: 8px;
+  border: 1px solid #fed7aa;
+  margin-bottom: 10px;
+}
+
 .top-stat-pill-collect:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
+  cursor: not-allowed;
   animation: none;
 }
 

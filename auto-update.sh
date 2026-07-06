@@ -37,7 +37,7 @@ if [ "$LOCAL" != "$REMOTE" ]; then
     sleep 2
     
     cd 海外视频本地化MVP
-    nohup env DYLD_LIBRARY_PATH="/opt/homebrew/opt/expat/lib" WORKBENCH_LAUNCHER=startup-cmd WORKBENCH_HOST=0.0.0.0 WORKBENCH_PORT=8788 .venv/bin/python -m app.main > /tmp/vl-workbench.log 2>&1 &
+    nohup env DYLD_LIBRARY_PATH="/opt/homebrew/opt/expat/lib" WORKBENCH_LAUNCHER=server TIKTOK_COLLECTOR_SERVER_MODE=1 WORKBENCH_HOST=0.0.0.0 WORKBENCH_PORT=8788 .venv/bin/python -m app.main > /tmp/vl-workbench.log 2>&1 &
     cd ..
     
     cd tiktok_collector

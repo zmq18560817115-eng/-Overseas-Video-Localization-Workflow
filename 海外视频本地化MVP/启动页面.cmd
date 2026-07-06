@@ -11,7 +11,8 @@ echo.
 
 REM TikTok 采集必须能调用本机 Chrome；清除 Cursor 沙箱注入的 Playwright 路径
 set PLAYWRIGHT_BROWSERS_PATH=
-set WORKBENCH_LAUNCHER=startup-cmd
+if not defined WORKBENCH_LAUNCHER set WORKBENCH_LAUNCHER=startup-cmd
+if "%WORKBENCH_HOST%"=="0.0.0.0" set TIKTOK_COLLECTOR_SERVER_MODE=1
 
 ".venv\Scripts\python.exe" -c "import sys" 2>nul
 if errorlevel 1 (

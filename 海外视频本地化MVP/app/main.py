@@ -145,7 +145,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 200
+UI_VERSION = 202
 
 
 def _render_index() -> HTMLResponse:
@@ -1126,6 +1126,8 @@ async def materials_one_click_collect(body: OneClickCollectRequest) -> dict:
     items = load_materials()
     result["materials_total"] = len(items)
     result["materials_analyzed"] = sum(1 for item in items if item.get("has_analysis"))
+    if result.get("launch_blocked") or result.get("busy"):
+        result["ok"] = False
     return result
 
 
