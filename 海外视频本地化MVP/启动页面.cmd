@@ -6,13 +6,20 @@ echo.
 echo  海外视频本地化工作台
 echo  -------------------------------------
 echo  请从本窗口启动，不要用 Cursor 内置终端运行 python。
-echo  若 8788 端口已被占用，请先关闭 Cursor 里的旧服务窗口。
+echo  若端口被占用，将自动结束旧进程后重启。
 echo.
 
 REM TikTok 采集必须能调用本机 Chrome；清除 Cursor 沙箱注入的 Playwright 路径
 set PLAYWRIGHT_BROWSERS_PATH=
 if not defined WORKBENCH_LAUNCHER set WORKBENCH_LAUNCHER=startup-cmd
+if not defined WORKBENCH_PORT set WORKBENCH_PORT=8788
 if "%WORKBENCH_HOST%"=="0.0.0.0" set TIKTOK_COLLECTOR_SERVER_MODE=1
+
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%WORKBENCH_PORT%" ^| findstr "LISTENING"') do (
+  echo [端口] %WORKBENCH_PORT% 已被 PID %%a 占用，正在结束旧进程...
+  taskkill /F /PID %%a >nul 2>&1
+)
+timeout /t 1 /nobreak >nul
 
 ".venv\Scripts\python.exe" -c "import sys" 2>nul
 if errorlevel 1 (
@@ -37,7 +44,11 @@ if errorlevel 1 (
 
 echo [3/3] 安装依赖并启动本地化工作台...
 if defined WORKBENCH_HOST (
-  echo 打开 http://%WORKBENCH_HOST%:%WORKBENCH_PORT%
+  if "%WORKBENCH_HOST%"=="0.0.0.0" (
+    echo 打开 http://127.0.0.1:%WORKBENCH_PORT% 或本机局域网 IP
+  ) else (
+    echo 打开 http://%WORKBENCH_HOST%:%WORKBENCH_PORT%
+  )
 ) else (
   echo 打开 http://127.0.0.1:8788
 )
