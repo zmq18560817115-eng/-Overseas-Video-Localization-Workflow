@@ -702,6 +702,43 @@ function isAnyFloatPanelOpen() {
     .some((id) => document.getElementById(id)?.classList.contains("open"));
 }
 
+const SIBLING_FLOAT_PANELS = [
+  ["scriptFloatPanel", "scriptFloatBackdrop"],
+  ["productFloatPanel", "productFloatBackdrop"],
+  ["refFloatPanel", "refFloatBackdrop"],
+  ["promptSelectFloatPanel", "promptSelectFloatBackdrop"],
+];
+
+function isAutomatedPipelineUi() {
+  return Boolean(state.createPipelineActive || state.viralPipelineBusy);
+}
+
+function closeSiblingFloatPanels(exceptPanelId = "") {
+  for (const [panelId, backdropId] of SIBLING_FLOAT_PANELS) {
+    if (panelId === exceptPanelId) continue;
+    const panel = document.getElementById(panelId);
+    const backdrop = document.getElementById(backdropId);
+    if (!panel?.classList.contains("open")) continue;
+    panel.classList.remove("open");
+    backdrop?.classList.remove("open");
+    panel.setAttribute("aria-hidden", "true");
+    window.setTimeout(() => {
+      if (!panel.classList.contains("open")) {
+        panel.hidden = true;
+        panel.style.display = "none";
+        if (backdrop) backdrop.hidden = true;
+      }
+    }, 200);
+  }
+}
+
+function beginAutomatedPipelineUi() {
+  state.dockFocusDismissed = false;
+  closeSiblingFloatPanels("");
+  hideProduceCompleteModal();
+  hideProduceCompleteBanner();
+}
+
 function isDockPreviewVisible() {
   return ["dockProducePreview", "imitateDockProducePreview"].some(
     (id) => !document.getElementById(id)?.classList.contains("hidden"),
@@ -729,13 +766,14 @@ function syncStudioFocusMode() {
   const pipelineBusy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive;
   const errorBanner = !document.getElementById("videoGenErrorBanner")?.classList.contains("hidden");
   const dockChrome = isDockPreviewVisible() || isDockProgressVisible() || errorBanner;
+  const dockOnlyPipeline = pipelineBusy && isAutomatedPipelineUi() && !floatOpen;
   const shouldFocus = state.dockFocusDismissed
-    ? (modalOpen || floatOpen || pipelineBusy)
+    ? (modalOpen || floatOpen || (pipelineBusy && !dockOnlyPipeline))
     : (modalOpen || floatOpen || bannerOpen || dockChrome || pipelineBusy);
   document.body.classList.toggle("studio-focus-mode", shouldFocus);
   const backdrop = document.getElementById("studioFocusBackdrop");
   if (backdrop) {
-    const showBackdrop = shouldFocus && !floatOpen;
+    const showBackdrop = shouldFocus && !floatOpen && !dockOnlyPipeline;
     backdrop.classList.toggle("hidden", !showBackdrop);
     backdrop.hidden = !showBackdrop;
   }
@@ -843,6 +881,7 @@ function handleGlobalEscapeKey() {
 }
 
 function openFloatPanel(panelId, backdropId) {
+  closeSiblingFloatPanels(panelId);
   state.dockFocusDismissed = false;
   const panel = document.getElementById(panelId);
   const backdrop = document.getElementById(backdropId);
@@ -1070,6 +1109,15 @@ function hideSeedanceProgressIfIdle() {
 
 function showScriptProgress(show, { status, percent, indeterminate, pipeline, countdownSec } = {}) {
   state.scriptGenActive = Boolean(show);
+  if (isAutomatedPipelineUi()) {
+    if (show) {
+      showSeedanceProgress(true, { status, percent, indeterminate, pipeline, countdownSec, persist: true });
+    } else {
+      hideSeedanceProgressIfIdle();
+    }
+    syncGlobalPipelineBadge(status);
+    return;
+  }
   const bar = document.getElementById("scriptGenProgress");
   const statusEl = document.getElementById("scriptGenProgressStatus");
   const fill = document.getElementById("scriptGenProgressFill");
@@ -1513,6 +1561,7 @@ function wireProduceResultPanel(root, slug) {
 }
 
 function showProduceCompleteBanner(title, message, slug, { partial = false } = {}) {
+  closeSiblingFloatPanels("");
   const banner = document.getElementById("produceCompleteBanner");
   const titleEl = document.getElementById("produceCompleteBannerTitle");
   const textEl = document.getElementById("produceCompleteBannerText");
@@ -1534,6 +1583,7 @@ function showProduceCompleteBanner(title, message, slug, { partial = false } = {
 }
 
 function showProduceCompleteModal(title, message, slug, seedance, { partial = false } = {}) {
+  closeSiblingFloatPanels("");
   const modal = document.getElementById("produceCompleteModal");
   const backdrop = document.getElementById("produceCompleteModalBackdrop");
   const titleEl = document.getElementById("produceCompleteModalTitle");
@@ -1786,6 +1836,7 @@ async function runStartCreate() {
   });
   state.createPipelineActive = true;
   state.dockFocusDismissed = false;
+  beginAutomatedPipelineUi();
   activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
   showSeedanceProgress(true, { status: "准备创作…", indeterminate: true });
 
@@ -1904,13 +1955,13 @@ async function runConfirmProduceVideo() {
     runBtn.innerHTML = '<span class="dock-run-icon">✦</span> 生成中…';
   });
   state.createPipelineActive = true;
+  beginAutomatedPipelineUi();
   showSeedanceProgress(true, {
     status: "正在启动视频生成流水线…",
     indeterminate: true,
     pipeline: state.healthCache?.seedance?.label || "",
   });
   setScriptActionStatus("正在启动：交付包 → AI 分镜视频 → 拼接成片（约 15–30 分钟）…", { forceDock: true });
-  closeScriptFloatPanel();
   activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
 
   try {
@@ -2642,6 +2693,7 @@ async function runViralBenchmarkPipeline(linkId) {
 
   state.viralPipelineBusy = true;
   state.dockFocusDismissed = false;
+  beginAutomatedPipelineUi();
   forEachDockRunBtn((runBtn) => {
     runBtn.disabled = true;
     runBtn.dataset.busy = "1";
@@ -2657,7 +2709,6 @@ async function runViralBenchmarkPipeline(linkId) {
     syncDockRefSlot();
     renderAllImitationViralGrids();
     renderRefFloatMaterialList();
-    closeScriptFloatPanel();
     state.createPipelineActive = true;
     state.seedanceProgressPersist = false;
     activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -5519,7 +5570,9 @@ async function runScriptGenerate() {
     return false;
   }
   setScriptStep("produce");
-  openScriptFloatPanel();
+  if (!isAutomatedPipelineUi()) {
+    openScriptFloatPanel();
+  }
   genBtns.forEach((b) => { b.disabled = true; });
   const regenBtn = document.getElementById("scriptFloatRegenBtn");
   const produceBtn = document.getElementById("scriptFloatProduceBtn");
