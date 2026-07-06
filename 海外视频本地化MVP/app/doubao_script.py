@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from .doubao_config import _env, doubao_config, resolve_script_model, script_llm_config
+from .doubao_config import _env, doubao_config, resolve_script_model, script_llm_config, script_timeout_sec
 
 
 def _extract_text(data: dict[str, Any]) -> str:
@@ -59,7 +59,7 @@ def call_doubao_script(*, system_prompt: str, user_prompt: str) -> tuple[dict[st
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    with httpx.Client(timeout=120) as client:
+    with httpx.Client(timeout=script_timeout_sec()) as client:
         resp = client.post(f"{base}/chat/completions", headers=headers, json=payload)
     if resp.status_code >= 400:
         raise RuntimeError(f"豆包 Chat API {resp.status_code}: {resp.text[:400]}")

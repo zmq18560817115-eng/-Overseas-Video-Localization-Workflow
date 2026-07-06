@@ -69,6 +69,16 @@ def _env_flag(raw: str | None, *, default: bool) -> bool:
     return str(raw).strip().lower() not in ("0", "false", "no", "off")
 
 
+def _env_int(raw: str | None, *, default: int, min_value: int, max_value: int) -> int:
+    if raw is None or not str(raw).strip():
+        return default
+    try:
+        value = int(str(raw).strip())
+    except ValueError:
+        return default
+    return max(min_value, min(max_value, value))
+
+
 def video_analysis_policy() -> dict:
     """视频拆解策略（读 overseas-loc-mvp/.env）。"""
     cfg = doubao_config()
@@ -124,6 +134,13 @@ def resolve_script_model(mode: str | None = None) -> str:
     return cfg["pro_model"]
 
 
+def script_timeout_sec() -> int:
+    """Doubao script generation timeout; full storyboards can exceed short health checks."""
+    env = _env()
+    raw = env.get("DOUBAO_SCRIPT_TIMEOUT_SEC") or env.get("SCRIPT_LLM_TIMEOUT_SEC")
+    return _env_int(raw, default=240, min_value=30, max_value=900)
+
+
 def script_llm_config() -> dict:
     """脚本生成 LLM 路由（豆包 / Claude / 规则）。"""
     env = _env()
@@ -171,6 +188,7 @@ def script_llm_config() -> dict:
         "doubao_configured": ark_ready,
         "doubao_enabled": doubao_enabled,
         "doubao_model": script_model,
+        "timeout_sec": script_timeout_sec(),
         "anthropic_available": anthropic_ready,
         "anthropic_model": (env.get("OVERSEAS_LOC_MODEL") or "claude-sonnet-4-6").strip(),
         "fallback": "rule_template（LLM 失败或未配置时自动使用）",

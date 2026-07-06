@@ -21,6 +21,7 @@ from paths import (
 
 from .llm_script import pack_to_bridge_shots
 from .character_assets import stage_project_production_assets
+from .runtime_paths import resolve_venv_python, venv_python_candidates
 
 USER_DELIVERABLES = (
     "交付脚本包.md",
@@ -62,10 +63,10 @@ def ensure_olm_venv(*, reinstall_deps: bool = False) -> Path:
     """确保 overseas-loc-mvp 虚拟环境存在且已安装 requirements（含 imageio-ffmpeg）。"""
     global _olm_venv_ready
     venv_dir = OVERSEAS_MVP_DIR / ".venv"
-    venv_py = venv_dir / "Scripts" / "python.exe"
+    venv_py = resolve_venv_python(venv_dir)
     req = OVERSEAS_MVP_DIR / "requirements.txt"
 
-    if not venv_py.is_file():
+    if venv_py == Path(sys.executable) or not venv_py.is_file():
         proc = subprocess.run(
             [sys.executable, "-m", "venv", str(venv_dir)],
             capture_output=True,
@@ -76,6 +77,10 @@ def ensure_olm_venv(*, reinstall_deps: bool = False) -> Path:
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout or "venv 创建失败")[-400:]
             raise RuntimeError(f"无法创建交付引擎虚拟环境：{tail}")
+        venv_py = resolve_venv_python(venv_dir, fallback=None)
+        if venv_py == Path(sys.executable) or not venv_py.is_file():
+            tried = ", ".join(str(p) for p in venv_python_candidates(venv_dir))
+            raise RuntimeError(f"交付引擎虚拟环境缺少 Python，可尝试路径：{tried}")
         reinstall_deps = True
 
     if reinstall_deps or not _olm_venv_ready:

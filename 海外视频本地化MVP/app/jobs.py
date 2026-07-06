@@ -10,11 +10,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .runtime_paths import resolve_venv_python
+
 MVP_ROOT = Path(__file__).resolve().parents[1]
 PIPELINE = MVP_ROOT / "scripts" / "pipeline.py"
-PYTHON = MVP_ROOT / ".venv" / "Scripts" / "python.exe"
-if not PYTHON.exists():
-    PYTHON = Path(sys.executable)
+PYTHON = resolve_venv_python(MVP_ROOT / ".venv", fallback=Path(sys.executable))
 
 _lock = threading.Lock()
 _state: dict[str, Any] = {
