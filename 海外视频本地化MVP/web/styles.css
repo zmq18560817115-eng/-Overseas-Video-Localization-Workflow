@@ -157,8 +157,9 @@ body {
 
 .starter-guide-panel,
 .onboarding-guide-panel {
-  width: min(560px, calc(100vw - 32px));
-  max-height: min(85vh, 560px);
+  width: min(720px, calc(100vw - 40px));
+  min-height: min(520px, 78vh);
+  max-height: min(88vh, 720px);
   z-index: 38;
 }
 
@@ -170,7 +171,10 @@ body {
 .onboarding-guide-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+  padding: 6px 4px 12px;
+  flex: 1;
+  min-height: 220px;
 }
 
 .onboarding-guide-track {
@@ -207,15 +211,15 @@ body {
 
 .onboarding-guide-step-title {
   margin: 0;
-  font-size: 17px;
-  line-height: 1.35;
+  font-size: 20px;
+  line-height: 1.4;
   color: var(--ink);
 }
 
 .onboarding-guide-step-desc {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 15px;
+  line-height: 1.65;
   color: var(--muted);
 }
 

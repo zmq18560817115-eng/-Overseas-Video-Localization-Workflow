@@ -4762,6 +4762,7 @@ function openTikTokLibraryEntry() {
   }, 180);
 }
 
+const ONBOARDING_GUIDE_SEEN_KEY = "vl_onboarding_guide_seen";
 const ONBOARDING_GUIDE_DISMISSED_KEY = "vl_onboarding_guide_dismissed";
 const STARTER_GUIDE_DISMISSED_KEY = "vl_starter_guide_dismissed";
 const WORKFLOW_GUIDE_DISMISSED_KEY = "vl_workflow_guide_dismissed";
@@ -4813,19 +4814,25 @@ const ONBOARDING_STEPS = [
 
 function isOnboardingGuideDismissed() {
   return (
-    localStorage.getItem(ONBOARDING_GUIDE_DISMISSED_KEY) === "1"
+    localStorage.getItem(ONBOARDING_GUIDE_SEEN_KEY) === "1"
+    || localStorage.getItem(ONBOARDING_GUIDE_DISMISSED_KEY) === "1"
     || localStorage.getItem(STARTER_GUIDE_DISMISSED_KEY) === "1"
     || localStorage.getItem(WORKFLOW_GUIDE_DISMISSED_KEY) === "1"
     || localStorage.getItem("vl_starter_guide_closed") === "1"
   );
 }
 
-function dismissOnboardingGuide() {
+function markOnboardingGuideSeen() {
+  localStorage.setItem(ONBOARDING_GUIDE_SEEN_KEY, "1");
   localStorage.setItem(ONBOARDING_GUIDE_DISMISSED_KEY, "1");
   localStorage.setItem(STARTER_GUIDE_DISMISSED_KEY, "1");
   localStorage.setItem(WORKFLOW_GUIDE_DISMISSED_KEY, "1");
   localStorage.removeItem("vl_starter_guide_closed");
-  closeOnboardingGuide();
+}
+
+function dismissOnboardingGuide() {
+  markOnboardingGuideSeen();
+  closeFloatPanel("onboardingGuidePanel", "onboardingGuideBackdrop");
 }
 
 function renderOnboardingGuideStep() {
@@ -4874,6 +4881,7 @@ function openOnboardingGuide({ manual = false, step = 0 } = {}) {
 }
 
 function closeOnboardingGuide() {
+  markOnboardingGuideSeen();
   closeFloatPanel("onboardingGuidePanel", "onboardingGuideBackdrop");
 }
 
