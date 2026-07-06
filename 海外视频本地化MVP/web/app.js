@@ -25,7 +25,7 @@ const state = {
   imitateStudioTab: "featured",
   selectedScenarioFeature: null,
   generateWorkspaceOpen: false,
-  generateDockMode: "imitate",
+  generateDockMode: "generate",
   pendingScenarioTag: null,
   createPipelineActive: false,
   seedanceProgressPersist: false,
@@ -742,19 +742,100 @@ function syncStudioFocusMode() {
 }
 
 function dismissStudioFocus() {
-  if (state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy) {
-    return;
-  }
+  const busy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy;
   state.dockFocusDismissed = true;
-  state.seedanceProgressPersist = false;
   hideProduceCompleteModal();
   hideProduceCompleteBanner();
   closeScriptFloatPanel();
   hideDockProducePreviews();
-  showSeedanceProgress(false);
-  resetScriptProgress();
-  clearVideoGenErrorOnly();
+  if (!busy) {
+    state.seedanceProgressPersist = false;
+    showSeedanceProgress(false);
+    resetScriptProgress();
+    clearVideoGenErrorOnly();
+  } else {
+    setScriptActionStatus("视频仍在后台生成，可切换其他模块；底部工作台可查看进度。", { forceDock: false });
+  }
   syncStudioFocusMode();
+}
+
+function isFloatPanelOpen(panelId) {
+  const el = document.getElementById(panelId);
+  if (!el) return false;
+  return el.classList.contains("open");
+}
+
+function isDrawerOpen(drawerId) {
+  const el = document.getElementById(drawerId);
+  return Boolean(el && !el.hidden);
+}
+
+function closeDockTransientMenus() {
+  let closed = false;
+  if (!document.getElementById("dockGenerateCountMenu")?.classList.contains("hidden")) {
+    closeDockGenerateCountMenu();
+    closed = true;
+  }
+  if (!document.getElementById("imitateGenerateCountMenu")?.classList.contains("hidden")) {
+    closeImitateDockGenerateCountMenu();
+    closed = true;
+  }
+  if (document.getElementById("dockVideoSettingsPanel")?.classList.contains("open")) {
+    closeDockVideoSettingsPanel();
+    closed = true;
+  }
+  if (document.getElementById("imitateVideoSettingsPanel")?.classList.contains("open")) {
+    closeImitateDockVideoSettingsPanel();
+    closed = true;
+  }
+  return closed;
+}
+
+function handleGlobalEscapeKey() {
+  if (closeDockTransientMenus()) return;
+  const guidePanel = document.getElementById("starterGuidePanel");
+  if (guidePanel?.classList.contains("open")) {
+    dismissStarterGuide();
+    return;
+  }
+  const modal = document.getElementById("produceCompleteModal");
+  if (modal && !modal.classList.contains("hidden")) {
+    dismissStudioFocus();
+    return;
+  }
+  if (isFloatPanelOpen("promptSelectFloatPanel")) {
+    closePromptSelectFloatPanel();
+    return;
+  }
+  if (isFloatPanelOpen("scriptFloatPanel")) {
+    closeScriptFloatPanel();
+    syncStudioFocusMode();
+    return;
+  }
+  if (isFloatPanelOpen("productFloatPanel")) {
+    closeProductFloatPanel();
+    return;
+  }
+  if (isFloatPanelOpen("refFloatPanel")) {
+    closeRefFloatPanel();
+    return;
+  }
+  if (isDrawerOpen("materialLibraryDrawer")) {
+    closeMaterialLibraryDrawer();
+    return;
+  }
+  if (isDrawerOpen("settingsDrawer")) {
+    closeSettingsDrawer();
+    return;
+  }
+  if (
+    isDockPreviewVisible()
+    || isDockProgressVisible()
+    || !document.getElementById("videoGenErrorBanner")?.classList.contains("hidden")
+    || document.body.classList.contains("studio-focus-mode")
+  ) {
+    dismissStudioFocus();
+  }
 }
 
 function openFloatPanel(panelId, backdropId) {
@@ -827,9 +908,23 @@ function syncDockScrollPadding() {
 }
 
 function dockRunDefaultHtml(view = state.view) {
+  if (view !== "imitate") {
+    const prev = state.lastPreview || {};
+    const ready = prev.has_script && !scriptNeedsRegenerate(prev) && !prev?.seedance?.final_video?.ready;
+    if (ready && state.healthCache?.seedance?.configured) {
+      return '<span class="dock-run-icon">✦</span> 继续出片';
+    }
+  }
   return view === "imitate"
     ? '<span class="dock-run-icon">✦</span> 开始复刻'
     : '<span class="dock-run-icon">✦</span> 开始创作';
+}
+
+function syncDockRunButtonLabels() {
+  forEachDockRunBtn((btn, id) => {
+    if (btn.dataset.busy) return;
+    btn.innerHTML = dockRunDefaultHtml(id === "imitateDockRun" ? "imitate" : "generate");
+  });
 }
 
 function forEachDockRunBtn(fn) {
@@ -1127,7 +1222,7 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
   if (persist != null) state.seedanceProgressPersist = Boolean(persist);
   if (!show && persist !== true) state.seedanceProgressPersist = false;
 
-  const visible = Boolean(show && isWorkbenchProgressActive());
+  const visible = Boolean(show && (state.seedanceProgressPersist || isWorkbenchProgressActive()));
   let wasVisible = false;
 
   if (visible && countdownSec != null && countdownSec > 0) startSeedanceCountdown(countdownSec);
@@ -1542,7 +1637,6 @@ function renderProduceOutcome(slug, seedance, { message = "", assemble = null, f
       : `${asmMsg}。可先预览分镜或下载 zip，再点「重新合成」（仅拼接，不重生成各镜）。`;
     renderProduceResultPanel(s, seedance, { assembleMessage: asmMsg, engageFocus: true, scope: "active" });
     syncProduceAssetsUi({ ...(state.lastPreview || {}), slug: s, seedance });
-    showProduceCompleteBanner("分镜已生成", friendly, s, { partial: true });
     showProduceCompleteModal("分镜已生成", friendly, s, seedance, { partial: true });
     showSeedanceProgress(true, {
       status: friendly,
@@ -1600,6 +1694,26 @@ async function runStartCreate() {
       return;
     }
     refreshScriptFloatFromPreview(prev);
+    const slug = currentScriptSlug();
+    const finalReady = Boolean(prev?.seedance?.final_video?.ready);
+    const seedanceOk = Boolean(state.healthCache?.seedance?.configured);
+    const videoQ = state.healthCache?.production?.daily_video_quota;
+    const videoBlocked = videoQ?.enabled && videoQ.remaining <= 0;
+
+    if (slug && seedanceOk && !finalReady && !videoBlocked) {
+      setScriptActionStatus("脚本已就绪，继续生成成片…", { forceDock: true });
+      closeScriptFloatPanel();
+      const queueLabel = `${slug} · ${currentProductLabel() || "成片"}`;
+      await withVideoProductionQueue(slug, queueLabel, () => runProduceVideo({ background: true }));
+      await refreshScriptPreview();
+      return;
+    }
+    if (slug && !seedanceOk && !finalReady) {
+      setScriptActionStatus(
+        "脚本已就绪。请先在 overseas-loc-mvp/.env 配置 SeedDance 密钥，再点脚本浮层内「确认生成视频」。",
+        { forceDock: true },
+      );
+    }
     openScriptFloatPanel();
   } finally {
     state.createPipelineActive = false;
@@ -1619,7 +1733,6 @@ function renderDockProduceComplete(slug, message) {
   setSeedanceVideoComplete(true, slug);
   setScriptActionStatus(msg, { forceDock: true });
   syncProduceAssetsUi({ ...(state.lastPreview || {}), slug });
-  showProduceCompleteBanner("成片已就绪", msg, slug);
   showProduceCompleteModal("成片已就绪", msg, slug, state.lastPreview?.seedance);
   resetSeedanceProgressDock();
   state.dockFocusDismissed = false;
@@ -2348,6 +2461,11 @@ async function ensureMaterialAnalysis(linkId) {
 
 async function runViralBenchmarkPipeline(linkId) {
   if (state.viralPipelineBusy) return;
+  const videoQ = state.healthCache?.production?.daily_video_quota;
+  if (videoQ?.enabled && videoQ.remaining <= 0) {
+    setScriptActionStatus("今日成片产出配额已满，无法一键出片。明日再试或调高 DAILY_VIDEO_QUOTA。", { isError: true });
+    return;
+  }
   if (!productWorkflowReady()) {
     state.pendingViralLinkId = linkId;
     await openProductFloatPanel();
@@ -3066,7 +3184,7 @@ function initModuleStudios() {
       syncReverseDockMaterial();
     });
   });
-  syncGenerateDockMode(state.generateDockMode || "imitate");
+  syncGenerateDockMode(state.generateDockMode || "generate");
 }
 
 function syncDockChipsFromHealth() {
@@ -3094,15 +3212,17 @@ function syncDailyScriptQuota(quotaOverride) {
     chips.forEach((chip) => chip.classList.add("hidden"));
   } else {
     const blocked = q.remaining <= 0;
-    const label = `脚本 ${q.used}/${q.limit}`;
+    const label = `脚本配额 ${q.used}/${q.limit}`;
     chips.forEach((chip) => {
       chip.classList.remove("hidden", "quota-warn", "quota-full");
       chip.textContent = label;
+      chip.title = "今日 LLM 脚本生成次数（非当前任务进度）";
       if (blocked) chip.classList.add("quota-full");
       else if (q.remaining <= 2) chip.classList.add("quota-warn");
     });
   }
   syncDockRunButtonsDisabled();
+  syncDockRunButtonLabels();
 }
 
 function syncDailyVideoQuota(quotaOverride) {
@@ -3115,15 +3235,17 @@ function syncDailyVideoQuota(quotaOverride) {
     chips.forEach((chip) => chip.classList.add("hidden"));
   } else {
     const blocked = q.remaining <= 0;
-    const label = `成片 ${q.used}/${q.limit}`;
+    const label = `成片配额 ${q.used}/${q.limit}`;
     chips.forEach((chip) => {
       chip.classList.remove("hidden", "quota-warn", "quota-full");
       chip.textContent = label;
+      chip.title = "今日可完成拼接/导出的成片次数";
       if (blocked) chip.classList.add("quota-full");
       else if (q.remaining <= 2) chip.classList.add("quota-warn");
     });
   }
   syncDockRunButtonsDisabled();
+  syncDockRunButtonLabels();
 }
 
 function syncDockRunButtonsDisabled() {
@@ -3136,10 +3258,8 @@ function syncDockRunButtonsDisabled() {
     btn.title = scriptBlocked ? "今日 LLM 脚本配额已满，明日再试或调高 DAILY_SCRIPT_QUOTA" : "";
   });
   document.querySelectorAll("#generateDockRun, #imitateDockRun").forEach((btn) => {
-    btn.disabled = scriptBlocked || videoBlocked;
-    btn.title = videoBlocked
-      ? "今日成片产出配额已满，明日再试或调高 DAILY_VIDEO_QUOTA"
-      : (scriptBlocked ? "今日 LLM 脚本配额已满" : "");
+    btn.disabled = scriptBlocked;
+    btn.title = scriptBlocked ? "今日 LLM 脚本配额已满，明日再试或调高 DAILY_SCRIPT_QUOTA" : "";
   });
   const produceBtn = document.getElementById("scriptFloatProduceBtn");
   if (produceBtn) {
@@ -3175,7 +3295,7 @@ function loadVideoSettings() {
 function syncDockVideoSettingsLabel() {
   const vs = currentVideoSettings();
   const text = `${vs.resolution} · ${vs.aspectRatio}`;
-  const countText = `生成 ${vs.generateCount} 条`;
+  const countText = `脚本变体 ${vs.generateCount}`;
   for (const id of ["dockVideoSettingsLabel", "imitateDockVideoSettingsLabel"]) {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
@@ -3230,7 +3350,7 @@ function renderDockVideoSettingsPanel() {
 function renderDockGenerateCountMenu() {
   const vs = currentVideoSettings();
   const html = GENERATE_COUNTS.map((n) =>
-    `<button type="button" class="dock-gen-count-option${n === vs.generateCount ? " active" : ""}" role="menuitem" data-count="${n}">生成 ${n} 条</button>`
+    `<button type="button" class="dock-gen-count-option${n === vs.generateCount ? " active" : ""}" role="menuitem" data-count="${n}">脚本变体 ${n}</button>`
   ).join("");
   for (const id of ["dockGenerateCountMenu", "imitateDockGenerateCountMenu"]) {
     const menu = document.getElementById(id);
@@ -3384,7 +3504,7 @@ function enhanceDockPrompt() {
     tags.scenarios.length ? `场景：${tags.scenarios.join("、")}` : "",
     tags.selling.length ? `卖点：${tags.selling.join("、")}` : "",
     tags.pains.length ? `痛点：${tags.pains.join("、")}` : "",
-    `画幅 ${vs.aspectRatio} · ${vs.resolution} · 生成 ${vs.generateCount} 条`,
+    `画幅 ${vs.aspectRatio} · ${vs.resolution} · 脚本变体 ${vs.generateCount}`,
     analysis.video_structure ? `对标结构：${String(analysis.video_structure).slice(0, 100)}` : "",
     analysis.hook_3s ? `钩子参考：${String(analysis.hook_3s).slice(0, 80)}` : "",
     "口播口语化、镜头节奏紧凑；禁止医疗承诺、竞品品牌与夸大表述",
@@ -3441,12 +3561,7 @@ function initDockGenSettings() {
     if (!e.target.closest("#imitateGenerateCountWrap")) closeImitateDockGenerateCountMenu();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      closeDockVideoSettingsPanel();
-      closeDockGenerateCountMenu();
-      closeImitateDockVideoSettingsPanel();
-      closeImitateDockGenerateCountMenu();
-    }
+    if (e.key === "Escape") handleGlobalEscapeKey();
   });
 }
 
@@ -3492,9 +3607,9 @@ function activateView(name, options = {}) {
   if (name === "generate") {
     loadWorkspaceView();
     if (!state.generateWorkspaceOpen) collapseGenerateWorkspace();
+    syncGenerateDockMode(state.generateDockMode || "generate");
   }
   if (name === "imitate") {
-    syncGenerateDockMode("imitate");
     loadImitateView();
   }
   if (name === "reverse") loadReverseView();
@@ -4251,10 +4366,25 @@ function feishuResultText(data) {
   return parts.join("\n\n") || (data.ok ? "完成" : "无输出");
 }
 
+function syncFeishuActionButtons(enabled) {
+  ["btnFeishuStatusSettings", "btnFeishuAuthUrlSettings", "btnFeishuDoctorSettings"].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.classList.toggle("hidden", !enabled);
+  });
+}
+
 function renderFeishuSettings(status) {
   const el = document.getElementById("feishuSettingsStatus");
   if (!el) return;
   const fs = status?.feishu || status || {};
+  if (fs.integrated === false || (!fs.installed && fs.message)) {
+    syncFeishuActionButtons(false);
+    el.innerHTML = `<span class="muted">${esc(fs.message || "工作台未集成飞书 CLI")}</span>`;
+    return;
+  }
+  syncFeishuActionButtons(true);
   if (!fs.installed) {
     el.innerHTML = `未安装 · 本地工具目录 <code>tools/feishu-cli</code><br><span class="muted">请重新执行 Feishu CLI 集成。</span>`;
     return;
@@ -5077,6 +5207,7 @@ async function refreshScriptPreview(options = {}) {
     syncFinishButton(Boolean(merged.can_finish), Boolean(merged.delivery_ready));
     hideSeedanceProgressIfIdle();
     restoreProduceUiFromPreview(merged);
+    syncDockRunButtonLabels();
   } catch (err) {
     analysisEl.innerHTML = `<div class="result error">${esc(friendlyApiErrorMessage(err.message))}</div>`;
     productEl.className = "script-tag-grid script-tag-grid-float detail-empty";
@@ -5994,19 +6125,6 @@ document.getElementById("runWorkspaceBackupBtn")?.addEventListener("click", asyn
 document.getElementById("settingsOpenBtn")?.addEventListener("click", () => openSettingsDrawer());
 document.getElementById("settingsCloseBtn")?.addEventListener("click", () => closeSettingsDrawer());
 document.getElementById("settingsBackdrop")?.addEventListener("click", () => closeSettingsDrawer());
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  const guidePanel = document.getElementById("starterGuidePanel");
-  if (guidePanel?.classList.contains("open")) {
-    dismissStarterGuide();
-    return;
-  }
-  closeSettingsDrawer();
-  closeProductFloatPanel();
-  closeRefFloatPanel();
-  closeScriptFloatPanel();
-  closeMaterialLibraryDrawer();
-});
 
 document.getElementById("categorySelect")?.addEventListener("change", (e) => {
   state.filters.category = e.target.value;
@@ -6166,20 +6284,6 @@ document.getElementById("videoGenErrorBannerClose")?.addEventListener("click", (
   syncStudioFocusMode();
 });
 
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  if (isAnyFloatPanelOpen()) return;
-  if (state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy) return;
-  if (
-    isDockPreviewVisible()
-    || isDockProgressVisible()
-    || !document.getElementById("produceCompleteModal")?.classList.contains("hidden")
-    || !document.getElementById("videoGenErrorBanner")?.classList.contains("hidden")
-  ) {
-    dismissStudioFocus();
-  }
-});
-
 document.getElementById("produceCompleteBannerClose")?.addEventListener("click", () => {
   dismissStudioFocus();
 });
@@ -6218,6 +6322,9 @@ document.getElementById("scriptFloatBackBtn")?.addEventListener("click", () => {
 
 document.getElementById("videoQueueCloseBtn")?.addEventListener("click", () => {
   showVideoQueuePanel(false);
+  if (state.videoQueuePoll && state.videoQueueTicket) {
+    setScriptActionStatus("仍在排队生成视频，关闭面板不影响进度。可点「取消排队」终止。", { forceDock: true });
+  }
 });
 
 document.getElementById("videoQueueCancelBtn")?.addEventListener("click", async () => {

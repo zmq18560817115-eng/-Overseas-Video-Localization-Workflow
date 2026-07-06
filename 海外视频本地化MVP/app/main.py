@@ -84,6 +84,7 @@ from .library_api import list_feedback, list_finished, load_feedback, load_templ
 from .feedback_loop import preview_constraints
 from .feedback_tags import ISSUE_TAG_DEFS
 from .llm_script import pick_template
+from .feishu_bridge import feishu_auth_url_payload, feishu_doctor_payload, feishu_status_payload
 from .olm_bridge import (
     build_delivery_zip,
     delivery_ready,
@@ -134,7 +135,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 174
+UI_VERSION = 176
 
 
 def _render_index() -> HTMLResponse:
@@ -323,6 +324,7 @@ async def health() -> dict:
         },
         "aigc_primary": "seedance-2.0",
         "seedance": seedance_config(),
+        "feishu": feishu_status_payload(),
         "tiktok_collector": {
             "available": True,
             "limit_per_keyword": 50,
@@ -334,6 +336,22 @@ async def health() -> dict:
         "production": production_profile(),
         "deployment": deployment_status(),
     }
+
+
+@app.get("/api/feishu/status")
+async def feishu_status() -> dict:
+    payload = feishu_status_payload()
+    return {"feishu": payload, **payload}
+
+
+@app.post("/api/feishu/auth-url")
+async def feishu_auth_url() -> dict:
+    return feishu_auth_url_payload()
+
+
+@app.get("/api/feishu/doctor")
+async def feishu_doctor(offline: bool = True) -> dict:
+    return feishu_doctor_payload(offline=offline)
 
 
 @app.get("/api/filters")

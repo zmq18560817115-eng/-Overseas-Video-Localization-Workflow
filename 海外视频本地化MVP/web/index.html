@@ -339,7 +339,7 @@
         <button type="button" class="primary primary-dark" id="scriptFloatProduceBtn">确认生成视频</button>
       </div>
     </footer>
-    <input type="checkbox" id="seedanceForceRegen" checked hidden aria-hidden="true" />
+    <input type="checkbox" id="seedanceForceRegen" hidden aria-hidden="true" />
     <span id="seedanceStatus" class="sr-only-vis" aria-hidden="true"></span>
     <span id="seedancePipeline" class="sr-only-vis" aria-hidden="true"></span>
     <p id="seedanceHint" class="sr-only-vis" aria-hidden="true"></p>
@@ -444,8 +444,8 @@
         <div class="studio-dock" id="generateDock">
           <div class="studio-dock-head">
             <nav class="studio-dock-modes" aria-label="生成模式">
-              <button type="button" class="active" data-gen-mode="imitate">视频模仿</button>
-              <button type="button" data-gen-mode="generate" title="配场景 · 出脚本 · 成片">视频生成</button>
+              <button type="button" class="active" data-gen-mode="generate" title="配场景 · 出脚本 · 成片">视频生成</button>
+              <button type="button" data-gen-mode="imitate">视频模仿</button>
               <button type="button" data-gen-mode="image-text" disabled title="规划中">图文</button>
             </nav>
             <button type="button" class="studio-dock-close settings-close hidden" id="generateDockCloseBtn" aria-label="返回主页面" title="返回主页面">×</button>
@@ -507,9 +507,9 @@
               <div class="dock-gen-popover-wrap" id="dockGenerateCountWrap">
                 <button type="button" class="dock-gen-action-btn" id="dockGenerateCountBtn" aria-expanded="false" aria-controls="dockGenerateCountMenu">
                   <span class="dock-gen-action-icon" aria-hidden="true">▭</span>
-                  <span id="dockGenerateCountLabel">生成 1 条</span>
+                  <span id="dockGenerateCountLabel">脚本变体 1</span>
                 </button>
-                <div id="dockGenerateCountMenu" class="dock-gen-count-menu hidden" role="menu" aria-label="生成条数" hidden></div>
+                <div id="dockGenerateCountMenu" class="dock-gen-count-menu hidden" role="menu" aria-label="脚本变体数" hidden></div>
               </div>
               <button type="button" class="dock-gen-action-btn" id="dockPromptEnhanceBtn" title="结合标签与对标结构强化创作指令">
                 <span class="dock-gen-action-icon" aria-hidden="true">✦</span>
@@ -627,9 +627,9 @@
               <div class="dock-gen-popover-wrap" id="imitateGenerateCountWrap">
                 <button type="button" class="dock-gen-action-btn" id="imitateGenerateCountBtn" aria-expanded="false" aria-controls="imitateDockGenerateCountMenu">
                   <span class="dock-gen-action-icon" aria-hidden="true">▭</span>
-                  <span id="imitateDockGenerateCountLabel">生成 1 条</span>
+                  <span id="imitateDockGenerateCountLabel">脚本变体 1</span>
                 </button>
-                <div id="imitateDockGenerateCountMenu" class="dock-gen-count-menu hidden" role="menu" aria-label="生成条数" hidden></div>
+                <div id="imitateDockGenerateCountMenu" class="dock-gen-count-menu hidden" role="menu" aria-label="脚本变体数" hidden></div>
               </div>
               <button type="button" class="dock-gen-action-btn" id="imitatePromptEnhanceBtn" title="结合标签与对标结构强化创作指令">
                 <span class="dock-gen-action-icon" aria-hidden="true">✦</span>
