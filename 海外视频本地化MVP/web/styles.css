@@ -5379,6 +5379,21 @@ body.studio-focus-mode .produce-complete-banner {
   color: var(--muted);
 }
 
+.dock-settings-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.dock-settings-check input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
 .dock-settings-pill-row {
   display: flex;
   gap: 6px;
@@ -6778,9 +6793,15 @@ body.studio-focus-mode .produce-complete-banner {
 .product-float-section-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.product-float-default-tags {
+  margin-left: auto;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .product-float-label {

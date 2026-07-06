@@ -1647,7 +1647,7 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
     state.seedanceVideoComplete = true;
     clearVideoGenErrorOnly();
     syncProduceAssetsUi(prev);
-    showProduceCompleteBanner("成片已就绪", "可预览 mp4 或下载 zip 包", slug);
+    syncProducePreviewAllDocks(prev);
     return;
   }
   if (shotAssetsReady(seedance)) {
@@ -1659,9 +1659,8 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
       if (labelEl) labelEl.textContent = "AI 分镜";
     }
     clearVideoGenErrorOnly();
-    const msg = "分镜 mp4 已就绪，可预览或下载 zip；成片未合成时可点「重新合成」（仅拼接，不重生成各镜）。";
     syncProduceAssetsUi(prev);
-    showProduceCompleteBanner("分镜已生成", msg, slug, { partial: true });
+    syncProducePreviewAllDocks(prev);
   } else {
     syncDockReassembleButton(null, null);
     syncProduceAssetsUi(prev);
@@ -1683,18 +1682,31 @@ function producePreviewTargets(scope = "active") {
 }
 
 function syncProducePreviewForActiveView() {
-  const lp = state.lastPreview || {};
-  const inactive = state.view === "imitate" ? "dockProducePreview" : "imitateDockProducePreview";
-  document.getElementById(inactive)?.classList.add("hidden");
+  syncProducePreviewAllDocks(state.lastPreview || {});
+}
+
+function syncProducePreviewAllDocks(prev = state.lastPreview || {}) {
+  const lp = prev;
+  const boxIds = ["dockProducePreview", "imitateDockProducePreview"];
   if (!lp.slug || !lp.seedance || !produceDownloadReady(lp)) {
-    producePreviewTargets("active").forEach((box) => {
+    boxIds.forEach((id) => {
+      const box = document.getElementById(id);
+      if (!box) return;
       box.classList.add("hidden");
       box.innerHTML = "";
     });
     return;
   }
-  const scope = state.view === "imitate" ? "imitate" : "generate";
-  renderProduceResultPanel(lp.slug, lp.seedance, { engageFocus: false, scope });
+  const html = buildProduceResultHtml(lp.slug, lp.seedance, {});
+  boxIds.forEach((id) => {
+    const box = document.getElementById(id);
+    if (!box) return;
+    box.classList.remove("hidden");
+    box.innerHTML = html;
+    wireProduceResultPanel(box, lp.slug);
+  });
+  syncDockReassembleButton(lp.slug, lp.seedance);
+  syncStudioFocusMode();
 }
 
 function renderProduceResultPanel(slug, seedance, { assembleMessage = "", engageFocus = false, scope = "active" } = {}) {
@@ -1787,7 +1799,6 @@ function renderProduceOutcome(slug, seedance, { message = "", assemble = null, f
       : `${asmMsg}${PARTIAL_QUOTA_NOTE}。可先预览分镜或下载 zip，再点「重新合成」（仅拼接，不重生成各镜）。`;
     renderProduceResultPanel(s, seedance, { assembleMessage: asmMsg, engageFocus: true, scope: "active" });
     syncProduceAssetsUi({ ...(state.lastPreview || {}), slug: s, seedance });
-    showProduceCompleteModal("分镜已生成", friendly, s, seedance, { partial: true });
     showSeedanceProgress(true, {
       status: friendly,
       percent: 90,
@@ -2535,6 +2546,33 @@ function tagsSelectionOk() {
     && sel.selling.length > 0 && sel.pains.length > 0;
 }
 
+function applyDefaultProductTags() {
+  const productId = document.getElementById("scriptProductSelect")?.value;
+  if (!productId) {
+    setScriptActionStatus("请先选择产品");
+    return;
+  }
+  const p = state.products.find((x) => x.product_id === productId) || {};
+  const pool = buildTagPool(p, p.delivery_tags || state.lastPreview?.delivery_tags);
+  const selected = defaultSelectedTags(pool, {});
+  state.tagSelection = {
+    audience: [...selected.audience].slice(0, 1),
+    scenarios: [...selected.scenarios].slice(0, 1),
+    selling: [...selected.selling],
+    pains: [...selected.pains],
+  };
+  state.selectedAudience = state.tagSelection.audience;
+  state.selectedScenarios = state.tagSelection.scenarios;
+  refreshTagGroupsUI();
+  syncProductFloatStatus();
+  syncDockProductSlot();
+  syncDockRefSlot();
+  syncReverseDockProduct();
+  updateLoopBarFromForm(state.lastPreview || {});
+  syncDockPromptFromScenarioTags();
+  refreshScriptFloatPersonalization();
+}
+
 function selectGenerateScenario(featureId) {
   state.selectedScenarioFeature = featureId;
   document.querySelectorAll("#generateFeatureGrid .feature-card").forEach((c) => {
@@ -3088,10 +3126,26 @@ function syncReverseDockMaterial() {
   }
   if (chip) {
     const reverseType = state.reverseType || "video";
-    chip.textContent = item
-      ? `已选 #${linkId} · ${reverseType === "script" ? "脚本" : "视频"}反推`
-      : "拆解 · 反推入库";
+    if (!currentProductId() && !item) {
+      chip.textContent = "请先点「产品」配置，以便过滤素材与提示词库";
+    } else if (item) {
+      chip.textContent = `已选 #${linkId} · ${reverseType === "script" ? "脚本" : "视频"}反推`;
+    } else {
+      chip.textContent = "拆解 · 反推入库";
+    }
   }
+}
+
+function syncReverseDockProduct() {
+  const btn = document.getElementById("reverseDockProductBtn");
+  const label = document.getElementById("reverseDockProductLabel");
+  if (!btn || !label) return;
+  const ps = document.getElementById("scriptProductSelect");
+  const productName = ps?.selectedOptions?.[0]?.textContent?.trim() || "";
+  const ready = Boolean(ps?.value);
+  btn.classList.toggle("has-value", ready);
+  label.textContent = ready && productName ? productName.slice(0, 8) : "产品";
+  btn.title = ready && productName ? `已选：${productName}` : "选择产品以过滤素材与提示词库";
 }
 
 async function renderReversePromptLibrary() {
@@ -3139,7 +3193,14 @@ async function renderReversePromptLibrary() {
 function loadReverseView() {
   syncReverseDockType();
   syncReverseDockMaterial();
+  syncReverseDockProduct();
   renderReversePromptLibrary();
+  if (!currentProductId()) {
+    const chip = document.getElementById("reverseDockStatusChip");
+    if (chip && !state.reverseMaterialId) {
+      chip.textContent = "请先点「产品」配置，以便过滤素材与提示词库";
+    }
+  }
 }
 
 async function runReversePrompt() {
@@ -3147,6 +3208,11 @@ async function runReversePrompt() {
   if (!linkId) {
     window.alert("请先从素材库选择对标视频");
     openMaterialLibraryDrawer();
+    return;
+  }
+  if (!currentProductId()) {
+    window.alert("请先点底部「产品」选择商品，以便按品类过滤提示词库");
+    await openProductFloatPanel();
     return;
   }
   const btn = document.getElementById("reverseDockRun");
@@ -3352,6 +3418,8 @@ function initModuleStudios() {
   document.getElementById("promptSelectFloatBackdrop")?.addEventListener("click", closePromptSelectFloatPanel);
   document.getElementById("promptSelectFloatConfirmBtn")?.addEventListener("click", confirmPromptSelectFloatPanel);
   document.getElementById("imitateOpenProductBtn")?.addEventListener("click", () => openProductFloatPanel());
+  document.getElementById("reverseDockProductBtn")?.addEventListener("click", () => openProductFloatPanel());
+  document.getElementById("productFloatDefaultTagsBtn")?.addEventListener("click", () => applyDefaultProductTags());
   getImitationPromptEls().forEach((ta) => {
     ta.addEventListener("input", () => {
       syncImitationPromptFields();
@@ -3544,11 +3612,16 @@ function loadVideoSettings() {
     if (VIDEO_DURATIONS.includes(Number(saved.durationSec))) state.videoSettings.durationSec = Number(saved.durationSec);
     if (GENERATE_COUNTS.includes(Number(saved.generateCount))) state.videoSettings.generateCount = Number(saved.generateCount);
   } catch { /* ignore */ }
+  try {
+    const forceRaw = localStorage.getItem("vl_seedance_force_regen");
+    const forceCb = document.getElementById("seedanceForceRegen");
+    if (forceCb && forceRaw != null) forceCb.checked = forceRaw === "1";
+  } catch { /* ignore */ }
 }
 
 function syncDockVideoSettingsLabel() {
   const vs = currentVideoSettings();
-  const text = `${vs.resolution} · ${vs.aspectRatio}`;
+  const text = `${vs.resolution} · ${vs.aspectRatio} · ${vs.durationSec}s`;
   const countText = `脚本变体 ${vs.generateCount}`;
   for (const id of ["dockVideoSettingsLabel", "imitateDockVideoSettingsLabel"]) {
     const el = document.getElementById(id);
@@ -3572,6 +3645,9 @@ function renderDockVideoSettingsPanel() {
       <span>${ratio}</span>
     </button>`;
   }).join("");
+  const durationHtml = VIDEO_DURATIONS.map((sec) =>
+    `<button type="button" class="dock-settings-pill${sec === vs.durationSec ? " active" : ""}" data-duration-sec="${sec}">${sec}s</button>`
+  ).join("");
 
   for (const id of ["dockResolutionRow", "imitateDockResolutionRow"]) {
     const row = document.getElementById(id);
@@ -3597,6 +3673,28 @@ function renderDockVideoSettingsPanel() {
         renderDockVideoSettingsPanel();
         syncDockVideoSettingsLabel();
       });
+    });
+  }
+  for (const id of ["dockDurationRow", "imitateDockDurationRow"]) {
+    const row = document.getElementById(id);
+    if (!row) continue;
+    row.innerHTML = durationHtml;
+    row.querySelectorAll("[data-duration-sec]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.videoSettings.durationSec = Number(btn.dataset.durationSec);
+        persistVideoSettings();
+        renderDockVideoSettingsPanel();
+        syncDockVideoSettingsLabel();
+      });
+    });
+  }
+  const forceCb = document.getElementById("seedanceForceRegen");
+  if (forceCb && !forceCb.dataset.bound) {
+    forceCb.dataset.bound = "1";
+    forceCb.addEventListener("change", () => {
+      try {
+        localStorage.setItem("vl_seedance_force_regen", forceCb.checked ? "1" : "0");
+      } catch { /* ignore */ }
     });
   }
 }
@@ -4414,11 +4512,23 @@ function syncProductFloatStatus() {
 }
 
 function syncDockProductSlot() {
-  const ready = Boolean(document.getElementById("scriptProductSelect")?.value) && tagsSelectionOk();
+  const ps = document.getElementById("scriptProductSelect");
+  const ready = Boolean(ps?.value) && tagsSelectionOk();
+  const productName = ps?.selectedOptions?.[0]?.textContent?.trim() || "";
   for (const id of ["dockOpenProductBtn", "imitateOpenProductBtn"]) {
     const btn = document.getElementById(id);
-    if (btn) btn.classList.toggle("has-value", ready);
+    if (!btn) continue;
+    btn.classList.toggle("has-value", ready);
+    const spans = btn.querySelectorAll("span");
+    const labelSpan = spans[spans.length - 1];
+    if (labelSpan) {
+      labelSpan.textContent = ready && productName
+        ? productName.slice(0, 10)
+        : "产品";
+    }
+    btn.title = ready && productName ? `已选：${productName}` : "先选产品与场景标签";
   }
+  syncReverseDockProduct();
 }
 
 function syncDockRefSlot() {
@@ -4429,7 +4539,16 @@ function syncDockRefSlot() {
     btn.disabled = !ready;
     btn.classList.toggle("dock-upload-slot-locked", !ready);
     btn.classList.toggle("has-value", ready && Boolean(state.selectedMaterialId));
-    btn.title = ready ? "选择同品类对标视频" : "请先点击「产品」完成配置";
+    const item = state.items.find((i) => i.link_id === state.selectedMaterialId);
+    const refTitle = item ? (item.title || "").trim().slice(0, 10) || `#${item.link_id}` : "";
+    const spans = btn.querySelectorAll("span");
+    const labelSpan = spans[spans.length - 1];
+    if (labelSpan) {
+      labelSpan.textContent = ready && state.selectedMaterialId && refTitle ? refTitle : "对标";
+    }
+    btn.title = ready
+      ? (state.selectedMaterialId ? `已选对标：${refTitle}` : "选择同品类对标视频")
+      : "请先点击「产品」完成配置";
   }
 }
 
@@ -5053,7 +5172,7 @@ function renderMaterialDetail(d, detail) {
         <div class="result error">${esc(friendlyAnalyzeError(detail?.message, detail))}</div>
         <div class="dissector-foot dissector-foot-row">
           ${detail?.retryable ? '<button type="button" class="secondary" id="retryAnalyzeBtn">重试拆解</button>' : ""}
-          <button type="button" class="primary primary-dark" id="goScriptBtn">生成脚本</button>
+          <button type="button" class="primary primary-dark" id="goScriptBtn">${state.view === "reverse" ? "用于反推" : "生成脚本"}</button>
         </div>
       </div>`;
   }
@@ -5087,7 +5206,7 @@ function renderMaterialDetail(d, detail) {
         </div>
       </details>
       <div class="dissector-foot">
-        <button type="button" class="primary primary-dark" id="goScriptBtn">生成脚本</button>
+        <button type="button" class="primary primary-dark" id="goScriptBtn">${state.view === "reverse" ? "用于反推" : "生成脚本"}</button>
       </div>
     </div>`;
 }
@@ -5179,6 +5298,19 @@ async function selectMaterial(linkId, { fromDrawer = false, fromRefFloat = false
       copyText(text, e.currentTarget);
     });
     document.getElementById("goScriptBtn")?.addEventListener("click", async () => {
+      if (state.view === "reverse") {
+        state.reverseMaterialId = linkId;
+        state.selectedMaterialId = linkId;
+        syncReverseDockMaterial();
+        closeMaterialLibraryDrawer();
+        closeRefFloatPanel();
+        if (!currentProductId()) {
+          await openProductFloatPanel();
+          return;
+        }
+        document.getElementById("reverseDock")?.scrollIntoView({ behavior: "smooth", block: "end" });
+        return;
+      }
       state.selectedMaterialId = linkId;
       const row = state.items.find((i) => i.link_id === linkId);
       if (row?.content_line) state.selectedProductId = row.content_line;
@@ -6590,7 +6722,11 @@ document.getElementById("btnFeishuDoctorSettings")?.addEventListener("click", as
 
 document.getElementById("videoGenErrorBannerClose")?.addEventListener("click", () => {
   clearVideoGenErrorOnly();
-  syncStudioFocusMode();
+  if (!state.videoGenActive && !state.scriptGenActive && !state.createPipelineActive) {
+    resetSeedanceProgressDock();
+  } else {
+    syncStudioFocusMode();
+  }
 });
 
 document.getElementById("produceCompleteBannerClose")?.addEventListener("click", () => {

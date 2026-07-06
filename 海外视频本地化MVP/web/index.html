@@ -257,6 +257,7 @@
       <section class="product-float-section product-float-tags-section">
         <div class="product-float-section-head">
           <span class="product-float-label">产品场景标签</span>
+          <button type="button" class="btn-text product-float-default-tags" id="productFloatDefaultTagsBtn">一键默认标签</button>
           <span class="product-float-hint muted">人群/场景单选 · 卖点/痛点多选</span>
         </div>
         <div id="scriptProduct" class="script-tag-grid script-tag-grid-float detail-empty">选择产品后配置场景标签</div>
@@ -342,7 +343,6 @@
         <button type="button" class="primary primary-dark" id="scriptFloatProduceBtn">确认生成视频</button>
       </div>
     </footer>
-    <input type="checkbox" id="seedanceForceRegen" hidden aria-hidden="true" />
     <span id="seedanceStatus" class="sr-only-vis" aria-hidden="true"></span>
     <span id="seedancePipeline" class="sr-only-vis" aria-hidden="true"></span>
     <p id="seedanceHint" class="sr-only-vis" aria-hidden="true"></p>
@@ -507,6 +507,16 @@
                     <div class="dock-settings-label">宽高比</div>
                     <div class="dock-settings-ratio-row" id="dockAspectRatioRow"></div>
                   </div>
+                  <div class="dock-settings-section">
+                    <div class="dock-settings-label">单镜时长</div>
+                    <div class="dock-settings-pill-row" id="dockDurationRow"></div>
+                  </div>
+                  <div class="dock-settings-section dock-settings-force-regen">
+                    <label class="dock-settings-check">
+                      <input type="checkbox" id="seedanceForceRegen" />
+                      <span>强制重新生成分镜（跳过缓存 mp4）</span>
+                    </label>
+                  </div>
                 </div>
               </div>
               <div class="dock-gen-popover-wrap" id="dockGenerateCountWrap">
@@ -630,6 +640,10 @@
                     <div class="dock-settings-label">宽高比</div>
                     <div class="dock-settings-ratio-row" id="imitateDockAspectRatioRow"></div>
                   </div>
+                  <div class="dock-settings-section">
+                    <div class="dock-settings-label">单镜时长</div>
+                    <div class="dock-settings-pill-row" id="imitateDockDurationRow"></div>
+                  </div>
                 </div>
               </div>
               <div class="dock-gen-popover-wrap" id="imitateGenerateCountWrap">
@@ -685,6 +699,10 @@
           </div>
           <div class="studio-dock-body">
             <div class="studio-dock-uploads">
+              <button type="button" class="dock-upload-slot" id="reverseDockProductBtn" title="选择产品以过滤素材与提示词库">
+                <span class="dock-upload-icon">📦</span>
+                <span id="reverseDockProductLabel">产品</span>
+              </button>
               <button type="button" class="dock-upload-slot" disabled title="规划中">
                 <span class="dock-upload-icon">📹</span>
                 <span>上传</span>
