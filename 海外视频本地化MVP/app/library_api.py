@@ -17,6 +17,7 @@ from paths import (
 )
 
 from .feedback_tags import ISSUE_TAG_IDS
+from .prompt_library import publish_approved_script
 
 FINISHED_DIR = FINISHED_LIBRARY_DIR
 FEEDBACK_DIR = FEEDBACK_LIBRARY_DIR
@@ -167,6 +168,7 @@ def save_feedback(slug: str, updates: dict[str, Any]) -> dict[str, Any]:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     _sync_feedback_csv(slug, record)
+    publish_approved_script(slug, record)
     return record
 
 

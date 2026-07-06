@@ -426,6 +426,106 @@ body {
   min-width: 0;
 }
 
+.hotspot-sync-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #e8e8ec);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(16, 185, 129, 0.05));
+}
+
+.hotspot-sync-bar.is-busy {
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.hotspot-sync-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.hotspot-sync-icon {
+  font-size: 18px;
+  line-height: 1.2;
+  color: var(--accent, #6366f1);
+}
+
+.hotspot-sync-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hotspot-sync-text strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hotspot-sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.hotspot-auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-muted, #666);
+  cursor: pointer;
+  user-select: none;
+}
+
+.hotspot-auto-toggle input {
+  margin: 0;
+}
+
+.settings-engine-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.settings-engine-card {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #e8e8ec);
+  background: var(--surface, #fafafa);
+}
+
+.settings-engine-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-engine-card .seedance-status {
+  font-size: 12px;
+  margin-bottom: 8px;
+  min-height: 2.5em;
+}
+
+.settings-env-compact {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+@media (max-width: 520px) {
+  .settings-engine-grid { grid-template-columns: 1fr; }
+  .hotspot-sync-actions { width: 100%; }
+}
+
 .studio-major-title {
   margin: 0;
   font-size: 22px;
@@ -5702,6 +5802,24 @@ body.studio-focus-mode .produce-complete-banner {
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.pipeline-stop-btn {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-color: #fca5a5;
+  color: #b91c1c;
+  background: #fff;
+}
+
+.pipeline-stop-btn:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+.pipeline-stop-btn.hidden {
+  display: none;
 }
 
 .seedance-progress-label {

@@ -10,7 +10,7 @@
   <header class="app-top">
     <button type="button" class="global-pipeline-badge hidden" id="globalPipelineBadge" hidden title="成片任务进行中，点击定位到底部进度">出片中…</button>
     <button type="button" class="global-job-badge hidden" id="globalJobBadge" hidden title="后台任务运行中，点击查看">后台任务…</button>
-    <button type="button" class="settings-trigger settings-trigger-floating" id="settingsOpenBtn" aria-expanded="false" aria-controls="settingsDrawer" title="设置与数据同步">
+    <button type="button" class="settings-trigger settings-trigger-floating" id="settingsOpenBtn" aria-expanded="false" aria-controls="settingsDrawer" title="引擎状态与快捷入口">
       <span class="settings-trigger-icon" aria-hidden="true">⚙</span>
       <span>设置</span>
     </button>
@@ -97,106 +97,40 @@
     <div class="settings-drawer-head">
       <div>
         <h2 class="settings-drawer-title">设置</h2>
-        <p class="settings-drawer-sub">同步、引擎与环境</p>
+        <p class="settings-drawer-sub">引擎状态与快捷入口</p>
       </div>
       <button type="button" class="settings-close" id="settingsCloseBtn" aria-label="关闭设置">×</button>
     </div>
     <div class="settings-drawer-body">
-      <details class="settings-block">
-        <summary>运行素材库</summary>
-        <p class="hint">公司运行素材 · 商品图 · 爬取视频 · 存储归档</p>
-        <div class="job-grid job-grid-pills job-grid-compact">
-          <button type="button" class="secondary pill-btn" id="openMaterialLibraryFromSettings">爬取视频素材库</button>
-          <button type="button" class="secondary pill-btn" id="openProductsFromSettings">商品图 / 产品资料</button>
-        </div>
-        <p class="hint muted">运行链接模型与 SeedDance 配置见下方引擎区块；成片归档见 <code>03_产出库</code>。</p>
-      </details>
       <details class="settings-block" open>
-        <summary>数据同步</summary>
-        <p class="hint">按顺序执行：发现 → 入库 → 同步 TikTok → 拆解 → 更新模板</p>
-        <div class="sync-workflow">
-          <section class="sync-step">
-            <h3 class="sync-step-label">① 发现与入库</h3>
-            <div class="job-grid job-grid-pills job-grid-compact">
-              <button type="button" class="job-btn pill-btn" data-job="discover">发现候选</button>
-              <button type="button" class="job-btn pill-btn" data-job="promote">筛选入库</button>
-            </div>
+        <summary>引擎状态</summary>
+        <p class="hint muted">日常采集、清理与热点更新请在首页「爆款拆解」区的素材维护条操作。</p>
+        <div class="settings-engine-grid">
+          <section class="settings-engine-card">
+            <h3 class="settings-engine-label">结构拆解</h3>
+            <div id="doubaoSettingsStatus" class="seedance-status">加载中…</div>
+            <button type="button" class="secondary pill-btn pill-btn-sm" id="btnDoubaoTestSettings">测试</button>
           </section>
-          <section class="sync-step">
-            <h3 class="sync-step-label">② TikTok 元数据</h3>
-            <div class="job-grid job-grid-pills job-grid-compact">
-              <button type="button" class="job-btn pill-btn" data-job="fetch">同步 TikTok</button>
-              <button type="button" class="job-btn pill-btn secondary" data-job="cache-thumbnails">缓存封面</button>
-            </div>
-          </section>
-          <section class="sync-step">
-            <h3 class="sync-step-label">③ 结构拆解</h3>
-            <div class="job-grid job-grid-pills job-grid-compact">
-              <button type="button" class="job-btn pill-btn" data-job="decompose" data-provider="rule">批量规则拆解（免费）</button>
-              <button type="button" class="job-btn pill-btn secondary" data-job="decompose" data-provider="doubao" title="消耗豆包额度，建议仅对入选爆款使用">豆包精细拆解（限量）</button>
-            </div>
-          </section>
-          <section class="sync-step">
-            <h3 class="sync-step-label">④ 模板与产品</h3>
-            <div class="job-grid job-grid-pills job-grid-compact">
-              <button type="button" class="job-btn pill-btn" data-job="templates">更新模板</button>
-              <button type="button" class="job-btn pill-btn" data-job="products">同步产品</button>
-            </div>
-          </section>
-          <section class="sync-step sync-step-maint">
-            <h3 class="sync-step-label">维护</h3>
-            <div class="job-grid job-grid-pills job-grid-compact">
-              <button type="button" class="job-btn pill-btn secondary" data-job="prune" id="pruneMaterialsBtn" title="去重并限额，已拆解/成稿/有脚本默认保留">整理素材库</button>
-            </div>
+          <section class="settings-engine-card">
+            <h3 class="settings-engine-label">SeedDance 成片</h3>
+            <div id="seedanceSettingsStatus" class="seedance-status">加载中…</div>
+            <button type="button" class="secondary pill-btn pill-btn-sm" id="btnSeedanceTestSettings">测试</button>
           </section>
         </div>
-        <div id="jobStatus" class="job-status">就绪</div>
-        <pre id="jobLog" class="job-log"></pre>
+        <div id="envInfo" class="env-info settings-env-compact">加载中…</div>
       </details>
       <details class="settings-block">
-        <summary>产品资料</summary>
-        <p class="hint">改禁用词、价格带、竞品参考等长文案时使用。</p>
-        <button type="button" class="secondary pill-btn" id="openProductsBtn">打开产品资料维护</button>
-      </details>
-      <details class="settings-block">
-        <summary>豆包 · 视频拆解</summary>
-        <p class="hint">逐字稿 + 分镜表。复用 <code>ARK_API_KEY</code>。</p>
-        <div id="doubaoSettingsStatus" class="seedance-status">加载中…</div>
-        <div class="seedance-actions">
-          <button type="button" class="secondary pill-btn" id="btnDoubaoTestSettings">测试连接</button>
+        <summary>快捷入口</summary>
+        <div class="job-grid job-grid-pills job-grid-compact">
+          <button type="button" class="secondary pill-btn" id="openMaterialLibraryFromSettings">对标素材库</button>
+          <button type="button" class="secondary pill-btn" id="openProductsFromSettings">产品资料</button>
         </div>
       </details>
       <details class="settings-block">
-        <summary>SeedDance 2.0</summary>
-        <p class="hint">AI 分镜成片。<code>overseas-loc-mvp/.env</code> 配置密钥。</p>
-        <div id="seedanceSettingsStatus" class="seedance-status">加载中…</div>
-        <div class="seedance-actions">
-          <button type="button" class="secondary pill-btn" id="btnSeedanceTestSettings">测试连接</button>
-        </div>
-      </details>
-      <details class="settings-block">
-        <summary>飞书 CLI</summary>
-        <p class="hint">同步飞书/Lark 文档、表格、消息和日程。首次使用先运行根目录 <code>配置飞书CLI.cmd</code> 完成应用配置。</p>
-        <div id="feishuSettingsStatus" class="seedance-status">加载中…</div>
-        <div id="feishuAuthOutput" class="job-log hidden"></div>
-        <div class="seedance-actions">
-          <button type="button" class="secondary pill-btn" id="btnFeishuStatusSettings">检测状态</button>
-          <button type="button" class="secondary pill-btn" id="btnFeishuAuthUrlSettings">生成授权链接</button>
-          <button type="button" class="secondary pill-btn" id="btnFeishuDoctorSettings">运行 doctor</button>
-        </div>
-      </details>
-      <details class="settings-block">
-        <summary>内网部署与备份</summary>
-        <p class="hint">成片自动归档至 <code>03_产出库</code>；用户可通过页面下载 zip，服务器同时保留备份。</p>
+        <summary>高级 · 备份</summary>
         <div id="deployInfo" class="env-info muted">加载中…</div>
-        <div class="job-grid job-grid-pills job-grid-compact">
-          <button type="button" class="secondary pill-btn" id="runWorkspaceBackupBtn">立即备份工作区</button>
-        </div>
+        <button type="button" class="secondary pill-btn" id="runWorkspaceBackupBtn">立即备份工作区</button>
         <p id="backupStatus" class="job-status muted"></p>
-      </details>
-      <details class="settings-block" open>
-        <summary>环境信息</summary>
-        <div id="envInfo" class="env-info">加载中…</div>
       </details>
     </div>
   </aside>
@@ -330,6 +264,7 @@
             <span id="scriptGenProgressStatus" class="seedance-progress-status muted">准备中…</span>
             <span id="scriptGenProgressCountdown" class="seedance-progress-countdown hidden" aria-live="polite"></span>
           </div>
+          <button type="button" class="secondary pill-btn pipeline-stop-btn hidden" data-pipeline-stop="1">停止生成</button>
         </div>
         <div class="seedance-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
           <div id="scriptGenProgressFill" class="seedance-progress-fill"></div>
@@ -355,7 +290,7 @@
     <div class="product-float-head">
       <div>
         <h2 id="promptSelectFloatTitle" class="product-float-title">提示词选择</h2>
-        <p class="product-float-sub">选用结构模板或常用风格，写入视频生成创作指令</p>
+        <p class="product-float-sub">选用内置风格模板，或成稿反馈「已采纳」后的可复用脚本</p>
       </div>
       <button type="button" class="settings-close" id="promptSelectFloatCloseBtn" aria-label="关闭">×</button>
     </div>
@@ -406,10 +341,31 @@
                   <p class="studio-major-desc">采集对标、筛选入库并拆解爆款结构，供下方创作复用</p>
                 </div>
                 <div class="studio-major-actions">
-                  <button type="button" class="secondary pill-btn" id="decomposeCollectorBtn" title="打开 TikTok 采集">素材收集</button>
-                  <button type="button" class="secondary pill-btn" id="decomposeLibraryBtn" title="打开素材库">素材库</button>
+                  <button type="button" class="secondary pill-btn hidden" id="decomposeCollectorBtn" hidden aria-hidden="true" tabindex="-1">素材收集</button>
                 </div>
               </header>
+
+              <div class="hotspot-sync-bar" id="hotspotSyncBar" aria-live="polite">
+                <div class="hotspot-sync-main">
+                  <span class="hotspot-sync-icon" aria-hidden="true">⟳</span>
+                  <div class="hotspot-sync-text">
+                    <strong id="hotspotSyncTitle">素材维护</strong>
+                    <span id="hotspotSyncStatus" class="muted">配置产品后可同步热点、清理旧素材并刷新下方卡片</span>
+                  </div>
+                </div>
+                <div class="hotspot-sync-actions">
+                  <label class="hotspot-auto-toggle" title="每 30 分钟自动：同步热点 → 移除非品类 → 去重限额">
+                    <input type="checkbox" id="hotspotAutoSync" />
+                    <span>自动维护</span>
+                  </label>
+                  <button type="button" class="primary pill-btn pill-btn-sm" id="hotspotMaintainBtn" title="同步热点 + 移除非品类 + 去重限额（保留已拆解/成稿）">一键维护</button>
+                  <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotRefreshBtn" title="仅从 MySQL 拉取高互动热点">更新热点</button>
+                  <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotPruneBtn" title="移除非品类并去重限额，不拉取新数据">整理素材</button>
+                  <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotDecomposeBtn" title="对未拆解素材批量规则拆解（免费）">拆解新素材</button>
+                  <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotCollectBtn" title="浏览器抓取 TikTok 新热点">浏览器采集</button>
+                  <button type="button" class="secondary pill-btn pill-btn-sm" id="decomposeLibraryBtn" title="打开对标素材库">素材库</button>
+                </div>
+              </div>
 
               <header class="module-studio-head">
                 <nav class="module-studio-tabs" aria-label="爆款拆解视图">
@@ -455,7 +411,7 @@
           <div class="studio-dock-head">
             <nav class="studio-dock-modes" aria-label="生成模式">
               <button type="button" class="active" data-gen-mode="generate" title="配场景 · 出脚本 · 成片">视频生成</button>
-              <button type="button" data-gen-mode="imitate">视频模仿</button>
+              <button type="button" data-gen-mode="imitate" title="前往顶部「爆款模仿」专页">爆款模仿 →</button>
               <button type="button" data-gen-mode="image-text" disabled title="规划中">图文</button>
             </nav>
             <button type="button" class="studio-dock-close settings-close hidden" id="generateDockCloseBtn" aria-label="返回主页面" title="返回主页面">×</button>
@@ -486,6 +442,7 @@
                 <span id="seedanceProgressStatus" class="seedance-progress-status muted">准备中…</span>
                 <span id="seedanceProgressCountdown" class="seedance-progress-countdown hidden" aria-live="polite"></span>
               </div>
+              <button type="button" class="secondary pill-btn pipeline-stop-btn hidden" data-pipeline-stop="1">停止生成</button>
             </div>
             <div class="seedance-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
               <div id="seedanceProgressFill" class="seedance-progress-fill"></div>
@@ -625,6 +582,7 @@
                 <span id="imitateSeedanceProgressStatus" class="seedance-progress-status muted">准备中…</span>
                 <span id="imitateSeedanceProgressCountdown" class="seedance-progress-countdown hidden" aria-live="polite"></span>
               </div>
+              <button type="button" class="secondary pill-btn pipeline-stop-btn hidden" data-pipeline-stop="1">停止生成</button>
             </div>
             <div class="seedance-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
               <div id="imitateSeedanceProgressFill" class="seedance-progress-fill"></div>
@@ -698,7 +656,7 @@
           </section>
           <section class="module-studio-panel hidden" id="reverseExportsPanel" data-studio-panel="exports">
             <h2 class="module-feature-title">提示词库</h2>
-            <p class="module-feature-desc muted">反推结果自动入库；视频生成「提示词选择」按使用次数动态排序</p>
+            <p class="module-feature-desc muted">反推结果写入提示词库待审核；成稿反馈「已采纳」后方可于「提示词选择」复用</p>
             <div class="prompt-select-list reverse-library-list" id="reversePromptLibraryList">
               <p class="muted">加载中…</p>
             </div>

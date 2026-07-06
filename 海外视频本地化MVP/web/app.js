@@ -31,6 +31,7 @@ const state = {
   generateDockMode: "generate",
   pendingScenarioTag: null,
   createPipelineActive: false,
+  pipelineOriginView: null,
   seedanceProgressPersist: false,
   scriptGenActive: false,
   videoGenActive: false,
@@ -38,6 +39,7 @@ const state = {
   videoQueueTicket: null,
   videoQueuePoll: null,
   videoProductionAbort: null,
+  scriptGenerationAbort: null,
   clientId: null,
   seedanceVideoComplete: false,
   producePartialReady: false,
@@ -63,7 +65,13 @@ const state = {
   reverseType: "video",
   reverseMaterialId: null,
   reverseLastResult: null,
+  hotspotRefreshBusy: false,
+  hotspotAutoTimer: null,
 };
+
+const HOTSPOT_AUTO_SYNC_KEY = "vl_hotspot_auto_sync";
+const HOTSPOT_AUTO_INTERVAL_KEY = "vl_hotspot_auto_interval_min";
+const DEFAULT_HOTSPOT_INTERVAL_MIN = 30;
 
 const VIDEO_RESOLUTIONS = ["720P", "1080P"];
 const VIDEO_ASPECT_RATIOS = ["9:16", "16:9", "1:1", "3:4", "4:3"];
@@ -786,6 +794,7 @@ function closeSiblingFloatPanels(exceptPanelId = "") {
 
 function beginAutomatedPipelineUi() {
   state.dockFocusDismissed = false;
+  state.pipelineOriginView = state.view;
   closeSiblingFloatPanels("");
   hideProduceCompleteModal();
   hideProduceCompleteBanner();
@@ -815,17 +824,16 @@ function syncStudioFocusMode() {
   const modalOpen = !document.getElementById("produceCompleteModal")?.classList.contains("hidden");
   const floatOpen = isAnyFloatPanelOpen();
   const bannerOpen = !document.getElementById("produceCompleteBanner")?.classList.contains("hidden");
-  const pipelineBusy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive;
+  const pipelineBusy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy;
   const errorBanner = !document.getElementById("videoGenErrorBanner")?.classList.contains("hidden");
   const dockChrome = isDockPreviewVisible() || isDockProgressVisible() || errorBanner;
-  const dockOnlyPipeline = pipelineBusy && isAutomatedPipelineUi() && !floatOpen;
   const shouldFocus = state.dockFocusDismissed
-    ? (modalOpen || floatOpen || (pipelineBusy && !dockOnlyPipeline))
+    ? (modalOpen || floatOpen)
     : (modalOpen || floatOpen || bannerOpen || dockChrome || pipelineBusy);
   document.body.classList.toggle("studio-focus-mode", shouldFocus);
   const backdrop = document.getElementById("studioFocusBackdrop");
   if (backdrop) {
-    const showBackdrop = shouldFocus && !floatOpen && !dockOnlyPipeline;
+    const showBackdrop = shouldFocus && !floatOpen;
     backdrop.classList.toggle("hidden", !showBackdrop);
     backdrop.hidden = !showBackdrop;
   }
@@ -838,23 +846,31 @@ function syncStudioFocusMode() {
 function dismissStudioFocus() {
   const busy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy;
   const downloadReady = produceDownloadReady(state.lastPreview);
+  const slug = currentScriptSlug() || state.lastPreview?.slug;
   state.dockFocusDismissed = true;
   hideProduceCompleteModal();
-  if (!downloadReady) hideProduceCompleteBanner();
+  hideProduceCompleteBanner();
   closeScriptFloatPanel();
-  if (downloadReady) {
-    syncProduceAssetsUi(state.lastPreview || {});
-    syncDownloadLinks(`/api/delivery/${encodeURIComponent(currentScriptSlug() || state.lastPreview?.slug)}/zip`, true);
+  hideDockProducePreviews();
+  state.seedanceProgressPersist = false;
+  showSeedanceProgress(false);
+  resetScriptProgress();
+  if (downloadReady && slug) {
+    syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+    document.querySelectorAll("#scriptDownloadBtnBottom, .js-script-download").forEach((dl) => {
+      dl.textContent = produceZipLabel(state.lastPreview?.seedance);
+    });
+    showProduceCompleteBanner(
+      "成片已就绪",
+      "已收起工作台浮层，可在顶部条下载 zip；需要预览请重新生成或打开成稿库。",
+      slug,
+      { engageFocus: false },
+    );
   } else {
-    hideDockProducePreviews();
+    syncDownloadLinks("", false);
   }
   if (!busy) {
-    if (!downloadReady) {
-      state.seedanceProgressPersist = false;
-      showSeedanceProgress(false);
-      resetScriptProgress();
-      clearVideoGenErrorOnly();
-    }
+    clearVideoGenErrorOnly();
   } else {
     setScriptActionStatus("视频仍在后台生成，可切换其他模块；底部工作台可查看进度。", { forceDock: false });
   }
@@ -1085,6 +1101,7 @@ function syncFinishButton(canFinish, delivered) {
       ? imitate ? "按爆款结构生成脚本并出片" : "生成脚本并产出 AI 分镜视频"
       : "请先配置产品与对标";
   });
+  syncDockRunButtonsDisabled();
 }
 
 const SEEDANCE_PROGRESS_TARGETS = [
@@ -1176,6 +1193,7 @@ function showScriptProgress(show, { status, percent, indeterminate, pipeline, co
       hideSeedanceProgressIfIdle();
     }
     syncGlobalPipelineBadge(status);
+    syncPipelineStopButtons();
     return;
   }
   const bar = document.getElementById("scriptGenProgress");
@@ -1201,6 +1219,7 @@ function showScriptProgress(show, { status, percent, indeterminate, pipeline, co
     hideSeedanceProgressIfIdle();
     syncDockScrollPadding();
     syncGlobalPipelineBadge("");
+    syncPipelineStopButtons();
     return;
   }
 
@@ -1215,6 +1234,7 @@ function showScriptProgress(show, { status, percent, indeterminate, pipeline, co
   showSeedanceProgress(true, { status, percent, indeterminate, pipeline, countdownSec });
   syncDockScrollPadding();
   syncGlobalPipelineBadge(status);
+  syncPipelineStopButtons();
 }
 
 function resetScriptProgress() {
@@ -1372,9 +1392,9 @@ function showSeedanceProgress(show, { status, percent, indeterminate, pipeline, 
   if (!visible) stopSeedanceCountdown();
   if (!visible && wasVisible) syncDockScrollPadding();
   else if (visible && !wasVisible) syncDockScrollPadding();
-  if (visible) state.dockFocusDismissed = false;
   syncStudioFocusMode();
   syncGlobalPipelineBadge(status);
+  syncPipelineStopButtons();
 }
 
 function saveWorkflowSnapshot() {
@@ -1433,8 +1453,9 @@ async function restoreWorkflowSnapshot() {
     }
     if (snap.materialId) await selectMaterial(snap.materialId, { loadDetail: false });
     if (snap.slug) state.scriptSlug = snap.slug;
-    switchView(snap.view === "imitate" ? "imitate" : "generate");
-    if (snap.generateDockMode) syncGenerateDockMode(snap.generateDockMode);
+    const targetView = snap.view === "imitate" || snap.generateDockMode === "imitate" ? "imitate" : "generate";
+    switchView(targetView);
+    if (targetView === "generate") syncGenerateDockMode("generate");
     await refreshScriptPreview({ preserveTagSelection: true });
     syncDockProductSlot();
     syncDockRefSlot();
@@ -1450,6 +1471,7 @@ function syncGlobalPipelineBadge(statusText = "") {
   const badge = document.getElementById("globalPipelineBadge");
   if (!badge) return;
   const busy = state.videoGenActive || state.createPipelineActive || state.viralPipelineBusy || state.scriptGenActive;
+  if (!busy) state.pipelineOriginView = null;
   badge.hidden = !busy;
   badge.classList.toggle("hidden", !busy);
   if (!busy) return;
@@ -1493,6 +1515,7 @@ function resetSeedanceProgressDock() {
   showSeedanceProgress(false);
   syncStudioFocusMode();
   syncGlobalPipelineBadge("");
+  syncPipelineStopButtons();
 }
 
 function renderSeedanceFinalPreview(slug, seedance, options = {}) {
@@ -1620,7 +1643,7 @@ function wireProduceResultPanel(root, slug) {
   });
 }
 
-function showProduceCompleteBanner(title, message, slug, { partial = false } = {}) {
+function showProduceCompleteBanner(title, message, slug, { partial = false, engageFocus = true } = {}) {
   closeSiblingFloatPanels("");
   const banner = document.getElementById("produceCompleteBanner");
   const titleEl = document.getElementById("produceCompleteBannerTitle");
@@ -1638,7 +1661,7 @@ function showProduceCompleteBanner(title, message, slug, { partial = false } = {
   } else if (dl) {
     dl.classList.add("hidden");
   }
-  state.dockFocusDismissed = false;
+  if (engageFocus) state.dockFocusDismissed = false;
   syncStudioFocusMode();
 }
 
@@ -1698,8 +1721,11 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
     state.producePartialReady = false;
     state.seedanceVideoComplete = true;
     clearVideoGenErrorOnly();
-    syncProduceAssetsUi(prev);
-    syncProducePreviewAllDocks(prev);
+    syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+    if (!state.dockFocusDismissed) {
+      syncProduceAssetsUi(prev);
+      syncProducePreviewAllDocks(prev);
+    }
     return;
   }
   if (shotAssetsReady(seedance)) {
@@ -1711,8 +1737,10 @@ function restoreProduceUiFromPreview(prev = state.lastPreview || {}) {
       if (labelEl) labelEl.textContent = "AI 分镜";
     }
     clearVideoGenErrorOnly();
-    syncProduceAssetsUi(prev);
-    syncProducePreviewAllDocks(prev);
+    if (!state.dockFocusDismissed) {
+      syncProduceAssetsUi(prev);
+      syncProducePreviewAllDocks(prev);
+    }
   } else {
     syncDockReassembleButton(null, null);
     syncProduceAssetsUi(prev);
@@ -1890,6 +1918,11 @@ function syncProducePreviewAllDocks(prev = state.lastPreview || {}) {
     });
     return;
   }
+  if (state.dockFocusDismissed) {
+    syncDockReassembleButton(lp.slug, lp.seedance);
+    syncStudioFocusMode();
+    return;
+  }
   const html = buildProduceResultHtml(lp.slug, lp.seedance, {});
   boxIds.forEach((id) => {
     const box = document.getElementById(id);
@@ -1930,7 +1963,7 @@ function renderProduceResultPanel(slug, seedance, { assembleMessage = "", engage
     box.innerHTML = "";
   });
   syncDockReassembleButton(s, seedance);
-  if (engageFocus && html) state.dockFocusDismissed = false;
+  if (engageFocus && html && !state.dockFocusDismissed) state.dockFocusDismissed = false;
   syncStudioFocusMode();
 }
 
@@ -2093,14 +2126,28 @@ async function runStartCreate() {
   }
 }
 
+function shouldUseDockOnlyProduceFeedback() {
+  return state.view === "imitate"
+    || state.view === "generate"
+    || isAutomatedPipelineUi()
+    || Boolean(state.createPipelineActive || state.viralPipelineBusy);
+}
+
 function renderDockProduceComplete(slug, message) {
   const msg = message || "视频生成完成，可下载 zip 或预览成片";
+  hideProduceCompleteBanner();
   clearVideoGenErrorUi();
   setSeedanceVideoComplete(true, slug);
   setScriptActionStatus(msg, { forceDock: true });
-  syncProduceAssetsUi({ ...(state.lastPreview || {}), slug });
-  showProduceCompleteModal("成片已就绪", msg, slug, state.lastPreview?.seedance);
   resetSeedanceProgressDock();
+  renderProduceResultPanel(slug, state.lastPreview?.seedance, { engageFocus: true, scope: "active" });
+  syncDownloadLinks(`/api/delivery/${encodeURIComponent(slug)}/zip`, true);
+  document.querySelectorAll("#scriptDownloadBtnBottom, .js-script-download").forEach((dl) => {
+    dl.textContent = produceZipLabel(state.lastPreview?.seedance);
+  });
+  if (!shouldUseDockOnlyProduceFeedback()) {
+    showProduceCompleteModal("成片已就绪", msg, slug, state.lastPreview?.seedance);
+  }
   state.dockFocusDismissed = false;
   syncStudioFocusMode();
 }
@@ -2383,6 +2430,113 @@ function abortVideoProduction() {
   }
   state.videoGenActive = false;
   state.createPipelineActive = false;
+}
+
+function beginScriptGenerationAbort() {
+  if (state.scriptGenerationAbort) {
+    try {
+      state.scriptGenerationAbort.abort();
+    } catch {
+      /* ignore */
+    }
+  }
+  state.scriptGenerationAbort = new AbortController();
+  return state.scriptGenerationAbort;
+}
+
+function abortScriptGeneration() {
+  if (state.scriptGenerationAbort) {
+    try {
+      state.scriptGenerationAbort.abort();
+    } catch {
+      /* ignore */
+    }
+    state.scriptGenerationAbort = null;
+  }
+  state.scriptGenActive = false;
+}
+
+function scriptGenerationSignal() {
+  return state.scriptGenerationAbort?.signal;
+}
+
+function syncPipelineStopButtons() {
+  const busy = state.scriptGenActive
+    || state.videoGenActive
+    || state.createPipelineActive
+    || state.viralPipelineBusy;
+  const label = state.scriptGenActive && !state.videoGenActive ? "停止脚本" : "停止生成";
+  document.querySelectorAll(".pipeline-stop-btn").forEach((btn) => {
+    btn.classList.toggle("hidden", !busy);
+    btn.textContent = label;
+    btn.disabled = false;
+  });
+}
+
+function restorePipelineUiAfterCancel() {
+  state.createPipelineActive = false;
+  state.viralPipelineBusy = false;
+  state.awaitingHeroConfirm = false;
+  state.heroConfirmThenProduce = false;
+  forEachDockRunBtn((runBtn) => {
+    delete runBtn.dataset.busy;
+    runBtn.disabled = false;
+    runBtn.innerHTML = dockRunDefaultHtml(runBtn.id === "imitateDockRun" ? "imitate" : "generate");
+  });
+  const regenBtn = document.getElementById("scriptFloatRegenBtn");
+  if (regenBtn) {
+    regenBtn.disabled = false;
+    delete regenBtn.dataset.busy;
+    regenBtn.textContent = "重新生成脚本";
+  }
+  const produceBtn = document.getElementById("scriptFloatProduceBtn");
+  if (produceBtn) {
+    produceBtn.disabled = false;
+    delete produceBtn.dataset.busy;
+    produceBtn.textContent = "确认生成视频";
+  }
+  document.querySelectorAll(".js-script-generate").forEach((b) => { b.disabled = false; });
+  syncDockRunButtonsDisabled();
+  syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
+  syncPipelineStopButtons();
+}
+
+async function cancelActivePipelineGeneration() {
+  const wasScript = state.scriptGenActive;
+  const wasVideo = state.videoGenActive;
+  const ticket = state.videoQueueTicket;
+  const wasRunning = wasVideo && Boolean(ticket);
+
+  abortScriptGeneration();
+  abortVideoProduction();
+  stopVideoQueuePoll();
+
+  document.querySelectorAll(".pipeline-stop-btn").forEach((btn) => { btn.disabled = true; });
+
+  if (ticket) {
+    try {
+      await api(`/api/video-queue/${encodeURIComponent(ticket)}?client_id=${encodeURIComponent(ensureClientId())}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      if (!isAbortError(err)) {
+        /* queue may already be gone */
+      }
+    }
+    state.videoQueueTicket = null;
+    showVideoQueuePanel(false);
+  }
+
+  showScriptProgress(false);
+  resetSeedanceProgressDock();
+  restorePipelineUiAfterCancel();
+
+  let msg = "已停止";
+  if (wasScript && wasVideo) msg = "已停止脚本与视频生成";
+  else if (wasScript) msg = "已停止脚本生成，可修改标签或提示词后重试";
+  else if (wasRunning) msg = "已停止视频生成";
+  else if (wasVideo) msg = "已取消排队";
+  setScriptActionStatus(msg, { forceDock: true });
 }
 
 function videoProductionSignal() {
@@ -3211,7 +3365,7 @@ function collapseGenerateWorkspace() {
 }
 
 function syncGenerateDockMode(mode = state.generateDockMode) {
-  state.generateDockMode = mode || "imitate";
+  state.generateDockMode = mode || "generate";
   const dock = document.getElementById("generateDock");
   document.querySelectorAll('#generateDock .studio-dock-modes [data-gen-mode]').forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.genMode === state.generateDockMode);
@@ -3247,11 +3401,10 @@ async function renderPromptSelectList() {
   const items = [];
   try {
     const productId = currentProductId() || "";
-    const libPath = productId
-      ? `/api/prompt-library?product_id=${encodeURIComponent(productId)}`
-      : "/api/prompt-library";
-    const lib = await api(libPath);
-    for (const row of lib.presets || lib.items?.filter((r) => r.source === "preset") || []) {
+    const qs = new URLSearchParams({ for_selection: "1" });
+    if (productId) qs.set("product_id", productId);
+    const lib = await api(`/api/prompt-library?${qs.toString()}`);
+    for (const row of lib.presets || []) {
       const text = row.prompt_text || row.prompt_text_en || "";
       if (!text) continue;
       items.push({
@@ -3264,59 +3417,45 @@ async function renderPromptSelectList() {
         sortOrder: Number(row.sort_order) || 99,
       });
     }
-    for (const row of lib.reverse || lib.items?.filter((r) => String(r.source || "").startsWith("reverse")) || []) {
-      const text = row.prompt_text_en || row.prompt_text || "";
+    for (const row of lib.approved_scripts || []) {
+      const text = row.prompt_text || row.prompt_text_en || "";
       if (!text) continue;
       const usage = Number(row.usage_count) || 0;
       items.push({
-        id: `lib-${row.prompt_id}`,
+        id: `approved-${row.prompt_id}`,
         promptId: row.prompt_id,
-        label: row.label || "反推提示词",
-        sub: `${row.reverse_type === "script" ? "脚本" : "视频"}反推 · 使用 ${usage} 次`,
+        label: row.label || "已审核成稿",
+        sub: row.sub || `成稿脚本 · 使用 ${usage} 次`,
         text,
-        kind: "library",
+        kind: "approved",
         usageCount: usage,
+        sortOrder: 20,
       });
     }
   } catch {
     /* fall through */
   }
-  try {
-    const data = await api("/api/templates");
-    for (const t of data.items || []) {
-      items.push({
-        id: `tpl-${t.template_id}`,
-        label: t.label || t.template_id,
-        sub: (t.structure_chain || "").slice(0, 48),
-        text: `按「${t.label}」结构拍摄：${t.structure_chain || ""}`,
-        kind: "template",
-        sortOrder: 50,
-      });
-    }
-  } catch {
-    /* optional */
-  }
   items.sort((a, b) => {
-    const order = { preset: 0, template: 1, library: 2 };
+    const order = { preset: 0, approved: 1 };
     const ao = order[a.kind] ?? 9;
     const bo = order[b.kind] ?? 9;
     if (ao !== bo) return ao - bo;
     if (a.kind === "preset") return (a.sortOrder || 99) - (b.sortOrder || 99);
-    if (a.kind === "library") return (b.usageCount || 0) - (a.usageCount || 0);
+    if (a.kind === "approved") return (b.usageCount || 0) - (a.usageCount || 0);
     return 0;
   });
   if (!items.length) {
-    root.innerHTML = '<p class="muted">暂无提示词，请检查数据表 prompt_library.json</p>';
+    root.innerHTML = '<p class="muted">暂无可用提示词。内置模板将自动加载；自生成脚本需在成稿反馈中标记「已采纳」后才会出现在此。</p>';
     return;
   }
   const activeId = state.generatePromptSelection?.id || "";
   const cardGrad = (kind) => {
-    if (kind === "library") return "g-video-rev";
+    if (kind === "approved") return "g-brand";
     if (kind === "preset") return "g-template";
-    return "g-brand";
+    return "g-bedroom";
   };
   root.innerHTML = items.map((item, idx) => `
-    <button type="button" class="feature-card prompt-select-card${activeId === item.id ? " selected" : ""}${item.kind === "library" ? " prompt-library-card" : ""}"
+    <button type="button" class="feature-card prompt-select-card${activeId === item.id ? " selected" : ""}${item.kind === "approved" ? " prompt-approved-card" : ""}"
       data-prompt-idx="${idx}">
       <span class="feature-card-bg ${cardGrad(item.kind)}"></span>
       <span class="feature-card-label">
@@ -3570,7 +3709,6 @@ async function renderDraftFeedbackHistory() {
 async function openHistoryInWorkspace(slug) {
   if (!slug) return;
   const item = state.items.find((m) => m.slug === slug || `ref-${String(m.link_id).padStart(3, "0")}` === slug);
-  syncGenerateDockMode(state.generateDockMode || "generate");
   if (item) {
     if (item.content_line) state.selectedProductId = item.content_line;
     await selectMaterial(item.link_id, { loadDetail: false });
@@ -3578,10 +3716,13 @@ async function openHistoryInWorkspace(slug) {
     syncMaterialSelectFromState();
   }
   state.scriptSlug = slug;
-  switchView("generate");
+  const targetView = state.view === "imitate" ? "imitate" : "generate";
+  switchView(targetView);
+  if (targetView === "generate") syncGenerateDockMode("generate");
   await refreshScriptPreview();
   refreshScriptFloatFromPreview(state.lastPreview || {});
   openScriptFloatPanel();
+  setScriptActionStatus(`已打开成稿 ${slug}，可继续预览脚本或下载成片。`);
 }
 
 function renderGenerateExamples() {
@@ -3682,9 +3823,8 @@ function initModuleStudios() {
   document.getElementById("generateDockModeBtn")?.addEventListener("click", () => openGenerateModule());
   document.querySelector('#generateDock .studio-dock-modes [data-gen-mode="imitate"]')
     ?.addEventListener("click", () => {
-      switchView("generate");
-      syncGenerateDockMode("imitate");
-      syncProducePreviewForActiveView();
+      switchView("imitate");
+      document.getElementById("imitateDock")?.scrollIntoView({ behavior: "smooth", block: "end" });
     });
   document.querySelector('#generateDock .studio-dock-modes [data-gen-mode="generate"]')
     ?.addEventListener("click", () => openGenerateModule());
@@ -4239,7 +4379,7 @@ function activateView(name, options = {}) {
   if (name === "generate") {
     loadWorkspaceView();
     if (!state.generateWorkspaceOpen) collapseGenerateWorkspace();
-    syncGenerateDockMode(state.generateDockMode || "generate");
+    syncGenerateDockMode("generate");
   }
   if (name === "imitate") {
     loadImitateView();
@@ -4252,12 +4392,17 @@ function activateView(name, options = {}) {
     renderDraftFeedbackStats();
     renderDraftFeedbackHistory();
   }
-  if (prevView !== name && (name === "generate" || name === "imitate")) {
+  if (prevView !== name) {
     syncDockProductSlot();
     syncDockRefSlot();
     syncDockChipsFromHealth();
     syncProducePreviewForActiveView();
     syncStudioFocusMode();
+    syncGlobalPipelineBadge();
+    if (name === "generate" || name === "imitate") {
+      syncDockRunButtonLabels();
+      syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
+    }
   }
   syncDockScrollPadding();
   return name;
@@ -4397,7 +4542,28 @@ function scriptResultBody() {
 
 // ── Navigation ─────────────────────────────────────────────────────────────
 
+function closeTransientWorkspaceChrome(fromView, toView) {
+  const leavingWorkspace = fromView === "generate" || fromView === "imitate";
+  const enteringWorkspace = toView === "generate" || toView === "imitate";
+  if (leavingWorkspace && !enteringWorkspace) {
+    closeScriptFloatPanel();
+    closeProductFloatPanel();
+    closeRefFloatPanel();
+    closePromptSelectFloatPanel();
+  }
+  const busy = state.createPipelineActive || state.videoGenActive || state.scriptGenActive || state.viralPipelineBusy;
+  if (busy && fromView !== toView) {
+    setScriptActionStatus("任务仍在后台运行，可点顶栏「出片中」徽章定位进度。", { forceDock: false });
+  }
+}
+
 function switchView(name, options = {}) {
+  const prevView = state.view;
+  name = normalizeView(name);
+  if (prevView !== name) {
+    closeTransientWorkspaceChrome(prevView, name);
+    saveWorkflowSnapshot();
+  }
   activateView(name, options);
 }
 
@@ -4410,7 +4576,11 @@ async function loadWorkspaceView() {
   syncDockProductSlot();
   syncDockRefSlot();
   syncImitationPromptFields();
+  syncDockRunButtonLabels();
+  syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
+  syncHotspotStatusUi();
   syncDockScrollPadding();
+  void maybeRunHotspotAutoOnLoad();
 }
 
 async function loadImitateView() {
@@ -4421,6 +4591,8 @@ async function loadImitateView() {
   syncDockProductSlot();
   syncDockRefSlot();
   syncImitationPromptFields();
+  syncProducePreviewForActiveView();
+  syncDockRunButtonLabels();
   syncFinishButton(Boolean(state.lastPreview?.can_finish), Boolean(state.lastPreview?.delivery_ready));
   const tab = state.imitateStudioTab || "featured";
   const root = document.querySelector('.module-studio[data-module="imitate"]');
@@ -4463,13 +4635,10 @@ function closeSettingsDrawer() {
 }
 
 function openCollectorEntry() {
-  openSettingsDrawer();
-  ensureCollectorPanel();
+  switchView("generate");
   window.setTimeout(() => {
-    const block = document.getElementById("collectorSettingsBlock");
-    if (block) block.open = true;
-    document.getElementById("collectorKeywords")?.focus();
-  }, 180);
+    document.getElementById("hotspotSyncBar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 120);
 }
 
 function openTikTokLibraryEntry() {
@@ -4503,47 +4672,6 @@ function openStarterGuidePanel() {
 
 function closeStarterGuidePanel() {
   closeFloatPanel("starterGuidePanel", "starterGuideBackdrop");
-}
-
-function ensureCollectorPanel() {
-  if (document.getElementById("btnCollectorRun")) return;
-  const body = document.querySelector(".settings-drawer-body");
-  const productsBlock = document.getElementById("openProductsBtn")?.closest(".settings-block");
-  if (!body || !productsBlock) return;
-  const wrap = document.createElement("details");
-  wrap.id = "collectorSettingsBlock";
-  wrap.className = "settings-block";
-  wrap.open = true;
-  wrap.innerHTML = `
-    <summary>TikTok 采集</summary>
-    <p class="hint">按关键词抓取 TikTok 公开视频元数据，并自动同步入当前素材库。</p>
-    <p id="collectorRuntimeHint" class="workflow-warn hidden"></p>
-    <div class="collector-form">
-      <label>关键词
-        <textarea id="collectorKeywords" rows="3" placeholder="每行一个关键词，例如：&#10;breast pump&#10;baby bottle&#10;baby products"></textarea>
-      </label>
-      <label>每词条数
-        <input id="collectorLimit" type="number" min="1" max="200" value="50">
-      </label>
-      <p class="hint muted">默认每词 50 条；可在 <code>tiktok_collector/.env</code> 调整滚动次数与清洗阈值。</p>
-      <div class="collector-actions">
-        <button type="button" class="primary pill-btn" id="btnCollectorRun">开始采集</button>
-      </div>
-      <div id="collectorStatus" class="seedance-status">待执行</div>
-      <div id="collectorResult" class="collector-result muted"></div>
-      <div class="collector-actions">
-        <button type="button" class="pill-btn" id="btnCollectorOpenLibrary">在素材库中查询 TikTok 数据</button>
-      </div>
-      <p class="hint muted">库内检索已集中在「对标素材库」抽屉，避免与设置重复。</p>
-    </div>`;
-  body.insertBefore(wrap, productsBlock);
-  document.getElementById("btnCollectorRun")?.addEventListener("click", runCollectorImport);
-  document.getElementById("btnCollectorOpenLibrary")?.addEventListener("click", () => {
-    closeSettingsDrawer();
-    openMaterialLibraryDrawer();
-    document.getElementById("materialLibraryTikTokQuery")?.focus();
-  });
-  void refreshCollectorRuntimeHint();
 }
 
 async function refreshCollectorRuntimeHint() {
@@ -4653,6 +4781,290 @@ function collectorErrorHint(message) {
     ].join("\n");
   }
   return "";
+}
+
+function formatHotspotLastSync(iso) {
+  if (!iso) return "尚未同步";
+  try {
+    const t = new Date(iso).getTime();
+    if (!Number.isFinite(t)) return "尚未同步";
+    const diffMin = Math.round((Date.now() - t) / 60000);
+    if (diffMin < 1) return "刚刚更新";
+    if (diffMin < 60) return `${diffMin} 分钟前更新`;
+    const h = Math.floor(diffMin / 60);
+    if (h < 24) return `${h} 小时前更新`;
+    return new Date(iso).toLocaleString();
+  } catch {
+    return "尚未同步";
+  }
+}
+
+function hotspotIntervalMs() {
+  try {
+    const min = Number(localStorage.getItem(HOTSPOT_AUTO_INTERVAL_KEY));
+    if (Number.isFinite(min) && min >= 5 && min <= 240) return min * 60 * 1000;
+  } catch { /* ignore */ }
+  return DEFAULT_HOTSPOT_INTERVAL_MIN * 60 * 1000;
+}
+
+function isHotspotAutoSyncEnabled() {
+  try {
+    return localStorage.getItem(HOTSPOT_AUTO_SYNC_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setHotspotAutoSyncEnabled(on) {
+  try {
+    localStorage.setItem(HOTSPOT_AUTO_SYNC_KEY, on ? "1" : "0");
+  } catch { /* ignore */ }
+  const cb = document.getElementById("hotspotAutoSync");
+  if (cb) cb.checked = Boolean(on);
+  if (on) scheduleHotspotAutoSync();
+  else clearHotspotAutoSync();
+}
+
+function syncHotspotStatusUi(hotspot = state.healthCache?.hotspot, maintenance = state.healthCache?.maintenance) {
+  const statusEl = document.getElementById("hotspotSyncStatus");
+  const bar = document.getElementById("hotspotSyncBar");
+  if (!statusEl) return;
+  const mysql = Boolean(state.healthCache?.tiktok_collector?.mysql_enabled);
+  const productId = currentProductId();
+  const total = maintenance?.materials_total ?? hotspot?.materials_total ?? state.healthCache?.materials ?? 0;
+  const analyzed = maintenance?.materials_analyzed ?? hotspot?.materials_analyzed ?? state.healthCache?.analyzed ?? 0;
+  const maxTotal = maintenance?.max_total ?? 80;
+  let line = `素材 ${total}/${maxTotal} · 已拆解 ${analyzed}`;
+  if (productId) {
+    line += ` · ${currentProductLabel() || productId}`;
+  } else {
+    line += " · 请先配置底部「产品」";
+  }
+  const lastMaint = maintenance?.last_run_at || hotspot?.last_refresh_at;
+  line += ` · ${formatHotspotLastSync(lastMaint)}`;
+  if (!mysql) {
+    line += " · 无 MySQL 时需浏览器采集";
+  }
+  statusEl.textContent = line;
+  bar?.classList.toggle("is-busy", Boolean(state.hotspotRefreshBusy));
+}
+
+function clearHotspotAutoSync() {
+  if (state.hotspotAutoTimer) {
+    clearInterval(state.hotspotAutoTimer);
+    state.hotspotAutoTimer = null;
+  }
+}
+
+function scheduleHotspotAutoSync() {
+  clearHotspotAutoSync();
+  if (!isHotspotAutoSyncEnabled()) return;
+  state.hotspotAutoTimer = window.setInterval(() => {
+    if (state.hotspotRefreshBusy || state.viralPipelineBusy) return;
+    if (!currentProductId()) return;
+    void runMaterialMaintenance({ silent: true });
+  }, hotspotIntervalMs());
+}
+
+async function maybeRunHotspotAutoOnLoad() {
+  if (!isHotspotAutoSyncEnabled() || state.hotspotRefreshBusy) return;
+  if (!currentProductId()) return;
+  const lastAt = state.healthCache?.maintenance?.last_run_at || state.healthCache?.hotspot?.last_refresh_at;
+  if (lastAt) {
+    try {
+      const age = Date.now() - new Date(lastAt).getTime();
+      if (age < hotspotIntervalMs() * 0.9) return;
+    } catch { /* continue */ }
+  }
+  await runMaterialMaintenance({ silent: true });
+}
+
+async function runMaterialMaintenance({ sync = true, trim = true, prune = true, silent = false } = {}) {
+  if (state.hotspotRefreshBusy) return false;
+  const productId = productIdForScopedCapture() || currentProductId();
+  if (!productId) {
+    if (!silent) {
+      setScriptActionStatus("请先配置产品后再维护素材", { isError: true });
+      await openProductFloatPanel();
+    }
+    return false;
+  }
+  if (!silent) {
+    const ok = window.confirm(
+      `将按「${currentProductLabel() || productId}」执行素材维护：\n`
+      + `${sync ? "① 同步 MySQL 热点\n" : ""}`
+      + `${trim ? "② 移除非本品类素材\n" : ""}`
+      + `${prune ? "③ 去重并限额（已拆解/成稿/有脚本保留）\n" : ""}\n`
+      + "确定继续？",
+    );
+    if (!ok) return false;
+  }
+
+  state.hotspotRefreshBusy = true;
+  const busyIds = ["hotspotMaintainBtn", "hotspotRefreshBtn", "hotspotPruneBtn", "hotspotDecomposeBtn", "hotspotCollectBtn"];
+  busyIds.forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = true; });
+  const statusEl = document.getElementById("hotspotSyncStatus");
+  syncHotspotStatusUi();
+  if (statusEl && !silent) statusEl.textContent = "正在维护素材库…";
+
+  try {
+    const data = await api("/api/materials/maintenance/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_id: productId, sync, trim, prune, dry_run: false }),
+    });
+    if (state.healthCache) {
+      state.healthCache.maintenance = {
+        ...(state.healthCache.maintenance || {}),
+        last_run_at: data.refreshed_at,
+        last_product_id: productId,
+        last_message: data.message,
+        materials_total: data.materials_total,
+        materials_analyzed: data.materials_analyzed,
+      };
+      state.healthCache.materials = data.materials_total;
+      state.healthCache.analyzed = data.materials_analyzed;
+    }
+    await loadMaterials();
+    renderAllImitationViralGrids();
+    repopulateScriptMaterials();
+    syncHotspotStatusUi();
+    if (!silent && data.message) setScriptActionStatus(data.message);
+    return Boolean(data.ok);
+  } catch (err) {
+    if (!silent) setScriptActionStatus(friendlyApiErrorMessage(err.message), { isError: true });
+    syncHotspotStatusUi();
+    return false;
+  } finally {
+    state.hotspotRefreshBusy = false;
+    busyIds.forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = false; });
+    syncHotspotStatusUi();
+  }
+}
+
+async function runMaterialPruneOnly() {
+  return runMaterialMaintenance({ sync: false, trim: true, prune: true, silent: false });
+}
+
+async function runDecomposeNewMaterials() {
+  const productId = productIdForScopedCapture() || currentProductId();
+  if (!productId) {
+    setScriptActionStatus("请先配置产品", { isError: true });
+    await openProductFloatPanel();
+    return;
+  }
+  const ok = window.confirm("将对未拆解素材批量执行规则拆解（免费，不消耗豆包）。后台运行，可点顶栏「后台任务」查看进度。\n\n确定？");
+  if (!ok) return;
+  try {
+    await api("/api/jobs/decompose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "rule", product_id: productId }),
+    });
+    setScriptActionStatus("已启动规则拆解，完成后素材卡片将自动刷新");
+    await pollJobStatus();
+  } catch (err) {
+    setScriptActionStatus(friendlyApiErrorMessage(err.message), { isError: true });
+  }
+}
+
+async function runHotspotRefresh(mode = "auto", { silent = false } = {}) {
+  if (state.hotspotRefreshBusy) return false;
+  const productId = productIdForScopedCapture() || currentProductId();
+  if (!productId) {
+    if (!silent) {
+      setScriptActionStatus("请先配置产品后再更新热点", { isError: true });
+      await openProductFloatPanel();
+    }
+    return false;
+  }
+  if (mode === "collect" && !silent) {
+    const ok = window.confirm(
+      "将打开浏览器抓取 TikTok 新热点（需登录/验证码）。\n\n建议内网先完成一次登录后再批量采集。继续？",
+    );
+    if (!ok) return false;
+  }
+
+  state.hotspotRefreshBusy = true;
+  const refreshBtn = document.getElementById("hotspotRefreshBtn");
+  const collectBtn = document.getElementById("hotspotCollectBtn");
+  const statusEl = document.getElementById("hotspotSyncStatus");
+  if (refreshBtn) refreshBtn.disabled = true;
+  if (collectBtn) collectBtn.disabled = true;
+  syncHotspotStatusUi();
+  if (statusEl && !silent) {
+    statusEl.textContent = mode === "collect" ? "浏览器采集中…若弹出窗口请完成 TikTok 登录" : "正在同步热点对标…";
+  }
+
+  try {
+    const data = await api("/api/hotspot/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        product_id: productId,
+        mode,
+        limit: 80,
+        limit_per_keyword: 30,
+      }),
+    });
+    if (state.healthCache) {
+      state.healthCache.hotspot = {
+        ...(state.healthCache.hotspot || {}),
+        last_refresh_at: data.refreshed_at,
+        last_product_id: productId,
+        last_mode: mode,
+        materials_total: data.materials_total,
+        materials_analyzed: data.materials_analyzed,
+      };
+      state.healthCache.materials = data.materials_total;
+      state.healthCache.analyzed = data.materials_analyzed;
+    }
+    await loadMaterials();
+    renderAllImitationViralGrids();
+    repopulateScriptMaterials();
+    syncHotspotStatusUi(state.healthCache?.hotspot);
+    if (!silent && data.message) {
+      setScriptActionStatus(data.message);
+    }
+    return Boolean(data.ok);
+  } catch (err) {
+    if (!silent) {
+      setScriptActionStatus(friendlyApiErrorMessage(err.message), { isError: true });
+    }
+    syncHotspotStatusUi();
+    return false;
+  } finally {
+    state.hotspotRefreshBusy = false;
+    if (refreshBtn) refreshBtn.disabled = false;
+    if (collectBtn) collectBtn.disabled = false;
+    syncHotspotStatusUi();
+  }
+}
+
+function initHotspotSync() {
+  const autoCb = document.getElementById("hotspotAutoSync");
+  if (autoCb) {
+    autoCb.checked = isHotspotAutoSyncEnabled();
+    autoCb.addEventListener("change", () => setHotspotAutoSyncEnabled(autoCb.checked));
+  }
+  document.getElementById("hotspotMaintainBtn")?.addEventListener("click", () => {
+    void runMaterialMaintenance();
+  });
+  document.getElementById("hotspotRefreshBtn")?.addEventListener("click", () => {
+    void runHotspotRefresh("auto");
+  });
+  document.getElementById("hotspotPruneBtn")?.addEventListener("click", () => {
+    void runMaterialPruneOnly();
+  });
+  document.getElementById("hotspotDecomposeBtn")?.addEventListener("click", () => {
+    void runDecomposeNewMaterials();
+  });
+  document.getElementById("hotspotCollectBtn")?.addEventListener("click", () => {
+    void runHotspotRefresh("collect");
+  });
+  document.getElementById("decomposeLibraryBtn")?.addEventListener("click", () => openMaterialLibraryDrawer());
+  syncHotspotStatusUi();
+  if (isHotspotAutoSyncEnabled()) scheduleHotspotAutoSync();
 }
 
 function renderCollectorError(resultEl, message) {
@@ -4936,7 +5348,6 @@ function closeProductFloatPanel() {
 }
 
 document.getElementById("decomposeCollectorBtn")?.addEventListener("click", () => openCollectorEntry());
-document.getElementById("decomposeLibraryBtn")?.addEventListener("click", () => openMaterialLibraryDrawer());
 ["openMaterialLibraryBtn"].forEach((id) => {
   document.getElementById(id)?.addEventListener("click", () => openMaterialLibraryDrawer());
 });
@@ -4979,6 +5390,7 @@ async function refreshHealth() {
     if (matEl) matEl.textContent = h.materials ?? 0;
     if (anaEl) anaEl.textContent = h.analyzed ?? 0;
     syncDockChipsFromHealth();
+    syncHotspotStatusUi(h.hotspot, h.maintenance);
     return h;
   } catch (err) {
     console.warn("refreshHealth failed", err);
@@ -6012,6 +6424,7 @@ async function runScriptGenerate() {
   });
   if (resultEl) resultEl.innerHTML = "";
   setScriptActionStatus(scriptStatus);
+  beginScriptGenerationAbort();
   try {
     const vs = currentVideoSettings();
     const creativeBrief = getImitationPrompt();
@@ -6036,6 +6449,7 @@ async function runScriptGenerate() {
         creative_brief: creativeBrief,
         prompt_enhanced: state.promptEnhanceOn,
       }),
+      signal: scriptGenerationSignal(),
     });
     const pack = res.script_pack || res.pack || {};
     applyTagSelectionFromPack(pack);
@@ -6073,11 +6487,16 @@ async function runScriptGenerate() {
     resetPromptEnhanceUsed();
     return true;
   } catch (err) {
+    if (isAbortError(err)) {
+      setScriptActionStatus("已停止脚本生成，可修改标签或提示词后重试", { forceDock: true });
+      return false;
+    }
     if (resultEl) resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
     setScriptActionStatus(friendlyApiErrorMessage(err.message), { isError: true, forceDock: true });
     if (String(err.message || "").includes("配额")) syncDailyScriptQuota();
     return false;
   } finally {
+    abortScriptGeneration();
     showScriptProgress(false);
     if (regenBtn) {
       regenBtn.disabled = false;
@@ -6109,7 +6528,10 @@ async function runScriptFinish(options = {}) {
     setScriptActionStatus("正在生成交付包（英文字幕 + 脚本包）…");
   }
   try {
-    const res = await api(`/api/delivery/${slug}/finish`, { method: "POST" });
+    const res = await api(`/api/delivery/${slug}/finish`, {
+      method: "POST",
+      signal: scriptGenerationSignal() || videoProductionSignal(),
+    });
     if (!keepScript) {
       resultEl.innerHTML = `<div class="result">交付完成：${esc(res.message || "字幕与交付包已生成")}
         <p class="muted">正在继续生成 AI 分镜视频…</p>
@@ -6130,6 +6552,10 @@ async function runScriptFinish(options = {}) {
     await refreshHealth();
     return true;
   } catch (err) {
+    if (isAbortError(err)) {
+      setScriptActionStatus("已停止交付生成", { forceDock: true });
+      return false;
+    }
     if (!keepScript) {
       resultEl.innerHTML = `<div class="result error">${esc(err.message)}</div>`;
     } else {
@@ -6285,6 +6711,7 @@ async function runProduceVideo(options = {}) {
     ensureScriptResultVisible();
   }
   state.videoGenActive = true;
+  if (!state.scriptGenerationAbort) beginScriptGenerationAbort();
   const forceRegen = document.getElementById("seedanceForceRegen")?.checked;
   const needsDelivery = !Boolean(state.lastPreview?.delivery_ready);
   showSeedanceProgress(true, {
@@ -6671,6 +7098,10 @@ async function renderFeedbackEditor() {
         if (adopted === "已采纳" || adopted === "修改后采纳") {
           state.feedbackConstraintsFlash = true;
         }
+        let libraryNote = "";
+        if (adopted === "已采纳" || adopted === "修改后采纳") {
+          libraryNote = " · 已收入提示词库（视频生成 → 提示词选择可选用）";
+        }
         const fresh = await api("/api/library/feedback");
         const items = fresh.items || [];
         const nextSlug = pickNextFeedbackSlug(items, savedSlug);
@@ -6682,8 +7113,8 @@ async function renderFeedbackEditor() {
         const hint = document.getElementById("fbHint");
         if (hint) {
           hint.textContent = nextSlug && nextSlug !== savedSlug
-            ? "已保存，已切换下一条待反馈"
-            : "已保存，全部成稿已反馈完成";
+            ? `已保存${libraryNote}，已切换下一条待反馈`
+            : `已保存${libraryNote}，全部成稿已反馈完成`;
         }
       } catch (err) {
         document.getElementById("fbHint").textContent = err.message;
@@ -6721,44 +7152,34 @@ function renderDoubaoSettings(health) {
 }
 
 async function loadSettingsView() {
-  ensureCollectorPanel();
   const h = await api("/api/health");
   state.healthCache = h;
   renderDoubaoSettings(h);
   renderSeedanceSettings(h);
-  renderFeishuSettings(h.feishu || {});
-  refreshFeishuSettings().catch(() => {});
   const policyNote = h.decompose?.policy?.paused
-    ? `<br><span class="warn-inline">拆解已暂停</span>（已有结果不重复调豆包，新素材不分析）`
+    ? " · 拆解已暂停"
     : !h.decompose?.policy?.on_view
-      ? `<br><span class="muted">省 token：打开素材不自动豆包拆解，需手动「精细拆解」</span>`
+      ? " · 打开素材不自动豆包拆解"
       : "";
   const prod = h.production || {};
   const dep = h.deployment || {};
   const quota = prod.daily_script_quota || {};
   const videoQuota = prod.daily_video_quota || {};
-  const quotaLine = quota.enabled
-    ? `<br>量产配额：脚本 <strong>${quota.used}/${quota.limit}</strong>`
-    : "";
-  const videoQuotaLine = videoQuota.enabled
-    ? `${quota.enabled ? " · " : "<br>量产配额："}成片 <strong>${videoQuota.used}/${videoQuota.limit}</strong>（${prod.script_mode || "pro"} · 最多 ${prod.ai_video_max_shots || "?"} 镜/条）`
-    : (quota.enabled ? `（${prod.script_mode || "pro"} · 最多 ${prod.ai_video_max_shots || "?"} 镜/条）` : "");
   const deployEl = document.getElementById("deployInfo");
   if (deployEl) {
     deployEl.innerHTML = `
-      监听 <code>${esc(dep.host || "127.0.0.1")}:${esc(String(dep.port || 8788))}</code>
-      ${dep.intranet_mode ? ' · <span class="warn-inline">内网模式</span>' : ""}
-      ${dep.auth_enabled ? " · 已启用访问令牌" : " · 未启用令牌（仅建议内网可信环境）"}<br>
-      数据根目录：<code>${esc(dep.workflow_root || "")}</code><br>
-      成片归档：<code>${esc(dep.production_archive || "03_产出库")}</code><br>
-      备份目录：<code>${esc(dep.backup_root || "06_备份库")}</code>`;
+      ${esc(dep.host || "127.0.0.1")}:${esc(String(dep.port || 8788))}
+      ${dep.intranet_mode ? " · 内网" : ""}${dep.auth_enabled ? " · 令牌" : ""}<br>
+      归档 <code>${esc(dep.production_archive || "03_产出库")}</code>`;
   }
-  document.getElementById("envInfo").innerHTML = `
-    UI v${h.ui_version} · 素材 ${h.materials}（已拆解 ${h.analyzed}）· 产品 ${h.products} · 成稿 ${h.finished}<br>
-    结构拆解：${h.decompose?.label || "规则模板"}${policyNote}<br>
-    脚本生成：${h.llm.label || (h.llm.available ? h.llm.doubao_model || h.llm.anthropic_model : h.llm.fallback)}<br>
-    交付引擎：${h.delivery_engine?.label || "overseas-loc-mvp"}<br>
-    SeedDance：${h.seedance?.configured ? `已配置 ${h.seedance.provider}` : "未配置"}${quotaLine}${videoQuotaLine}`;
+  const envEl = document.getElementById("envInfo");
+  if (envEl) {
+    envEl.innerHTML = `UI v${h.ui_version} · 素材 ${h.materials}（拆解 ${h.analyzed}）`
+      + `<br>拆解：${h.decompose?.label || "规则"}${policyNote}`
+      + `<br>脚本：${h.llm?.label || "—"} · SeedDance：${h.seedance?.configured ? "已配置" : "未配置"}`
+      + (quota.enabled ? `<br>配额：脚本 ${quota.used}/${quota.limit}` : "")
+      + (videoQuota.enabled ? ` · 成片 ${videoQuota.used}/${videoQuota.limit}` : "");
+  }
   await pollJobStatus();
 }
 
@@ -6767,28 +7188,31 @@ async function pollJobStatus() {
   const el = document.getElementById("jobStatus");
   const log = document.getElementById("jobLog");
   syncGlobalJobBadge(st);
+  if (!el) return;
   if (st.status === "running") {
     el.textContent = `运行中：${jobLabel(st.job)}（${st.started_at || ""}）`;
-    log.textContent = st.output || "";
+    if (log) log.textContent = st.output || "";
     if (!state.jobPoll) {
       state.jobPoll = setInterval(async () => {
         const s = await api("/api/jobs/status");
         syncGlobalJobBadge(s);
         document.getElementById("jobStatus").textContent = s.status === "running"
           ? `运行中：${jobLabel(s.job)}` : (s.exit_code === 0 ? `✅ ${jobLabel(s.job)} 完成` : `❌ ${jobLabel(s.job)} 失败 (code ${s.exit_code})`);
-        document.getElementById("jobLog").textContent = s.output || "";
+        const logEl = document.getElementById("jobLog");
+        if (logEl) logEl.textContent = s.output || "";
         if (s.status !== "running") {
           clearInterval(state.jobPoll);
           state.jobPoll = null;
           syncGlobalJobBadge(s);
           await refreshHealth();
           await loadMaterials();
+          renderAllImitationViralGrids();
         }
       }, 2000);
     }
   } else {
-    el.textContent = st.job ? `${st.status}: ${jobLabel(st.job)}` : "就绪";
-    log.textContent = st.output || "";
+    el.textContent = st.job ? `${st.status}: ${jobLabel(st.job)}` : "";
+    if (log) log.textContent = st.output || "";
   }
 }
 
@@ -6800,7 +7224,7 @@ function syncGlobalJobBadge(st) {
   badge.classList.toggle("hidden", !running);
   if (running) {
     badge.textContent = `后台：${jobLabel(st.job)}…`;
-    badge.title = "后台任务运行中，点击打开设置查看详情";
+    badge.title = "后台任务运行中（如规则拆解），完成后素材卡片自动刷新";
   }
 }
 
@@ -6843,17 +7267,13 @@ document.querySelectorAll(".job-btn").forEach((btn) => {
 
 // ── Init ─────────────────────────────────────────────────────────────────
 
-document.getElementById("openProductsBtn")?.addEventListener("click", () => {
+document.getElementById("openProductsFromSettings")?.addEventListener("click", () => {
   closeSettingsDrawer();
   switchView("products");
 });
 document.getElementById("openMaterialLibraryFromSettings")?.addEventListener("click", () => {
   closeSettingsDrawer();
   openMaterialLibraryDrawer();
-});
-document.getElementById("openProductsFromSettings")?.addEventListener("click", () => {
-  closeSettingsDrawer();
-  switchView("products");
 });
 document.getElementById("guideGoCollectorBtn")?.addEventListener("click", () => {
   closeStarterGuidePanel();
@@ -6885,6 +7305,11 @@ document.getElementById("runWorkspaceBackupBtn")?.addEventListener("click", asyn
 document.getElementById("settingsOpenBtn")?.addEventListener("click", () => openSettingsDrawer());
 document.getElementById("globalJobBadge")?.addEventListener("click", () => openSettingsDrawer());
 document.getElementById("globalPipelineBadge")?.addEventListener("click", () => {
+  const origin = state.pipelineOriginView;
+  const targetView = origin === "imitate" || origin === "generate"
+    ? origin
+    : (state.view === "imitate" ? "imitate" : "generate");
+  if (state.view !== targetView) switchView(targetView);
   activeStudioDock()?.scrollIntoView({ behavior: "smooth", block: "end" });
 });
 document.getElementById("restoreWorkflowBtn")?.addEventListener("click", () => { void restoreWorkflowSnapshot(); });
@@ -7054,7 +7479,7 @@ document.getElementById("videoGenErrorBannerClose")?.addEventListener("click", (
 });
 
 document.getElementById("produceCompleteBannerClose")?.addEventListener("click", () => {
-  dismissStudioFocus();
+  hideProduceCompleteBanner();
 });
 
 document.getElementById("produceCompleteModalCloseBtn")?.addEventListener("click", () => {
@@ -7097,22 +7522,11 @@ document.getElementById("videoQueueCloseBtn")?.addEventListener("click", () => {
 });
 
 document.getElementById("videoQueueCancelBtn")?.addEventListener("click", async () => {
-  const ticket = state.videoQueueTicket;
-  if (!ticket) return;
-  const wasRunning = state.videoGenActive;
-  abortVideoProduction();
-  stopVideoQueuePoll();
-  try {
-    await api(`/api/video-queue/${encodeURIComponent(ticket)}?client_id=${encodeURIComponent(ensureClientId())}`, {
-      method: "DELETE",
-    });
-    showVideoQueuePanel(false);
-    state.videoQueueTicket = null;
-    setScriptActionStatus(wasRunning ? "已取消生成" : "已取消排队", { forceDock: true });
-    resetSeedanceProgressDock();
-  } catch (err) {
-    if (!isAbortError(err)) showVideoGenError(err.message);
-  }
+  await cancelActivePipelineGeneration();
+});
+
+document.querySelectorAll(".pipeline-stop-btn").forEach((btn) => {
+  btn.addEventListener("click", () => { void cancelActivePipelineGeneration(); });
 });
 
 async function bootstrapApp() {
@@ -7140,6 +7554,7 @@ async function bootstrapApp() {
   syncDockScrollPadding();
   window.addEventListener("resize", syncDockScrollPadding);
   syncRestoreWorkflowButton();
+  initHotspotSync();
   activateView("generate");
   if (!isStarterGuideDismissed()) {
     window.setTimeout(() => openStarterGuidePanel(), 480);

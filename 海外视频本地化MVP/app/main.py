@@ -85,8 +85,10 @@ from .library_api import list_feedback, list_finished, load_feedback, load_templ
 from .feedback_loop import preview_constraints
 from .radar import radar_feed
 from .feedback_tags import ISSUE_TAG_DEFS
-from .llm_script import pick_template
 from .feishu_bridge import feishu_auth_url_payload, feishu_doctor_payload, feishu_status_payload
+from .hotspot_refresh import hotspot_status_payload, refresh_hotspot_videos
+from .llm_script import pick_template
+from .material_maintenance import maintenance_status_payload, run_material_maintenance
 from .olm_bridge import (
     build_delivery_zip,
     delivery_ready,
@@ -143,7 +145,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 185
+UI_VERSION = 191
 
 
 def _render_index() -> HTMLResponse:
@@ -278,6 +280,21 @@ class TikTokCollectorDbSyncRequest(BaseModel):
     product_id: str = ""
 
 
+class HotspotRefreshRequest(BaseModel):
+    product_id: str = ""
+    mode: str = "auto"  # auto | sync | collect
+    limit: int = Field(default=80, ge=1, le=200)
+    limit_per_keyword: int = Field(default=30, ge=1, le=200)
+
+
+class MaterialMaintenanceRequest(BaseModel):
+    product_id: str = ""
+    sync: bool = True
+    trim: bool = True
+    prune: bool = True
+    dry_run: bool = False
+
+
 class EnsureAnalysisRequest(BaseModel):
     provider: str = "rule"  # rule | doubao | auto
 
@@ -342,6 +359,8 @@ async def health() -> dict:
             "mysql_enabled": collector_database_enabled(),
             "runtime": _tiktok_collector_runtime(),
         },
+        "hotspot": hotspot_status_payload(),
+        "maintenance": maintenance_status_payload(),
         "production": production_profile(),
         "deployment": deployment_status(),
     }
@@ -801,6 +820,7 @@ async def prompt_library(
     reverse_type: str = Query(""),
     prompt_type: str = Query(""),
     limit: int = Query(200, ge=1, le=500),
+    for_selection: bool = Query(False),
 ) -> dict:
     items = list_prompts(
         product_id=product_id,
@@ -809,15 +829,19 @@ async def prompt_library(
         reverse_type=reverse_type,
         prompt_type=prompt_type,
         limit=limit,
+        for_selection=for_selection,
     )
     presets = [i for i in items if i.get("source") == "preset"]
+    approved_scripts = [i for i in items if i.get("source") == "approved_script"]
     reverse_items = [i for i in items if str(i.get("source") or "").startswith("reverse")]
     return {
         "total": len(items),
         "preset_count": len(presets),
+        "approved_script_count": len(approved_scripts),
         "reverse_count": len(reverse_items),
         "items": items,
         "presets": presets,
+        "approved_scripts": approved_scripts,
         "reverse": reverse_items,
     }
 
@@ -1026,6 +1050,57 @@ async def tiktok_collector_db_sync(body: TikTokCollectorDbSyncRequest) -> dict:
         "imported_new_links": result.imported_new_links,
         "updated_existing_links": result.updated_existing_links,
     }
+
+
+@app.get("/api/hotspot/status")
+async def hotspot_status() -> dict:
+    return {"ok": True, **hotspot_status_payload()}
+
+
+@app.post("/api/hotspot/refresh")
+async def hotspot_refresh(body: HotspotRefreshRequest) -> dict:
+    mode = (body.mode or "auto").strip().lower()
+    if mode == "collect":
+        os.environ["TIKTOK_COLLECTOR_HEADLESS"] = "false"
+        os.environ.setdefault("TIKTOK_COLLECTOR_MANUAL_VERIFY_WAIT_MS", "180000")
+    try:
+        result = await run_in_threadpool(
+            refresh_hotspot_videos,
+            product_id=body.product_id or "",
+            mode=mode,
+            limit=body.limit,
+            limit_per_keyword=body.limit_per_keyword,
+        )
+    except Exception as exc:
+        msg = str(exc).strip() or "热点更新失败"
+        if not msg.startswith("TikTok") and "Playwright" not in msg:
+            msg = f"热点更新失败: {msg}"
+        raise HTTPException(status_code=500, detail=msg) from exc
+    items = load_materials()
+    result["materials_total"] = len(items)
+    result["materials_analyzed"] = sum(1 for item in items if item.get("has_analysis"))
+    return result
+
+
+@app.get("/api/materials/maintenance/status")
+async def materials_maintenance_status() -> dict:
+    return {"ok": True, **maintenance_status_payload()}
+
+
+@app.post("/api/materials/maintenance/run")
+async def materials_maintenance_run(body: MaterialMaintenanceRequest) -> dict:
+    try:
+        result = await run_in_threadpool(
+            run_material_maintenance,
+            product_id=body.product_id or "",
+            sync=body.sync,
+            trim=body.trim,
+            prune=body.prune,
+            dry_run=body.dry_run,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"素材维护失败: {exc}") from exc
+    return result
 
 
 @app.post("/api/delivery/{slug}/finish")

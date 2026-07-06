@@ -335,6 +335,7 @@ def query_collector_database(
     source_keyword: str = "",
     processing_status: str = "",
     limit: int = 50,
+    order_by: str = "recent",
 ) -> CollectorDatabaseQueryResult:
     service = TikTokCollectorService()
     if not service.db.enabled:
@@ -346,6 +347,7 @@ def query_collector_database(
         source_keyword=source_keyword,
         processing_status=processing_status,
         limit=limit,
+        order_by=order_by,
     )
     return CollectorDatabaseQueryResult(
         db_enabled=True,
@@ -366,6 +368,8 @@ def sync_collector_database_to_workflow(
     processing_status: str = "",
     limit: int = 50,
     product_id: str = "",
+    strict_product_filter: bool = False,
+    order_by: str = "recent",
 ) -> CollectorDatabaseSyncResult:
     service = TikTokCollectorService()
     if not service.db.enabled:
@@ -383,6 +387,7 @@ def sync_collector_database_to_workflow(
         source_keyword=source_keyword,
         processing_status=processing_status,
         limit=limit,
+        order_by=order_by,
     )
     reviewed_records = [
         ReviewedTikTokVideoRecord(
@@ -404,6 +409,7 @@ def sync_collector_database_to_workflow(
         review_json_path=None,
         output_dir=str(service.settings.output_dir),
         product_id=product_id,
+        strict_product_filter=strict_product_filter,
     )
     return CollectorDatabaseSyncResult(
         db_enabled=True,

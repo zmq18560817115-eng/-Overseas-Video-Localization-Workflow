@@ -83,6 +83,7 @@ class TikTokVideoRepository:
         source_keyword: str = "",
         processing_status: str = "",
         limit: int = 20,
+        order_by: str = "recent",
     ) -> tuple[int, list[TikTokVideoRecord]]:
         if not self.db.enabled:
             return 0, []
@@ -109,9 +110,14 @@ class TikTokVideoRepository:
                 query = query.filter(TikTokVideoORM.processing_status == normalized_status)
 
             total = query.count()
-            rows = (
-                query.order_by(TikTokVideoORM.created_at.desc(), TikTokVideoORM.id.desc())
-                .limit(normalized_limit)
-                .all()
+            hot_score = (
+                TikTokVideoORM.like_count
+                + TikTokVideoORM.comment_count
+                + TikTokVideoORM.share_count
             )
+            if (order_by or "").strip().lower() == "hot":
+                order_clause = (hot_score.desc(), TikTokVideoORM.crawl_time.desc(), TikTokVideoORM.id.desc())
+            else:
+                order_clause = (TikTokVideoORM.created_at.desc(), TikTokVideoORM.id.desc())
+            rows = query.order_by(*order_clause).limit(normalized_limit).all()
             return total, [self._row_to_record(row) for row in rows]

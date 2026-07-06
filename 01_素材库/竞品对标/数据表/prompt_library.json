@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-06T04:11:17+00:00",
+  "updated_at": "2026-07-06T06:26:16+00:00",
   "items": [
     {
       "source": "preset",
@@ -17,9 +17,10 @@
         "scene-use"
       ],
       "prompt_id": "pl-preset-scene-use",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T04:11:17+00:00",
+      "updated_at": "2026-07-06T06:26:16+00:00",
       "_key": "preset|scene-use|"
     },
     {
@@ -37,9 +38,10 @@
         "pain-hook"
       ],
       "prompt_id": "pl-preset-pain-hook",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T04:11:17+00:00",
+      "updated_at": "2026-07-06T06:26:16+00:00",
       "_key": "preset|pain-hook|"
     },
     {
@@ -57,10 +59,32 @@
         "unbox"
       ],
       "prompt_id": "pl-preset-unbox",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T04:11:17+00:00",
+      "updated_at": "2026-07-06T06:26:16+00:00",
       "_key": "preset|unbox|"
+    },
+    {
+      "source": "preset",
+      "prompt_type": "brand-promo",
+      "label": "品牌宣传",
+      "sub": "品牌价值 · 信任背书",
+      "prompt_text": "品牌宣传短片结构：品牌理念一句话开场（解决什么问题、为谁而生）→产品作为品牌承诺的具象化载体入画（非硬广罗列参数）→2–3 个真实育儿场景混剪传递「可靠、贴心、专业」品牌气质→用户证言或数据背书（销量、口碑、奖项等可核实信息，禁止虚构）→品牌 Slogan + 温和 CTA（关注/了解系列）。口播稳重可信，画面统一品牌色调，竖屏 9:16。禁止 cure/treat/best/#1/medical grade 等禁用表述；温度展示约 98°F，禁止蒸汽沸腾。",
+      "prompt_text_en": "",
+      "product_id": "",
+      "content_line": "",
+      "sort_order": 4,
+      "tags": [
+        "preset",
+        "brand-promo"
+      ],
+      "prompt_id": "pl-preset-brand-promo",
+      "approval_status": "approved",
+      "usage_count": 0,
+      "created_at": "2026-07-06T06:26:16+00:00",
+      "updated_at": "2026-07-06T06:26:16+00:00",
+      "_key": "preset|brand-promo|"
     },
     {
       "source": "preset",
@@ -71,15 +95,16 @@
       "prompt_text_en": "",
       "product_id": "",
       "content_line": "",
-      "sort_order": 4,
+      "sort_order": 5,
       "tags": [
         "preset",
         "demo-proof"
       ],
       "prompt_id": "pl-preset-demo-proof",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T04:11:17+00:00",
+      "updated_at": "2026-07-06T06:26:16+00:00",
       "_key": "preset|demo-proof|"
     },
     {
@@ -91,15 +116,16 @@
       "prompt_text_en": "",
       "product_id": "",
       "content_line": "",
-      "sort_order": 5,
+      "sort_order": 6,
       "tags": [
         "preset",
         "travel-test"
       ],
       "prompt_id": "pl-preset-travel-test",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T04:11:17+00:00",
+      "updated_at": "2026-07-06T06:26:16+00:00",
       "_key": "preset|travel-test|"
     },
     {
@@ -111,15 +137,16 @@
       "prompt_text_en": "",
       "product_id": "",
       "content_line": "",
-      "sort_order": 6,
+      "sort_order": 7,
       "tags": [
         "preset",
         "soft-cta"
       ],
       "prompt_id": "pl-preset-soft-cta",
+      "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T04:11:17+00:00",
+      "updated_at": "2026-07-06T06:26:16+00:00",
       "_key": "preset|soft-cta|"
     }
   ]
