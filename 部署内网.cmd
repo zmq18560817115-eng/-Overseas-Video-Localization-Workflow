@@ -13,6 +13,15 @@ if not exist "海外视频本地化MVP\.venv\Scripts\python.exe" (
   exit /b 1
 )
 
+echo  正在校验 GitHub 部署包…
+"%~dp0海外视频本地化MVP\.venv\Scripts\python.exe" "%~dp0海外视频本地化MVP\scripts\verify_deploy_repo.py"
+if errorlevel 1 (
+  echo.
+  echo  部署包不完整，已中止启动。请 git pull 后重试或联系开发者。
+  pause
+  exit /b 1
+)
+echo.
 if not exist "海外视频本地化MVP\.env" (
   echo 首次部署：从 .env.example 复制配置…
   copy /Y "海外视频本地化MVP\.env.example" "海外视频本地化MVP\.env" >nul
