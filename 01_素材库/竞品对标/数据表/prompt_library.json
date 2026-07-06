@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-06T08:41:50+00:00",
+  "updated_at": "2026-07-06T09:18:08+00:00",
   "items": [
     {
       "source": "preset",
@@ -19,7 +19,7 @@
       "prompt_id": "pl-preset-scene-use",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T08:41:50+00:00",
+      "updated_at": "2026-07-06T09:18:08+00:00",
       "_key": "preset|scene-use|",
       "approval_status": "approved"
     },
@@ -40,7 +40,7 @@
       "prompt_id": "pl-preset-pain-hook",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T08:41:50+00:00",
+      "updated_at": "2026-07-06T09:18:08+00:00",
       "_key": "preset|pain-hook|",
       "approval_status": "approved"
     },
@@ -61,7 +61,7 @@
       "prompt_id": "pl-preset-unbox",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T08:41:50+00:00",
+      "updated_at": "2026-07-06T09:18:08+00:00",
       "_key": "preset|unbox|",
       "approval_status": "approved"
     },
@@ -82,7 +82,7 @@
       "prompt_id": "pl-preset-demo-proof",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T08:41:50+00:00",
+      "updated_at": "2026-07-06T09:18:08+00:00",
       "_key": "preset|demo-proof|",
       "approval_status": "approved"
     },
@@ -103,7 +103,7 @@
       "prompt_id": "pl-preset-travel-test",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T08:41:50+00:00",
+      "updated_at": "2026-07-06T09:18:08+00:00",
       "_key": "preset|travel-test|",
       "approval_status": "approved"
     },
@@ -124,7 +124,7 @@
       "prompt_id": "pl-preset-soft-cta",
       "usage_count": 0,
       "created_at": "2026-07-02T06:33:42+00:00",
-      "updated_at": "2026-07-06T08:41:50+00:00",
+      "updated_at": "2026-07-06T09:18:08+00:00",
       "_key": "preset|soft-cta|",
       "approval_status": "approved"
     },
@@ -537,7 +537,7 @@
       "approval_status": "approved",
       "usage_count": 0,
       "created_at": "2026-07-06T07:26:56+00:00",
-      "updated_at": "2026-07-06T08:41:50+00:00",
+      "updated_at": "2026-07-06T09:18:08+00:00",
       "_key": "preset|brand-promo|"
     }
   ]
