@@ -7,7 +7,8 @@
 - 脚本：link_has_script（脚本快照/{id}/script-pack.json 或 runs/ref-xxx/script-pack.json）
 - 出片：olm_bridge.delivery_ready（data.load_materials 已计算 delivery_ready 字段）
 - 归档：03_产出库/ref-xxx 是否存在版本目录
-- 资产：第一阶段为占位，Day 4 接入 product_assets / product_staging 后替换
+- 资产：复用 output_standards.build_asset_manifest / product_assets.get_product_white_hero_image，
+        不重新实现资产规则；硬规则原样保留——缺已批准的白底主图 = 出片 blocked。
 """
 from __future__ import annotations
 
@@ -16,6 +17,8 @@ from typing import Any
 from paths import PRODUCTION_ARCHIVE_DIR  # scripts/paths.py，运行时已在 sys.path
 
 from .. import data
+from ..output_standards import build_asset_manifest
+from ..product_assets import get_product_white_hero_image
 from .contracts import AgentName, AgentState, OrchestratorDecision, TaskStatus
 
 # 阶段顺序：主控 Agent 按此顺序找第一个未完成项作为 next_agent
@@ -101,17 +104,44 @@ def _script_state(payload: dict[str, Any], analysis: AgentState) -> AgentState:
     return state
 
 
-def _asset_state(payload: dict[str, Any], script: AgentState) -> AgentState:
-    """第一阶段占位：Day 4 接入 product_assets / product_staging 后替换本函数。"""
+def _asset_state(payload: dict[str, Any], script: AgentState, product_id: str) -> AgentState:
+    """硬规则不可绕过：缺已批准的白底主图 → 出片状态必须 blocked。
+    场景图/倒出口图只能进 Prompt、不能当垫图，由 build_asset_manifest 的
+    forbidden_use 字段承载，这里只读取它的结论，不重复判断细节。
+    """
     state = AgentState(agent=AgentName.ASSET)
     if not script.ready:
         state.status = TaskStatus.QUEUED
         state.next_suggestion = "等待脚本生成后检查产品素材"
         return state
-    state.status = TaskStatus.NEEDS_REVIEW
-    state.warnings.append("第一阶段资产检查未接入，白底主图与 shot_asset_map 请人工确认")
-    state.ready = True  # 占位阶段不拦截既有一键流程
-    state.next_suggestion = "人工确认 主图/白底主图.png 与 inputs/seedance-source.* 后可出片"
+    if not product_id:
+        state.status = TaskStatus.BLOCKED
+        state.blockers.append("未选择产品，无法核对白底主图")
+        state.next_suggestion = "请先在底部配置「产品」"
+        return state
+
+    hero = get_product_white_hero_image(product_id)
+    manifest = build_asset_manifest(product_id)
+    has_approved_hero = any(
+        a.get("asset_type") == "product_identity" and a.get("source_path") and a.get("approval_status") == "approved"
+        for a in manifest
+    )
+    state.detail = {"product_id": product_id, "manifest_count": len(manifest)}
+
+    if not hero or not hero.is_file() or not has_approved_hero:
+        state.status = TaskStatus.BLOCKED
+        state.blockers.append(f"未在 01_素材库/产品资料/{product_id}/**/主图/白底主图.png 找到可用的白底主图")
+        state.next_suggestion = "补齐白底主图后，在 8788 重新「生成脚本」或跑 refresh_project_seedance_source 刷新垫图"
+        return state
+
+    scene_or_pour_count = sum(
+        1 for a in manifest if a.get("asset_type") in ("scene", "usage_step", "detail_proof")
+    )
+    state.status = TaskStatus.SUCCEEDED if scene_or_pour_count else TaskStatus.NEEDS_REVIEW
+    state.ready = True
+    if scene_or_pour_count == 0:
+        state.warnings.append("没有场景图/倒出口参考，出片时缺少环境与用法演示素材（不阻断，仅提示）")
+    state.next_suggestion = "可继续出片" if scene_or_pour_count else "可以出片，但建议补充场景图/倒出口参考"
     return state
 
 
@@ -157,8 +187,12 @@ def _archive_state(payload: dict[str, Any], production: AgentState) -> AgentStat
     return state
 
 
-def evaluate_material(link_id: int) -> OrchestratorDecision:
-    """主控 Agent 入口：给出某条素材的整体判断。纯读，不执行任务。"""
+def evaluate_material(link_id: int, *, product_id: str = "") -> OrchestratorDecision:
+    """主控 Agent 入口：给出某条素材的整体判断。纯读，不执行任务。
+
+    product_id 用于资产阶段核对白底主图——素材本身不绑定固定产品，由调用方
+    （页面当前选中的产品）传入；不传则资产阶段会因缺产品而 blocked。
+    """
     decision = OrchestratorDecision(link_id=link_id)
     payload = data.material_detail(link_id)
     if payload is None:
@@ -170,7 +204,7 @@ def evaluate_material(link_id: int) -> OrchestratorDecision:
     collector = _collector_state(payload)
     analysis = _analysis_state(payload)
     script = _script_state(payload, analysis)
-    asset = _asset_state(payload, script)
+    asset = _asset_state(payload, script, product_id)
     production = _production_state(payload, asset)
     archive = _archive_state(payload, production)
 

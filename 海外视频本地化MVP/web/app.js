@@ -1176,7 +1176,7 @@ async function refreshAgentStateLine() {
   if (key === _lastAgentStateKey) return;
   _lastAgentStateKey = key;
   try {
-    const data = await api(`/api/materials/${linkId}/agent-state`);
+    const data = await api(`/api/materials/${linkId}/agent-state?product_id=${encodeURIComponent(productId)}`);
     const agents = data.agents || {};
     const parts = AGENT_STATE_LINE_ORDER.filter((name) => agents[name]).map((name) => {
       const a = agents[name];

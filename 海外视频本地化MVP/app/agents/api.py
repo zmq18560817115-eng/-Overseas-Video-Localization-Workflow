@@ -16,8 +16,8 @@ router = APIRouter()
 
 
 @router.get("/api/materials/{link_id}/agent-state")
-async def material_agent_state(link_id: int) -> dict:
-    decision = await run_in_threadpool(evaluate_material, link_id)
+async def material_agent_state(link_id: int, product_id: str = "") -> dict:
+    decision = await run_in_threadpool(evaluate_material, link_id, product_id=product_id)
     if decision.current_stage == "material_missing":
         raise HTTPException(status_code=404, detail=decision.blockers[0])
     return decision.to_dict()
