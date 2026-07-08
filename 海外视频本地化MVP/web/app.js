@@ -3510,8 +3510,8 @@ async function renderPromptSelectList() {
       items.push({
         id: row.prompt_id,
         promptId: row.prompt_id,
-        label: row.label || row.prompt_type,
-        sub: row.sub || text.slice(0, 48),
+        label: row.label || row.prompt_type || "预设风格",
+        sub: row.sub || text.slice(0, 48) || "点击查看完整提示词",
         text,
         kind: "preset",
         sortOrder: Number(row.sort_order) || 99,
@@ -3524,7 +3524,7 @@ async function renderPromptSelectList() {
       items.push({
         id: `approved-${row.prompt_id}`,
         promptId: row.prompt_id,
-        label: row.label || "已审核成稿",
+        label: row.label || `已审核成稿 ${row.prompt_id || ""}`.trim(),
         sub: row.sub || `成稿脚本 · 使用 ${usage} 次`,
         text,
         kind: "approved",
@@ -3559,8 +3559,8 @@ async function renderPromptSelectList() {
       data-prompt-idx="${idx}">
       <span class="feature-card-bg ${cardGrad(item.kind)}"></span>
       <span class="feature-card-label">
-        <strong>${esc(item.label)}</strong>
-        <span>${esc(item.sub || item.text)}</span>
+        <strong>${esc(item.label || "未命名风格")}</strong>
+        <span>${esc(item.sub || item.text || "暂无描述")}</span>
       </span>
     </button>`).join("");
   root.querySelectorAll(".prompt-select-card").forEach((card) => {
