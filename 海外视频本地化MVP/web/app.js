@@ -7899,7 +7899,15 @@ document.getElementById("btnDoubaoTestSettings")?.addEventListener("click", asyn
   if (el) el.textContent = "正在测试豆包连接…";
   try {
     const data = await api("/api/doubao/test");
-    if (el) el.textContent = data.ok ? `✅ ${data.message}` : `❌ ${data.message}`;
+    const video = data.video_analysis || {};
+    const script = data.script_generation || {};
+    if (el) {
+      const lines = [
+        `结构拆解（视频理解）：${video.ok ? "✅" : "❌"} ${video.message || "无返回"}`,
+        `脚本生成：${script.ok ? "✅" : "❌"} ${script.message || "无返回"}`,
+      ];
+      el.textContent = lines.join(" · ");
+    }
     await refreshHealth();
     renderDoubaoSettings(state.healthCache);
   } catch (err) {

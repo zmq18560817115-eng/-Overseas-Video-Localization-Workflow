@@ -35,9 +35,15 @@ class TikTokCollectorService:
         limit = min(request.limit_per_keyword, self.settings.max_results)
         for keyword in request.keywords:
             records.extend(self.scraper.collect_keyword(keyword, limit=limit))
+        db_upserted = 0
         if self.db.enabled:
-            self.db.init_db()
-        db_upserted = self.repository.upsert_records(records)
+            try:
+                self.db.init_db()
+                db_upserted = self.repository.upsert_records(records)
+            except Exception as exc:
+                # MySQL 是可选的后台同步；配置了但连不上时不应该让本次已经抓到的
+                # TikTok 数据也跟着报废——跳过写库，CSV/JSON 导出照常进行。
+                print(f"[tiktok_collector] MySQL 写入失败，跳过（不影响本次采集结果）: {exc}")
         clean_records, dropped_records = review_records(records, min_score=self.settings.clean_min_score)
         json_file: Path | None = None
         csv_file: Path | None = None
