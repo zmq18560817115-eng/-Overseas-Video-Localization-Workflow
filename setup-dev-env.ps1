@@ -146,6 +146,42 @@ if ($listening) {
 }
 
 Write-Host ''
+Write-Host '===== TikTok collector (video scraping) ====='
+$ChromeCandidates = @(
+    'C:\Program Files\Google\Chrome\Application\chrome.exe',
+    'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+    (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe'),
+    'C:\Program Files\Microsoft\Edge\Application\msedge.exe',
+    'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+)
+$FoundBrowser = $ChromeCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+$BundledChromium = Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA 'ms-playwright') -Directory -Filter 'chromium-*' -ErrorAction SilentlyContinue |
+    Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'chrome-win\chrome.exe') } |
+    Select-Object -First 1
+if ($FoundBrowser) {
+    Write-Host "[OK] System Chrome/Edge found"
+    Write-Host "     $FoundBrowser"
+} elseif ($BundledChromium) {
+    Write-Host "[OK] Bundled Playwright Chromium found"
+    Write-Host "     $($BundledChromium.FullName)"
+} else {
+    Write-Host '[MISS] No system Chrome/Edge found, and no bundled Playwright Chromium installed.'
+    Write-Host '       TikTok collection needs a visible browser window to complete login/verification —'
+    Write-Host '       either install Chrome/Edge, or run 海外视频本地化MVP\安装Playwright浏览器.cmd once.'
+    $Fail = $true
+}
+if ($WorkbenchDir) {
+    $WorkbenchVenvPy = Join-Path $WorkbenchDir.FullName '.venv\Scripts\python.exe'
+    $tkOk = & $WorkbenchVenvPy -c "import playwright, sqlalchemy, pymysql; print('ok')" 2>$null
+    if ($tkOk -eq 'ok') {
+        Write-Host '[OK] tiktok_collector Python deps (playwright/sqlalchemy/pymysql) importable from workbench venv'
+    } else {
+        Write-Host '[MISS] tiktok_collector Python deps not importable — rerun this script after checking requirements.txt install log above'
+        $Fail = $true
+    }
+}
+
+Write-Host ''
 Write-Host '===== Local workbench ====='
 try {
     $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8788/api/health' -TimeoutSec 2

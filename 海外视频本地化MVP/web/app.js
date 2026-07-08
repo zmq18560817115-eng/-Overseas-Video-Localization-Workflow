@@ -5557,7 +5557,11 @@ async function runCollectorImport() {
     if (statusEl) statusEl.textContent = "请至少输入一个关键词";
     return;
   }
-  if (!productId) return;
+  if (!productId) {
+    if (statusEl) statusEl.textContent = "请先在底部配置「产品」";
+    return;
+  }
+  if (!(await ensureCollectorReady())) return;
   if (statusEl) {
     statusEl.className = "seedance-status collector-status";
     statusEl.textContent = `正在采集「${currentProductLabel()}」同品类 TikTok 数据…若弹出浏览器，请在其中完成 TikTok 登录/验证码`;
