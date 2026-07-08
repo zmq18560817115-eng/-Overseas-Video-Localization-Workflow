@@ -1157,6 +1157,45 @@ function syncWorkflowGuide() {
     el.classList.toggle("is-ready", snap.productReady && snap.refReady && (!snap.promptNeeded || snap.promptReady));
     el.classList.toggle("is-warn", !snap.productReady || !snap.refReady || (snap.promptNeeded && !snap.promptReady));
   }
+  void refreshAgentStateLine();
+}
+
+const AGENT_LABELS = { analysis: "拆解", script: "脚本", asset: "资产" };
+let _lastAgentStateKey = "";
+
+async function refreshAgentStateLine() {
+  const lineIds = ["generateAgentStateLine", "imitateAgentStateLine"];
+  const linkId = Number(document.getElementById("scriptMaterialSelect")?.value || state.selectedMaterialId);
+  const productId = currentProductId();
+  if (!linkId || !productId) {
+    for (const id of lineIds) document.getElementById(id)?.classList.add("hidden");
+    return;
+  }
+  const key = `${linkId}:${productId}`;
+  if (key === _lastAgentStateKey) return;
+  _lastAgentStateKey = key;
+  try {
+    const data = await api(`/api/materials/${linkId}/agent-state?product_id=${encodeURIComponent(productId)}`);
+    const parts = (data.agents || []).map((a) => {
+      const label = AGENT_LABELS[a.agent] || a.agent;
+      const mark = { succeeded: "✅", blocked: "⛔", running: "⏳", needs_review: "⚠️" }[a.status] || "○";
+      return `${label}${mark}`;
+    });
+    const text = data.overall_status === "blocked"
+      ? `${parts.join(" ")} · ${data.next_suggestion || "存在阻断项"}`
+      : `${parts.join(" ")}${data.next_suggestion ? " · " + data.next_suggestion : ""}`;
+    for (const id of lineIds) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.textContent = text;
+      el.classList.remove("hidden");
+      el.classList.toggle("is-blocked", data.overall_status === "blocked");
+      el.classList.toggle("is-ready", data.overall_status === "completed" || data.overall_status === "ready");
+    }
+  } catch {
+    _lastAgentStateKey = "";
+    for (const id of lineIds) document.getElementById(id)?.classList.add("hidden");
+  }
 }
 
 function dockRunDefaultText(view = state.view) {

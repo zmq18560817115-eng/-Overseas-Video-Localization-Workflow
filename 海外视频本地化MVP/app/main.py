@@ -145,7 +145,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 210
+UI_VERSION = 211
 
 
 def _render_index() -> HTMLResponse:
@@ -630,6 +630,23 @@ async def material(link_id: int) -> dict:
     if not detail:
         raise HTTPException(status_code=404, detail="素材不存在")
     return detail
+
+
+@app.get("/api/materials/{link_id}/agent-state")
+async def material_agent_state(link_id: int, product_id: str = "") -> dict:
+    """Agent v1：这条素材现在卡在哪一步、下一步该点哪个按钮。只读判断，不触发任何任务。"""
+    from .agents.orchestrator import evaluate_material
+
+    return await run_in_threadpool(evaluate_material, link_id, product_id=product_id)
+
+
+@app.get("/api/agents/status")
+async def agents_status() -> dict:
+    """Agent v1：维护 Agent 的只读体检（出稿规则/部署包/清理预检），供设置页展示。"""
+    from .agents.maintenance_agent import evaluate as evaluate_maintenance
+
+    result = await run_in_threadpool(evaluate_maintenance)
+    return {"maintenance": result.to_dict()}
 
 
 @app.get("/api/materials/{link_id}/preview")
