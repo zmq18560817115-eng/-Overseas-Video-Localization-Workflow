@@ -1160,7 +1160,8 @@ function syncWorkflowGuide() {
   void refreshAgentStateLine();
 }
 
-const AGENT_LABELS = { analysis: "拆解", script: "脚本", asset: "资产" };
+// M1 orchestrator 只展示这三个阶段，与生成/爆款模仿面板原有的紧凑状态条保持一致
+const AGENT_STATE_LINE_ORDER = ["analysis", "script", "asset"];
 let _lastAgentStateKey = "";
 
 async function refreshAgentStateLine() {
@@ -1175,22 +1176,25 @@ async function refreshAgentStateLine() {
   if (key === _lastAgentStateKey) return;
   _lastAgentStateKey = key;
   try {
-    const data = await api(`/api/materials/${linkId}/agent-state?product_id=${encodeURIComponent(productId)}`);
-    const parts = (data.agents || []).map((a) => {
-      const label = AGENT_LABELS[a.agent] || a.agent;
+    const data = await api(`/api/materials/${linkId}/agent-state`);
+    const agents = data.agents || {};
+    const parts = AGENT_STATE_LINE_ORDER.filter((name) => agents[name]).map((name) => {
+      const a = agents[name];
       const mark = { succeeded: "✅", blocked: "⛔", running: "⏳", needs_review: "⚠️" }[a.status] || "○";
-      return `${label}${mark}`;
+      return `${a.label || name}${mark}`;
     });
-    const text = data.overall_status === "blocked"
-      ? `${parts.join(" ")} · ${data.next_suggestion || "存在阻断项"}`
-      : `${parts.join(" ")}${data.next_suggestion ? " · " + data.next_suggestion : ""}`;
+    const blocked = data.can_continue === false;
+    const nextSuggestion = (data.next_agent && agents[data.next_agent]?.next_suggestion) || "";
+    const text = blocked
+      ? `${parts.join(" ")} · ${(data.blockers && data.blockers[0]) || "存在阻断项"}`
+      : `${parts.join(" ")}${nextSuggestion ? " · " + nextSuggestion : ""}`;
     for (const id of lineIds) {
       const el = document.getElementById(id);
       if (!el) continue;
       el.textContent = text;
       el.classList.remove("hidden");
-      el.classList.toggle("is-blocked", data.overall_status === "blocked");
-      el.classList.toggle("is-ready", data.overall_status === "completed" || data.overall_status === "ready");
+      el.classList.toggle("is-blocked", blocked);
+      el.classList.toggle("is-ready", !blocked);
     }
   } catch {
     _lastAgentStateKey = "";
