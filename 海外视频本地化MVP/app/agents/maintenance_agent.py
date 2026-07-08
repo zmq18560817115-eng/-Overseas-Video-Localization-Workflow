@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .contracts import AgentResult
+from .contracts import AgentName, AgentState, TaskStatus
 
 MVP_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = MVP_ROOT / "scripts"
@@ -34,9 +34,8 @@ def _run_readonly_script(script_name: str, *, timeout: int = 60) -> tuple[bool, 
         return False, f"{script_name} 运行异常: {exc}"
 
 
-def evaluate() -> AgentResult:
+def evaluate() -> AgentState:
     warnings: list[str] = []
-    blockers: list[str] = []
     refs: list[str] = []
 
     ok_skill, tail_skill = _run_readonly_script("validate_output_standards_skill.py")
@@ -54,15 +53,14 @@ def evaluate() -> AgentResult:
     if not ok_preflight:
         warnings.append(f"清理预检发现需要人工确认的差异：{tail_preflight or '详见 preflight_cleanup.py 输出'}")
 
-    status = "succeeded" if not warnings else "needs_review"
+    status = TaskStatus.SUCCEEDED if not warnings else TaskStatus.NEEDS_REVIEW
     summary = "只读检查全部通过" if not warnings else f"只读检查发现 {len(warnings)} 项需要关注（均不阻断，仅提示）"
 
-    return AgentResult(
-        agent="maintenance",
+    return AgentState(
+        agent=AgentName.MAINTENANCE,
         status=status,
-        summary=summary,
-        blockers=blockers,
+        ready=True,
         warnings=warnings,
         next_suggestion="" if not warnings else "有空时看一眼上面几项提示，不影响日常使用",
-        refs=refs,
+        detail={"summary": summary, "refs": refs},
     )

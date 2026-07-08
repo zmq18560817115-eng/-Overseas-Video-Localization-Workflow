@@ -632,14 +632,6 @@ async def material(link_id: int) -> dict:
     return detail
 
 
-@app.get("/api/materials/{link_id}/agent-state")
-async def material_agent_state(link_id: int, product_id: str = "") -> dict:
-    """Agent v1：这条素材现在卡在哪一步、下一步该点哪个按钮。只读判断，不触发任何任务。"""
-    from .agents.orchestrator import evaluate_material
-
-    return await run_in_threadpool(evaluate_material, link_id, product_id=product_id)
-
-
 @app.get("/api/agents/status")
 async def agents_status() -> dict:
     """Agent v1：维护 Agent 的只读体检（出稿规则/部署包/清理预检），供设置页展示。"""
@@ -1389,6 +1381,11 @@ async def delivery_hero_frame_regenerate(slug: str, shot_number: int) -> dict:
         if "不存在" in msg:
             raise HTTPException(status_code=404, detail=msg) from exc
         raise HTTPException(status_code=500, detail=msg) from exc
+
+
+from .agents.api import router as agents_router
+
+app.include_router(agents_router)
 
 
 @app.on_event("startup")
