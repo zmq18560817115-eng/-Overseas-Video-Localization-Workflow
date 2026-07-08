@@ -106,13 +106,18 @@ def _merge_into(src: Path, dest: Path, *, backup_root: Path | None) -> tuple[int
 def _mklink_junction(link: Path, target: Path) -> None:
     link.parent.mkdir(parents=True, exist_ok=True)
     if os.name == "nt":
+        # NTFS junction 内部固定使用绝对路径，这是唯一合理选择。
         subprocess.run(
             ["cmd", "/c", "mklink", "/J", str(link), str(target)],
             check=True,
             capture_output=True,
         )
     else:
-        link.symlink_to(target, target_is_directory=True)
+        # 用相对路径建 symlink，避免把「本机绝对路径」写死进联接
+        # （否则换一台机器/换克隆目录，联接就会指向一个根本不存在的路径——
+        # 正是这份脚本最初要修的那类 bug）。
+        rel_target = os.path.relpath(target, start=link.parent)
+        link.symlink_to(rel_target, target_is_directory=True)
 
 
 def replace_legacy_dirs_with_junctions(*, dry_run: bool = False) -> list[str]:
@@ -181,18 +186,8 @@ def ensure_legacy_junctions() -> list[str]:
         if not target.is_dir():
             continue
         if link.exists() or link.is_symlink():
-            if link.is_symlink() or _is_junction(link):
-                continue
             continue
-        link.parent.mkdir(parents=True, exist_ok=True)
-        if os.name == "nt":
-            subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(link), str(target)],
-                check=True,
-                capture_output=True,
-            )
-        else:
-            link.symlink_to(target, target_is_directory=True)
+        _mklink_junction(link, target)
         created.append(f"{link.name} -> {target}")
     return created
 
