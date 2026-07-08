@@ -149,6 +149,25 @@
             <button type="button" class="secondary pill-btn pill-btn-sm" id="hotspotDecomposeBtn" title="对未拆解素材批量规则拆解（免费）">拆解素材</button>
             <button type="button" class="secondary pill-btn pill-btn-sm danger-outline" id="hotspotClearLibraryBtn" title="清空全部对标视频与拆解结果，保留产品与采集关键词，用于重新测试素材流程">重置测试素材</button>
           </div>
+          <details class="hotspot-advanced" id="collectorKeywordsBlock" open>
+            <summary>自定义关键词采集</summary>
+            <p class="hint muted">「采集并整理」按产品自动配的关键词抓取；这里可以自己填关键词，一行一个，再点「一键获取」按这些词去抓 TikTok。</p>
+            <div class="collector-form">
+              <label>
+                关键词（每行一个）
+                <textarea id="collectorKeywords" rows="3" placeholder="portable bottle warmer&#10;baby bottle warmer&#10;travel milk warmer"></textarea>
+              </label>
+              <label>
+                每个关键词抓取条数
+                <input type="number" id="collectorLimit" min="1" max="200" value="50" />
+              </label>
+              <div class="collector-actions">
+                <button type="button" class="primary pill-btn pill-btn-sm" id="collectorSubmitBtn" title="按上面填写的关键词抓取 TikTok，完成后自动入库">一键获取</button>
+              </div>
+              <p class="seedance-status collector-status" id="collectorStatus"></p>
+              <p class="collector-result muted" id="collectorResult"></p>
+            </div>
+          </details>
           <details class="hotspot-advanced">
             <summary>高级维护</summary>
             <div class="hotspot-sync-actions hotspot-advanced-actions">

@@ -5529,6 +5529,9 @@ function initHotspotSync() {
   document.getElementById("hotspotClearLibraryBtn")?.addEventListener("click", () => {
     void runClearMaterialLibrary();
   });
+  document.getElementById("collectorSubmitBtn")?.addEventListener("click", () => {
+    void runCollectorImport();
+  });
   syncHotspotStatusUi();
   if (isHotspotAutoSyncEnabled()) scheduleHotspotAutoSync();
 }
