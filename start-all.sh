@@ -2,7 +2,7 @@
 # 海外视频本地化 - 启动所有服务
 export DYLD_LIBRARY_PATH="/opt/homebrew/opt/expat/lib:${DYLD_LIBRARY_PATH:-}"
 export WORKBENCH_LAUNCHER=startup-cmd
-cd /Users/apple/.openclaw/workspace/vl-workflow
+cd "$(dirname "$0")"
 
 # 启动主工作台
 cd 海外视频本地化MVP

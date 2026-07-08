@@ -19,6 +19,7 @@ if str(MVP_ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(MVP_ROOT / "scripts"))
 
 from ensure_legacy_paths import ensure_legacy_junctions, replace_legacy_dirs_with_junctions  # noqa: E402
+from preflight_cleanup import main as run_preflight  # noqa: E402
 
 JUNK_GLOBS = (
     WORKFLOW_ROOT / "temp",
@@ -162,6 +163,9 @@ def main() -> int:
     dry = args.dry_run
 
     report: dict[str, object] = {"dry_run": dry, "steps": []}
+
+    print("=== 0. 差异预检（只读，不改动任何文件） ===")
+    run_preflight()
 
     print("=== 1. 合并重复目录并建立 junction ===")
     if args.skip_junction:

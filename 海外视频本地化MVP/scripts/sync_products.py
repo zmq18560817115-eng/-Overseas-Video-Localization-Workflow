@@ -72,7 +72,38 @@ PRODUCT_FIELDS = [
     "competitor_ref",
     "source_path",
     "synced_at",
+    "internal_notes",
 ]
+
+# 出稿前的内容红线：core_selling_points / price_range 中命中以下任意关键词的分句，
+# 一律不进入可出稿文案，转入 internal_notes（人工可见但不喂给脚本生成）并追加进 forbidden_terms。
+# 不做正则模糊匹配，只做子串命中——宁可漏过，不误伤正常卖点。
+RISK_MARKERS = [
+    "医疗级", "medical grade", "fda approved",
+    "guaranteed", "保证", "100%有效", "包治", "根治",
+    "cure", "treat", "diagnose", "pain-free", "painless guarantee",
+    "increase milk supply", "boost lactation",
+    "没有奶", "追奶", "催奶", "下奶", "通乳",
+    "性价比最高", "万元以上的体验", "best", "#1", "completely silent",
+]
+
+
+def _split_claims(text: str) -> tuple[str, list[str]]:
+    """按「；」拆句，命中风险关键词的分句移出，返回 (可出稿文本, 移出的分句列表)。"""
+    if not text:
+        return text, []
+    approved: list[str] = []
+    blocked: list[str] = []
+    for chunk in text.split("；"):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        low = chunk.lower()
+        if any(marker.lower() in low for marker in RISK_MARKERS):
+            blocked.append(chunk)
+        else:
+            approved.append(chunk)
+    return "；".join(approved), blocked
 
 SECTION_TO_FIELD: list[tuple[str, str]] = [
     ("适用人群", "target_audience"),
@@ -391,6 +422,18 @@ def sync_products() -> tuple[list[dict[str, str]], str]:
 
     merged = [by_id[pid] for pid in PILOT_PRODUCT_IDS if pid in by_id]
 
+    for row in merged:
+        approved_sp, blocked_sp = _split_claims(row.get("core_selling_points", ""))
+        approved_price, blocked_price = _split_claims(row.get("price_range", ""))
+        blocked_all = blocked_sp + blocked_price
+        row["core_selling_points"] = approved_sp
+        row["price_range"] = approved_price
+        row["internal_notes"] = "；".join(blocked_all)
+        if blocked_all:
+            existing_forbidden = str(row.get("forbidden_terms") or "").strip()
+            addition = "；".join(blocked_all)
+            row["forbidden_terms"] = f"{existing_forbidden}；{addition}" if existing_forbidden else addition
+
     PRODUCT_MATERIALS_DIR.mkdir(parents=True, exist_ok=True)
     keep_ids = {row["product_id"] for row in merged}
     for old in PRODUCT_MATERIALS_DIR.glob("*.md"):
@@ -406,6 +449,7 @@ def sync_products() -> tuple[list[dict[str, str]], str]:
             f"## 禁用词/风险表述\n{row['forbidden_terms']}\n\n"
             f"## 价格区间\n{row['price_range'] or '待补充'}\n\n"
             f"## 竞品参考\n{row['competitor_ref']}\n\n"
+            f"## 内部备注（不可直接出稿，仅供人工核对）\n{row['internal_notes'] or '无'}\n\n"
             f"> 来源: {row['source_path']}\n"
         )
         (PRODUCT_MATERIALS_DIR / f"{row['product_id']}.md").write_text(md, encoding="utf-8")

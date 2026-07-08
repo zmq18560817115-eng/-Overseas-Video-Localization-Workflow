@@ -1,6 +1,6 @@
 #!/bin/bash
 # 自动拉取 GitHub 更新并重启服务
-cd /Users/apple/.openclaw/workspace/vl-workflow
+cd "$(dirname "$0")"
 
 LOG="/tmp/vl-auto-update.log"
 echo "$(date): Checking for updates..." >> "$LOG"

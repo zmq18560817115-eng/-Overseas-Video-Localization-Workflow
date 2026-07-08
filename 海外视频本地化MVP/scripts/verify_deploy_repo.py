@@ -120,11 +120,11 @@ def main() -> int:
     record("工作区根目录", WORKFLOW_ROOT.is_dir(), _rel(WORKFLOW_ROOT))
 
     for rel in REQUIRED_DIRS:
-        p = WORKFLOW_ROOT / rel.replace("/", "\\")
+        p = WORKFLOW_ROOT / rel
         record(f"目录 · {rel}", p.is_dir(), _rel(p) if p.is_dir() else "缺失")
 
     for rel in REQUIRED_FILES:
-        p = WORKFLOW_ROOT / rel.replace("/", "\\")
+        p = WORKFLOW_ROOT / rel
         record(f"文件 · {rel}", p.is_file(), _rel(p) if p.is_file() else "缺失")
 
     ui_ver = _read_ui_version()
@@ -148,7 +148,7 @@ def main() -> int:
     record("SeedDance 白底主图", white_bg.is_file() and white_bg.stat().st_size > 500, _rel(white_bg))
 
     for rel, hint in WARN_IF_MISSING:
-        p = WORKFLOW_ROOT / rel.replace("/", "\\")
+        p = WORKFLOW_ROOT / rel
         if not p.exists():
             record(rel, False, hint, level="warn")
 
