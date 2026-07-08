@@ -342,13 +342,19 @@ def query_collector_database(
         return CollectorDatabaseQueryResult(db_enabled=False, total=0, items=[])
 
     repository = TikTokVideoRepository(service.db)
-    total, records = repository.list_records(
-        q=q,
-        source_keyword=source_keyword,
-        processing_status=processing_status,
-        limit=limit,
-        order_by=order_by,
-    )
+    try:
+        total, records = repository.list_records(
+            q=q,
+            source_keyword=source_keyword,
+            processing_status=processing_status,
+            limit=limit,
+            order_by=order_by,
+        )
+    except Exception as exc:
+        # TIKTOK_COLLECTOR_MYSQL_URL 已配置但 MySQL 未启动/不可达 —— 按“MySQL 不可用”降级，
+        # 不让整个请求 500，MySQL 本来就是可选的后台同步，CSV/JSON 才是唯一必须可用的数据源。
+        print(f"[tiktok_collector] MySQL query failed, degrading to db_enabled=False: {exc}")
+        return CollectorDatabaseQueryResult(db_enabled=False, total=0, items=[])
     return CollectorDatabaseQueryResult(
         db_enabled=True,
         total=total,
@@ -382,13 +388,24 @@ def sync_collector_database_to_workflow(
         )
 
     repository = TikTokVideoRepository(service.db)
-    total, records = repository.list_records(
-        q=q,
-        source_keyword=source_keyword,
-        processing_status=processing_status,
-        limit=limit,
-        order_by=order_by,
-    )
+    try:
+        total, records = repository.list_records(
+            q=q,
+            source_keyword=source_keyword,
+            processing_status=processing_status,
+            limit=limit,
+            order_by=order_by,
+        )
+    except Exception as exc:
+        # 同上：MySQL 配置了但连不上时按“未启用”降级，不炸整个采集/整理请求。
+        print(f"[tiktok_collector] MySQL sync failed, degrading to db_enabled=False: {exc}")
+        return CollectorDatabaseSyncResult(
+            db_enabled=False,
+            queried_total=0,
+            synced_count=0,
+            imported_new_links=0,
+            updated_existing_links=0,
+        )
     reviewed_records = [
         ReviewedTikTokVideoRecord(
             **record.model_dump(),
