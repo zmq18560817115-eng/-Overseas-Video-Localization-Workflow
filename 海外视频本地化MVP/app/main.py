@@ -145,7 +145,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 207
+UI_VERSION = 208
 
 
 def _render_index() -> HTMLResponse:
@@ -620,7 +620,7 @@ async def ensure_material_analysis(link_id: int, body: EnsureAnalysisRequest | N
 async def material_thumbnail(link_id: int) -> FileResponse:
     path = ensure_thumbnail_cached(link_id)
     if not path or not path.is_file():
-        raise HTTPException(status_code=404, detail="封面不可用，请在「设置」运行「同步 TikTok」或「缓存封面」")
+        raise HTTPException(status_code=404, detail="封面不可用，请在「设置 → 素材维护」点「采集并整理」重新同步")
     return FileResponse(path, media_type="image/jpeg", filename=f"{link_id}.jpg")
 
 

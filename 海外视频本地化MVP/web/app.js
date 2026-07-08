@@ -3113,7 +3113,7 @@ async function renderRadarGrid(gridId, descId) {
     if (desc) {
       desc.textContent = items.length
         ? `综合播放、互动与结构拆解，为「${currentProductLabel()}」推荐 ${items.length} 条选题（CreatOK 式雷达）`
-        : `当前产品暂无已拆解对标，请先在设置同步 TikTok 或打开「对标」浏览`;
+        : `当前产品暂无已拆解对标，请先在设置 → 素材维护点「采集并整理」，或打开「对标」浏览`;
     }
     if (!items.length) {
       root.innerHTML = '<p class="muted module-feature-empty">暂无雷达推荐，请先同步并拆解同品类素材。</p>';
@@ -3144,8 +3144,8 @@ function syncImitationViralGridDesc(descId, count, variant = "generate") {
   }
   if (!count) {
     el.textContent = variant === "imitate"
-      ? `当前产品「${currentProductLabel()}」暂无已抓取对标，可在设置同步 TikTok 或打开「对标」浏览`
-      : `当前产品「${currentProductLabel()}」暂无已拆解对标，占位预留 · 可在设置中同步 TikTok 或打开「对标」浏览`;
+      ? `当前产品「${currentProductLabel()}」暂无已抓取对标，可在设置 → 素材维护点「采集并整理」，或打开「对标」浏览`
+      : `当前产品「${currentProductLabel()}」暂无已拆解对标，占位预留 · 可在设置 → 素材维护点「采集并整理」，或打开「对标」浏览`;
     return;
   }
   el.textContent = variant === "imitate"
@@ -6217,7 +6217,7 @@ function renderMaterialList() {
   const root = document.getElementById("materialList");
   if (!root) return;
   if (!state.items.length) {
-    root.innerHTML = '<div class="detail-empty">无匹配素材。请先在「设置」同步 TikTok。</div>';
+    root.innerHTML = '<div class="detail-empty">无匹配素材。请先在「设置 → 素材维护」点「采集并整理」。</div>';
     renderMaterialListPreview();
     return;
   }
