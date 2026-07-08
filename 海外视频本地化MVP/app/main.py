@@ -145,7 +145,7 @@ class StaticNoCacheMiddleware(BaseHTTPMiddleware):
 app.add_middleware(StaticNoCacheMiddleware)
 app.add_middleware(WorkbenchAuthMiddleware)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
-UI_VERSION = 209
+UI_VERSION = 210
 
 
 def _render_index() -> HTMLResponse:
@@ -647,7 +647,7 @@ async def _material_preview_payload(link_id: int, product_id: str = "") -> dict:
     if not detail:
         raise HTTPException(status_code=404, detail="素材不存在")
     if not detail.get("analysis"):
-        raise HTTPException(status_code=409, detail="该素材尚未结构拆解，请先在「设置」运行「结构拆解」")
+        raise HTTPException(status_code=409, detail="该素材尚未结构拆解，请先点「拆解素材」（设置 → 素材维护）")
 
     products = list_products()
     product = None

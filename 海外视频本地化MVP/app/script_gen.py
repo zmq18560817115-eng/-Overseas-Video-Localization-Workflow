@@ -67,7 +67,7 @@ def generate_script(
         raise ValueError("素材不存在")
     analysis = detail.get("analysis")
     if not analysis:
-        raise ValueError("该素材尚未结构拆解，请先在「设置」运行「结构拆解」")
+        raise ValueError("该素材尚未结构拆解，请先点「拆解素材」（设置 → 素材维护）")
 
     product = _pick_product(detail.get("products") or [], product_id)
     pid = product.get("product_id", "")

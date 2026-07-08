@@ -5270,15 +5270,19 @@ async function runDecomposeNewMaterials() {
     await openProductFloatPanel();
     return;
   }
-  const ok = window.confirm("将对未拆解素材批量执行规则拆解（免费，不消耗豆包）。后台运行，可点顶栏「后台任务」查看进度。\n\n确定？");
+  const doubaoReady = state.healthCache?.video_analysis?.mode === "doubao";
+  const confirmMsg = doubaoReady
+    ? "将对未拆解素材批量执行豆包 AI 结构拆解（消耗豆包额度）。后台运行，可点顶栏「后台任务」查看进度。\n\n确定？"
+    : "豆包未配置，将对未拆解素材批量执行规则拆解（免费，效果弱于 AI）。后台运行，可点顶栏「后台任务」查看进度。\n\n确定？";
+  const ok = window.confirm(confirmMsg);
   if (!ok) return;
   try {
     await api("/api/jobs/decompose", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "rule", product_id: productId }),
+      body: JSON.stringify({ provider: "auto", product_id: productId }),
     });
-    setScriptActionStatus("已启动规则拆解，完成后素材卡片将自动刷新");
+    setScriptActionStatus(doubaoReady ? "已启动豆包 AI 拆解，完成后素材卡片将自动刷新" : "已启动规则拆解，完成后素材卡片将自动刷新");
     await pollJobStatus();
   } catch (err) {
     setScriptActionStatus(friendlyApiErrorMessage(err.message), { isError: true });
