@@ -1382,6 +1382,16 @@ async def _warm_delivery_engine() -> None:
         print(f"[warn] 交付引擎 ffmpeg 预热失败: {exc}")
 
 
+@app.on_event("startup")
+async def _start_auto_collect() -> None:
+    try:
+        from .auto_collect import start_auto_collect_if_enabled
+
+        start_auto_collect_if_enabled()
+    except Exception as exc:
+        print(f"[warn] 后台定时采集启动失败: {exc}")
+
+
 @app.get("/api/delivery/{slug}/files/{file_path:path}")
 async def delivery_file(slug: str, file_path: str) -> FileResponse:
     if not file_path.startswith("broll/"):
